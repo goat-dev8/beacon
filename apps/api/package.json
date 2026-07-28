@@ -1,0 +1,31 @@
+{
+  "name": "@beacon/api",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@beacon/acceptance": "*",
+    "@beacon/quote": "*",
+    "@beacon/receipts": "*",
+    "@beacon/shared": "*",
+    "@beacon/smart-accounts": "*",
+    "@beacon/x402": "*",
+    "@fastify/cors": "^11.3.0",
+    "@fastify/sensible": "^6.0.4",
+    "@upstash/redis": "^1.38.1",
+    "dotenv": "^17.4.2",
+    "ethers": "^6.17.0",
+    "fastify": "^5.11.2",
+    "pg": "^8.22.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.4"
+  }
+}
