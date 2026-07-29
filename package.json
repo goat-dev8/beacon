@@ -1,0 +1,54 @@
+{
+  "name": "beacon",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Finish AI work. Pay only when it passes.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/shared",
+    "packages/x402",
+    "packages/quote",
+    "packages/acceptance",
+    "packages/pipeline",
+    "packages/receipts",
+    "packages/fdc",
+    "packages/smart-accounts",
+    "services/orchestrator",
+    "services/settler",
+    "apps/api"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "vitest run",
+    "test:contracts": "cd packages/contracts && forge test",
+    "typecheck": "tsc -b",
+    "verify:env": "tsx scripts/verify-env.ts",
+    "probe:ai": "tsx scripts/probe-agentrouter.ts",
+    "test:ai": "tsx scripts/ai-integration.ts",
+    "test:fcc": "tsx scripts/fcc-instruction-test.ts",
+    "db:migrate": "tsx scripts/db-migrate.ts",
+    "e2e": "tsx scripts/e2e-job-loop.ts",
+    "api": "tsx apps/api/src/index.ts",
+    "orchestrator": "tsx services/orchestrator/src/index.ts",
+    "settler": "tsx services/settler/src/index.ts",
+    "ci": "npm run typecheck && npm run test && npm run test:contracts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.11.11",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.2"
+  },
+  "dependencies": {
+    "@beacon/shared": "*",
+    "@beacon/smart-accounts": "*",
+    "@upstash/redis": "^1.38.1",
+    "dotenv": "^17.4.2",
+    "ethers": "^6.17.0",
+    "pg": "^8.22.0"
+  }
+}
