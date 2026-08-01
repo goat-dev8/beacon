@@ -1,0 +1,50 @@
+import { describe, expect, it } from "vitest";
+import { buildAgentRouterHeaders, extractJsonObject, resolveModelForRole } from "./ai.js";
+import { loadEnv, resetEnvCache } from "./env.js";
+
+function normalizeOpenAiBase(baseUrl: string): string {
+  const trimmed = baseUrl.replace(/\/$/, "");
+  if (trimmed.endsWith("/v1")) return trimmed;
+  return `${trimmed}/v1`;
+}
+
+describe("AgentRouter wire headers", () => {
+  it("includes Claude Code wire-image markers", () => {
+    const headers = buildAgentRouterHeaders("sk-test");
+    expect(headers.Authorization).toBe("Bearer sk-test");
+    expect(headers["x-api-key"]).toBe("sk-test");
+    expect(headers["User-Agent"]).toContain("claude-cli/");
+    expect(headers["anthropic-version"]).toBe("2023-06-01");
+    expect(headers["x-app"]).toBe("cli");
+    expect(headers["X-Stainless-Lang"]).toBe("js");
+  });
+
+  it("normalizes base URL to /v1", () => {
+    expect(normalizeOpenAiBase("https://agentrouter.org")).toBe("https://agentrouter.org/v1");
+    expect(normalizeOpenAiBase("https://agentrouter.org/v1/")).toBe("https://agentrouter.org/v1");
+  });
+
+  it("extracts JSON object from fenced model output", () => {
+    const parsed = extractJsonObject<{ pass: boolean }>(
+      'Sure.\n```json\n{"pass":true,"notes":["ok"]}\n```',
+    );
+    expect(parsed.pass).toBe(true);
+  });
+});
+
+describe("model role defaults", () => {
+  it("resolves configured generator/judge roles", () => {
+    resetEnvCache();
+    const env = loadEnv({
+      ...process.env,
+      AI_MODEL_GENERATOR: "claude-opus-5",
+      AI_MODEL_JUDGE: "gpt-5.6-sol",
+      AI_MODEL_QUOTE: "gpt-5.6-sol",
+      AI_MODEL_ACCEPTANCE: "claude-opus-4-8",
+    });
+    expect(resolveModelForRole("generator", env)).toBe("claude-opus-5");
+    expect(resolveModelForRole("judge", env)).toBe("gpt-5.6-sol");
+    expect(resolveModelForRole("quote", env)).toBe("gpt-5.6-sol");
+    expect(resolveModelForRole("acceptance", env)).toBe("claude-opus-4-8");
+  });
+});
