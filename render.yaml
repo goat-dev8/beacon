@@ -1,0 +1,82 @@
+services:
+  - type: web
+    name: beacon-api
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PORT
+        value: 10000
+      - key: CHAIN_ID
+        value: "114"
+      - key: NETWORK_NAME
+        value: coston2
+      - key: SIMULATED_TEE
+        value: "true"
+      - key: ENABLE_API
+        value: "true"
+      - key: ENABLE_FCC
+        value: "true"
+      - key: ENABLE_PIPELINE
+        value: "true"
+      - key: COSTON2_RPC_URL
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_DIRECT
+        sync: false
+      - key: DATABASE_SSL
+        value: "true"
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: AI_BASE_URL
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL_GENERATOR
+        sync: false
+      - key: AI_MODEL_JUDGE
+        sync: false
+      - key: AI_MODEL_QUOTE
+        sync: false
+      - key: AI_MODEL_ACCEPTANCE
+        sync: false
+      - key: AI_REQUIRE_REAL
+        value: "true"
+      - key: DEPLOYER_PRIVATE_KEY
+        sync: false
+      - key: DEPLOYER_ADDRESS
+        sync: false
+      - key: DEPLOYMENT_PRIVATE_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: X402_TOKEN_ADDRESS
+        sync: false
+      - key: X402_FACILITATOR_ADDRESS
+        sync: false
+      - key: X402_PAYEE_ADDRESS
+        sync: false
+      - key: BEACON_JOB_REGISTRY
+        sync: false
+      - key: BEACON_ESCROW
+        sync: false
+      - key: INSTRUCTION_SENDER
+        sync: false
+      - key: EXTENSION_ID
+        sync: false
+      - key: EXT_PROXY_URL
+        sync: false
+      - key: NORMAL_PROXY_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: API_URL
+        sync: false
