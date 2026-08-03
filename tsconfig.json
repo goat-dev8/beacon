@@ -1,0 +1,16 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/x402" },
+    { "path": "packages/quote" },
+    { "path": "packages/acceptance" },
+    { "path": "packages/pipeline" },
+    { "path": "packages/receipts" },
+    { "path": "packages/fdc" },
+    { "path": "packages/smart-accounts" },
+    { "path": "services/orchestrator" },
+    { "path": "services/settler" },
+    { "path": "apps/api" }
+  ]
+}
