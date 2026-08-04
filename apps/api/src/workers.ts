@@ -84,6 +84,12 @@ async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promi
         briefText: job.brief_text ?? "",
         outputDir,
       });
+      console.log(
+        "[workers] pipeline artifacts",
+        job.id,
+        job.service_id,
+        result.artifacts.map((a) => `${a.kind}:${a.mimeType}`).join(","),
+      );
       for (const artifact of result.artifacts) {
         await db.query(
           `INSERT INTO artifacts (job_id, kind, uri, meta) VALUES ($1, $2, $3, $4::jsonb)`,

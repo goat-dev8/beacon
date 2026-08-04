@@ -142,6 +142,10 @@ async function composeDeliverable(
   job: PipelineJob,
   inputs: StageArtifact[],
 ): Promise<StageArtifact[]> {
+  if (job.serviceId === "image") {
+    return composeImageDeliverable(job, inputs);
+  }
+
   if (job.serviceId === "video") {
     const manifestPath = path.join(job.outputDir, "composition.manifest.json");
     const manifest: RemotionComposition = {
@@ -220,10 +224,6 @@ async function composeDeliverable(
     }
 
     return artifacts;
-  }
-
-  if (job.serviceId === "image") {
-    return composeImageDeliverable(job, inputs);
   }
 
   const packPath = path.join(job.outputDir, "deliverable.md");
