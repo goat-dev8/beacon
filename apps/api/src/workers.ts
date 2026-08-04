@@ -122,29 +122,41 @@ async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promi
       status = await advance(db, redis, job.id, status, "artifacts_ready");
     }
     if (status === JobStatus.ACCEPTING) {
-      const { rows: artifacts } = await db.query(
-        `SELECT kind, uri, meta FROM artifacts WHERE job_id = $1`,
-        [job.id],
-      );
-      const report = await runAcceptance({
-        jobId: job.id,
-        serviceId: job.service_id,
-        rubricVersion: "v1",
-        artifacts: artifacts.map((a) => ({
-          kind: a.kind,
-          uri: a.uri,
-          mimeType: (a.meta as { mimeType?: string })?.mimeType,
-          payload: a.meta,
-        })),
-      });
-      await db.query(
-        `INSERT INTO accept_reports (job_id, result, report_json, confidence)
-         VALUES ($1, $2, $3::jsonb, $4)`,
-        [job.id, report.result, JSON.stringify(report), report.confidence],
-      );
-      status = await advance(db, redis, job.id, status, "accept_report", report.result);
-      if (report.result === "PASS") await redis.lpush("q:settle", job.id);
-      else if (report.result === "FAIL") await redis.lpush("q:settle", `refuse:${job.id}`);
+      try {
+        const { rows: artifacts } = await db.query(
+          `SELECT kind, uri, meta FROM artifacts WHERE job_id = $1`,
+          [job.id],
+        );
+        const report = await runAcceptance({
+          jobId: job.id,
+          serviceId: job.service_id,
+          rubricVersion: "v1",
+          artifacts: artifacts.map((a) => ({
+            kind: a.kind,
+            uri: a.uri,
+            mimeType: (a.meta as { mimeType?: string })?.mimeType,
+            payload: a.meta,
+          })),
+        });
+        await db.query(
+          `INSERT INTO accept_reports (job_id, result, report_json, confidence)
+           VALUES ($1, $2, $3::jsonb, $4)`,
+          [job.id, report.result, JSON.stringify(report), report.confidence],
+        );
+        status = await advance(db, redis, job.id, status, "accept_report", report.result);
+        if (report.result === "PASS") await redis.lpush("q:settle", job.id);
+        else if (report.result === "FAIL") await redis.lpush("q:settle", `refuse:${job.id}`);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[workers] acceptance failed", job.id, message);
+        await publish(redis, job.id, "error", { stage: "acceptance", message: message.slice(0, 400) });
+        // Soft-pass objective already ran inside runAcceptance; if judge hangs/throws,
+        // fail closed with refund rather than infinite ACCEPTING retries.
+        await db.query(`UPDATE jobs SET status = 'FAILED', updated_at = NOW() WHERE id = $1`, [
+          job.id,
+        ]);
+        await redis.lpush("q:settle", `refuse:${job.id}`);
+      }
     }
   } finally {
     await redis.del(lockKey);
