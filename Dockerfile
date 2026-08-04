@@ -5,6 +5,7 @@ COPY package.json package-lock.json ./
 COPY packages ./packages
 COPY services ./services
 COPY apps/api ./apps/api
+COPY apps/web/package.json ./apps/web/package.json
 COPY tsconfig.json ./
 RUN npm ci \
   && npm run build -w @beacon/shared \
