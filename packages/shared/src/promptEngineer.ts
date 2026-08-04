@@ -16,6 +16,27 @@ export interface EngineeredPrompt {
 
 function heuristicImagePrompt(brief: string): EngineeredPrompt {
   const cleaned = brief.trim().replace(/\s+/g, " ").slice(0, 400);
+  const isLogo = /\b(logo|brand\s*mark|wordmark|identity|icon\s*for)\b/i.test(cleaned);
+  if (isLogo) {
+    return {
+      prompt: [
+        cleaned,
+        "premium brand identity system, flat vector logo mark,",
+        "centered geometric monogram or wordmark, mint green accent #39e08a,",
+        "warm cream paper background #f4f1ea, charcoal ink,",
+        "Swiss graphic design, generous negative space, crisp edges,",
+        "no photorealism, no 3d render, no lens flare, no fake metal,",
+        "studio brand guideline sheet aesthetic, high-end agency quality",
+      ].join(" "),
+      negativePrompt:
+        "photorealistic, lens flare, blurry, watermark, messy typography, extra letters, low contrast, cluttered, 3d chrome, neon glow, purple gradient",
+      style: "vector-brand-logo",
+      aspectHint: "1:1",
+      model: "heuristic-logo",
+      latencyMs: 0,
+      source: "local-heuristic",
+    };
+  }
   return {
     prompt: [
       cleaned,
@@ -40,24 +61,19 @@ function heuristicVideoShots(brief: string): EngineeredPrompt {
   const base = brief.trim().slice(0, 220);
   return {
     prompt: base,
-    negativePrompt: "blurry, watermark, text spam, low quality",
+    negativePrompt: "blurry, watermark, text spam, low quality, morphing animals",
     style: "cinematic-product",
     aspectHint: "9:16",
     shotList: [
       {
         beat: "Hook",
         seconds: 4,
-        prompt: `${base}, cinematic opening hero frame, dramatic soft light, premium brand still, vertical 9:16`,
+        prompt: `${base}, cinematic opening hero frame, dramatic soft light, ultra sharp, vertical 9:16, photoreal`,
       },
       {
-        beat: "Promise",
+        beat: "Action",
         seconds: 5,
-        prompt: `${base}, mid-shot product/service moment, clean desk aesthetic, confident modern design, vertical 9:16`,
-      },
-      {
-        beat: "CTA",
-        seconds: 4,
-        prompt: `${base}, closing brand frame, calm confidence, mint accent, generous space for title, vertical 9:16`,
+        prompt: `${base}, energetic mid-action still, motion freeze, premium commercial look, vertical 9:16`,
       },
     ],
     model: "heuristic",

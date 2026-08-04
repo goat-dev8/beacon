@@ -143,6 +143,15 @@ export const envSchema = z.object({
   /** Skip AgentRouter prompt engineering (heuristic prompts) for faster media. */
   MEDIA_FAST: optionalString,
 
+  /** Cloudflare Workers AI (free daily Neurons — FLUX.1-schnell) */
+  CF_ACCOUNT_ID: optionalString,
+  CF_API_TOKEN: optionalString,
+  CLOUDFLARE_API_TOKEN: optionalString,
+  CF_IMAGE_MODEL: optionalString,
+
+  /** Fail API boot unless Flare Coston2 rails are present */
+  FLARE_REQUIRED: optionalString,
+
   X402_TOKEN_ADDRESS: optionalString,
   X402_FACILITATOR_ADDRESS: optionalString,
   X402_PAYEE_ADDRESS: optionalString,

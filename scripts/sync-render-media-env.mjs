@@ -45,6 +45,10 @@ const FORCE = {
   VIDEO_PROVIDER: true,
   AI_MODEL_PROMPT_ENGINEER: true,
   MEDIA_FAST: true,
+  CF_ACCOUNT_ID: true,
+  CF_API_TOKEN: true,
+  CF_IMAGE_MODEL: true,
+  FLARE_REQUIRED: true,
 };
 
 const env = Object.fromEntries(
@@ -125,10 +129,15 @@ console.log(
   payload.length,
   "has",
   Object.fromEntries(
-    ["HF_TOKEN", "HF_IMAGE_MODEL", "POLLINATIONS_API_KEY", "AI_MODEL_PROMPT_ENGINEER"].map((k) => [
-      k,
-      payload.some((p) => p.key === k),
-    ]),
+    [
+      "HF_TOKEN",
+      "HF_IMAGE_MODEL",
+      "POLLINATIONS_API_KEY",
+      "AI_MODEL_PROMPT_ENGINEER",
+      "CF_ACCOUNT_ID",
+      "CF_API_TOKEN",
+      "FLARE_REQUIRED",
+    ].map((k) => [k, payload.some((p) => p.key === k)]),
   ),
 );
 

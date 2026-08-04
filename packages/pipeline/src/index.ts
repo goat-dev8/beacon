@@ -8,6 +8,8 @@ import {
   engineerVideoShots,
   isAiConfigured,
   loadEnv,
+  buildProfessionalLogoSvg,
+  looksLikeLogoBrief,
 } from "@beacon/shared";
 import { assembleProVideoFromStills } from "./proVideo.js";
 
@@ -15,15 +17,17 @@ export type PipelineStage = "plan" | "generate" | "compose" | "normalize";
 
 /** Bumped when deliverable composers change — exposed via /health for deploy proof. */
 export const PIPELINE_CAPS = {
-  version: "2026-08-04-pro-media-v1",
+  version: "2026-08-04-pro-media-v2-cf-flux",
   imageSvg: true,
   imagePollinations: true,
   imageComfy: true,
   imageHuggingFace: true,
+  imageCloudflare: true,
   promptEngineer: true,
   videoStoryboard: true,
   videoPollinationsStills: true,
   videoProFfmpeg: true,
+  flareRequired: true,
 } as const;
 
 export interface PipelineJob {
@@ -260,9 +264,29 @@ async function composeImageDeliverable(
     ];
   } catch (err) {
     console.warn(
-      "[pipeline] pro image cascade failed, SVG fallback:",
+      "[pipeline] pro image cascade failed, professional logo/SVG fallback:",
       err instanceof Error ? err.message : err,
     );
+  }
+
+  if (looksLikeLogoBrief(job.briefText)) {
+    const logo = buildProfessionalLogoSvg(job.briefText, { width: 1280, height: 1280 });
+    const svgPath = path.join(job.outputDir, "creative.svg");
+    await writeFile(svgPath, logo.svg, "utf8");
+    await writeFile(
+      briefPath,
+      `# Image creative\n\n${job.briefText}\n\n_Brand mark: **${logo.brand}** · vector SVG (raster providers unavailable — Cloudflare/HF/Pollinations)._\n`,
+      "utf8",
+    );
+    return [
+      {
+        kind: "image",
+        uri: svgPath,
+        mimeType: "image/svg+xml",
+        meta: { generator: "beacon-logo-svg", brand: logo.brand, size: "1280x1280" },
+      },
+      { kind: "document", uri: briefPath, mimeType: "text/markdown", meta: { companion: true } },
+    ];
   }
 
   const title = (job.briefText.slice(0, 48) || "Beacon creative")
@@ -284,13 +308,13 @@ async function composeImageDeliverable(
     '<circle cx="640" cy="520" r="168" fill="#39e08a"/>',
     '<path d="M640 360 L730 590 L640 690 L550 590 Z" fill="#1f1c28"/>',
     `<text x="640" y="860" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="#1f1c28">${title}</text>`,
-    '<text x="640" y="920" text-anchor="middle" font-family="monospace" font-size="18" fill="#6b6575">Set COMFYUI_URL or HF_TOKEN for Flux-class output</text>',
+    '<text x="640" y="920" text-anchor="middle" font-family="monospace" font-size="18" fill="#6b6575">Set CF_ACCOUNT_ID + CF_API_TOKEN for Flux output</text>',
     "</svg>",
   ].join("");
   await writeFile(svgPath, svg, "utf8");
   await writeFile(
     briefPath,
-    `# Image creative\n\n${job.briefText}\n\n_No raster provider available. Configure **COMFYUI_URL** (Flux.2/Wan) or **HF_TOKEN** (FLUX.1-schnell). See MEDIA.md._\n`,
+    `# Image creative\n\n${job.briefText}\n\n_No raster provider available. Configure **CF_ACCOUNT_ID** + **CF_API_TOKEN** (Workers AI Flux) or **HF_TOKEN**. See MEDIA.md._\n`,
     "utf8",
   );
   return [

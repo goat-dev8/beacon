@@ -27,6 +27,8 @@ Explorer: https://coston2-explorer.flare.network
 - **Pollinations** API key present; Paid/Quest Pollen was **0** at capture — fail-fast on 402
 - AgentRouter chat for prompt engineer / quote / judge (image models still 403 on AgentRouter)
 - SVG fallback only when Comfy + HF + Pollinations all fail
+- **`MEDIA_FAST=true`** on Render: skip Opus prompt eng + L2 judge hang; Flux still runs
+- Proven Render Image e2e: job `b133b5f7…` → **CLOSED / Paid** · `image/jpeg` · escrow released `0x03d86bec…`
 
 ### Proven end-to-end (real wallet + escrow + settle)
 | Job | Path | Result | Escrow | Lock / notes |

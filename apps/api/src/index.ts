@@ -13,6 +13,7 @@ import {
   honestyMessage,
   isAppError,
   newId,
+  assertFlareRequired,
 } from "@beacon/shared";
 import {
   buildBoundOffer,
@@ -27,6 +28,7 @@ import { startEmbeddedWorkers } from "./workers.js";
 import { PIPELINE_CAPS } from "@beacon/pipeline";
 
 const env = loadEnv();
+assertFlareRequired(env);
 
 const pool = new pg.Pool({
   connectionString: env.DATABASE_URL,

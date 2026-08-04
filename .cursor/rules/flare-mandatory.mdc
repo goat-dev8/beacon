@@ -1,0 +1,27 @@
+---
+description: Flare AI Skills are mandatory for any Beacon / Flare work. Never skip Flare rails.
+globs:
+alwaysApply: true
+---
+
+# Beacon · Flare mandatory
+
+Before writing or changing Beacon code that touches chains, payments, quotes, acceptance, or deploy:
+
+1. Read and follow the installed Flare AI Skills under `.cursor/skills/`:
+   - `flare-general-skill` — networks, chain IDs (Coston2 = **114**), RPC, explorers
+   - `flare-ftso-skill` — price feeds when pricing touches FTSO
+   - `flare-fassets-skill` — FXRP / AssetManager when bridging
+   - `flare-fdc-skill` — attestations / DA Layer
+   - `flare-smart-accounts-skill` — XRPL → Flare AA
+   - `flare-fcc-skill` — TEE / confidential compute when ENABLE_FCC
+
+2. **Hard rules**
+   - Target network for live Beacon is **Flare Testnet Coston2 (chainId 114)** unless the user explicitly asks for mainnet.
+   - Escrow + EIP-3009 approve on Coston2 is required for paid jobs — do not invent off-chain “settled” shortcuts.
+   - Prefer ContractRegistry / documented Flare addresses from skills over invented addresses.
+   - Use Flare DevHub MCP (`docs_search` / `docs_fetch`) when unsure.
+
+3. Media (image/video) may use open providers (HF / BFL / Cloudflare / Pollinations) **but** billing and settlement remain Flare Coston2.
+
+4. If Flare skills are missing, stop and install from `https://github.com/flare-foundation/flare-ai-skills` before continuing.
