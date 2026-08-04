@@ -141,7 +141,7 @@ async function main() {
           numInstances: 1,
           envSpecificDetails: {
             buildCommand:
-              "NPM_CONFIG_PRODUCTION=false npm ci --include=dev",
+              "NPM_CONFIG_PRODUCTION=false npm ci --include=dev && npm run build -w @beacon/shared -w @beacon/x402 -w @beacon/quote -w @beacon/acceptance -w @beacon/pipeline -w @beacon/receipts -w @beacon/fdc -w @beacon/smart-accounts",
             startCommand: "npx tsx apps/api/src/index.ts",
           },
         },

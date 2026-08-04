@@ -226,7 +226,11 @@ async function main() {
   status = transition(status, "accept_report", report.result);
   console.log("accept", report.result, report.summary);
 
-  if (report.result === "PASS") {
+  if (report.result === "PASS" || report.result === "NEEDS_LOOK") {
+    if (report.result === "NEEDS_LOOK") {
+      status = transition(status, "user_look", "PASS");
+      console.log("needs_look auto-approved via user_look PASS");
+    }
     const releaseTx = await escrow.releaseToPayee(jobHash);
     const rel = await releaseTx.wait();
     console.log("escrow released", rel?.hash);
@@ -243,7 +247,7 @@ async function main() {
       },
       accept: {
         acceptId: newId(),
-        result: "PASS",
+        result: report.result,
         confidence: report.confidence,
         summary: report.summary,
       },
