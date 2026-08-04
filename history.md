@@ -23,7 +23,7 @@ Living log of what was done. No secrets in this file.
 - Coston2 probe: FTSO live, FXRP `0x0b6A…`, swap prepare `1 USDT0` → est FXRP
 - `npm run build -w @beacon/web` succeeds
 
-**Commit:** (this push)
+**Commit:** `32cc287` (pushed to `goat-dev8/beacon` main)
 
 ---
 
