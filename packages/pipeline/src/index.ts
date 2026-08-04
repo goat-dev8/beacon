@@ -8,7 +8,7 @@ export type PipelineStage = "plan" | "generate" | "compose" | "normalize";
 
 /** Bumped when deliverable composers change — exposed via /health for deploy proof. */
 export const PIPELINE_CAPS = {
-  version: "2026-08-04-image-svg",
+  version: "2026-08-04-image-svg-v2",
   imageSvg: true,
   videoStoryboard: true,
 } as const;
@@ -77,7 +77,15 @@ export async function runPipeline(job: PipelineJob): Promise<PipelineResult> {
   artifacts.push(...generated);
 
   logs.push("compose: assembling deliverable");
-  const composed = await composeDeliverable(job, generated);
+  let composed = await composeDeliverable(job, generated);
+  // Hard guarantee: image jobs must ship an SVG creative even if compose routing drifts.
+  const sid = String(job.serviceId ?? "")
+    .toLowerCase()
+    .trim();
+  if (sid === "image" && !composed.some((a) => a.kind === "image")) {
+    logs.push("compose: image SVG guarantee");
+    composed = await composeImageDeliverable(job, generated);
+  }
   artifacts.push(...composed);
 
   logs.push("normalize: packaging outputs");
@@ -142,11 +150,16 @@ async function composeDeliverable(
   job: PipelineJob,
   inputs: StageArtifact[],
 ): Promise<StageArtifact[]> {
-  if (job.serviceId === "image") {
+  const sid = String(job.serviceId ?? "")
+    .toLowerCase()
+    .trim();
+  console.log("[pipeline] compose", job.jobId, JSON.stringify(job.serviceId), "→", sid);
+
+  if (sid === "image") {
     return composeImageDeliverable(job, inputs);
   }
 
-  if (job.serviceId === "video") {
+  if (sid === "video") {
     const manifestPath = path.join(job.outputDir, "composition.manifest.json");
     const manifest: RemotionComposition = {
       id: "BeaconPack",
