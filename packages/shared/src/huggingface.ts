@@ -19,9 +19,17 @@ export function isHuggingFaceConfigured(env: BeaconEnv = loadEnv()): boolean {
   return Boolean((env.HF_TOKEN || env.HUGGINGFACE_API_KEY || "").trim());
 }
 
+function resolveSizeLabel(width: number, height: number): string {
+  const ratio = width / Math.max(height, 1);
+  if (Math.abs(ratio - 1) < 0.08) return "square_hd";
+  if (ratio > 1.3) return "landscape_16_9";
+  if (ratio < 0.75) return "portrait_16_9";
+  return "square_hd";
+}
+
 /**
- * Hugging Face Inference Providers — FLUX.1-schnell (Apache-2.0) for strong open quality.
- * Needs free HF_TOKEN with Inference Providers credits.
+ * Hugging Face Inference Providers — Flux via fal-ai router (working path 2026).
+ * Legacy api-inference + /v1/images/generations are often 404/410 for Flux.
  */
 export async function generateHuggingFaceImage(
   req: HfImageRequest,
@@ -30,25 +38,83 @@ export async function generateHuggingFaceImage(
   const token = (env.HF_TOKEN || env.HUGGINGFACE_API_KEY || "").trim();
   if (!token) throw new Error("HF_TOKEN is not configured");
 
-  const model =
-    env.HF_IMAGE_MODEL || "black-forest-labs/FLUX.1-schnell";
+  const model = env.HF_IMAGE_MODEL || "fal-ai/flux/schnell";
+  const width = req.width ?? 1024;
+  const height = req.height ?? 1024;
   const started = Date.now();
+  const errors: string[] = [];
 
-  // Prefer OpenAI-compatible router images endpoint when available
-  const routerUrl = "https://router.huggingface.co/v1/images/generations";
+  // 1) fal-ai Flux.schnell via HF router (primary — proven working)
+  const falPaths = [
+    model.startsWith("fal-ai/") ? `https://router.huggingface.co/fal-ai/${model}` : null,
+    "https://router.huggingface.co/fal-ai/fal-ai/flux/schnell",
+    "https://router.huggingface.co/fal-ai/fal-ai/flux/dev",
+  ].filter(Boolean) as string[];
+
+  for (const falUrl of falPaths) {
+    try {
+      const res = await fetch(falUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: req.prompt,
+          negative_prompt: req.negativePrompt || undefined,
+          image_size: resolveSizeLabel(width, height),
+          num_images: 1,
+          enable_safety_checker: true,
+        }),
+        signal: AbortSignal.timeout(90_000),
+      });
+      const text = await res.text();
+      if (!res.ok) {
+        errors.push(`fal ${res.status}: ${text.slice(0, 160)}`);
+        continue;
+      }
+      const data = JSON.parse(text) as {
+        images?: Array<{ url?: string }>;
+        image?: { url?: string };
+      };
+      const imageUrl = data.images?.[0]?.url || data.image?.url;
+      if (!imageUrl) {
+        errors.push(`fal ok but no image url: ${text.slice(0, 120)}`);
+        continue;
+      }
+      const img = await fetch(imageUrl, { signal: AbortSignal.timeout(60_000) });
+      const bytes = Buffer.from(await img.arrayBuffer());
+      if (!img.ok || bytes.length < 1024) {
+        errors.push(`fal image fetch failed ${img.status} bytes=${bytes.length}`);
+        continue;
+      }
+      return {
+        bytes,
+        mimeType: img.headers.get("content-type")?.split(";")[0] || "image/jpeg",
+        provider: "huggingface",
+        model: falUrl.includes("flux/dev") ? "fal-ai/flux/dev" : "fal-ai/flux/schnell",
+        latencyMs: Date.now() - started,
+      };
+    } catch (err) {
+      errors.push(`fal: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // 2) OpenAI-compatible router (some accounts / models)
   try {
-    const res = await fetch(routerUrl, {
+    const res = await fetch("https://router.huggingface.co/v1/images/generations", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model,
+        model: model.includes("/") ? model : "black-forest-labs/FLUX.1-schnell",
         prompt: req.prompt,
-        size: `${req.width ?? 1024}x${req.height ?? 1024}`,
+        size: `${width}x${height}`,
         response_format: "b64_json",
       }),
+      signal: AbortSignal.timeout(90_000),
     });
     const text = await res.text();
     if (res.ok) {
@@ -76,38 +142,14 @@ export async function generateHuggingFaceImage(
           latencyMs: Date.now() - started,
         };
       }
+    } else {
+      errors.push(`openai-router ${res.status}: ${text.slice(0, 120)}`);
     }
-  } catch {
-    /* fall through to legacy inference */
+  } catch (err) {
+    errors.push(`openai-router: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  const legacy = `https://api-inference.huggingface.co/models/${model}`;
-  const res = await fetch(legacy, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      Accept: "image/png",
-    },
-    body: JSON.stringify({
-      inputs: req.prompt,
-      parameters: {
-        width: req.width ?? 1024,
-        height: req.height ?? 1024,
-        negative_prompt: req.negativePrompt || undefined,
-      },
-    }),
-  });
-  const buf = Buffer.from(await res.arrayBuffer());
-  const ctype = res.headers.get("content-type") ?? "";
-  if (!res.ok || !ctype.startsWith("image/")) {
-    throw new Error(`HuggingFace image ${res.status}: ${buf.subarray(0, 200).toString("utf8")}`);
-  }
-  return {
-    bytes: buf,
-    mimeType: ctype.split(";")[0] || "image/png",
-    provider: "huggingface",
-    model,
-    latencyMs: Date.now() - started,
-  };
+  throw new Error(
+    `HuggingFace image failed. ${errors.join(" | ").slice(0, 600)}`,
+  );
 }

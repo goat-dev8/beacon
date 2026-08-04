@@ -67,8 +67,13 @@ export async function generatePollinationsImage(
 
   const started = Date.now();
   let lastErr = "";
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    const res = await fetch(url, { method: "GET", headers, redirect: "follow" });
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const res = await fetch(url, {
+      method: "GET",
+      headers,
+      redirect: "follow",
+      signal: AbortSignal.timeout(45_000),
+    });
     const buf = Buffer.from(await res.arrayBuffer());
     const ctype = res.headers.get("content-type") ?? "";
     if (res.ok && buf.length > 1024 && ctype.startsWith("image/")) {
@@ -81,10 +86,14 @@ export async function generatePollinationsImage(
         latencyMs: Date.now() - started,
       };
     }
-    lastErr = `${res.status} ${ctype} bytes=${buf.length} ${buf.subarray(0, 120).toString("utf8")}`;
-    // Rate limit / cold start
-    if ([429, 502, 503, 504].includes(res.status) || attempt < 3) {
-      await new Promise((r) => setTimeout(r, 4000 * attempt));
+    const bodyPreview = buf.subarray(0, 160).toString("utf8");
+    lastErr = `${res.status} ${ctype} bytes=${buf.length} ${bodyPreview}`;
+    // Payment / auth — do not burn minutes retrying
+    if ([401, 402, 403, 404].includes(res.status)) break;
+    if (/insufficient|pollen|balance|payment/i.test(bodyPreview)) break;
+    // Rate limit / cold start only
+    if ([429, 502, 503, 504].includes(res.status) && attempt < 2) {
+      await new Promise((r) => setTimeout(r, 2500 * attempt));
       continue;
     }
     break;

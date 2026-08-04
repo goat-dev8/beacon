@@ -79,12 +79,9 @@ export async function generateProImage(
   }
 
   if (isPollinationsConfigured(env)) {
-    const models = [
-      env.POLLINATIONS_MODEL || "flux",
-      "flux",
-      "turbo",
-      "sana",
-    ];
+    const preferred = env.POLLINATIONS_MODEL || "flux";
+    // Try preferred + one cheap fallback only — stop on payment/auth errors.
+    const models = preferred === "turbo" ? [preferred] : [preferred, "turbo"];
     const tried = new Set<string>();
     for (const model of models) {
       if (tried.has(model)) continue;
@@ -103,7 +100,9 @@ export async function generateProImage(
           engineered,
         };
       } catch (err) {
-        errors.push(`pollinations/${model}: ${err instanceof Error ? err.message : String(err)}`);
+        const msg = err instanceof Error ? err.message : String(err);
+        errors.push(`pollinations/${model}: ${msg}`);
+        if (/ (401|402|403) |insufficient|pollen|balance/i.test(msg)) break;
       }
     }
   }

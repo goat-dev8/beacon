@@ -5,7 +5,7 @@ Pollinations anonymous Flux is **no longer reliable** (402/500 — Pollen balanc
 | Priority | Provider | Env | Quality |
 |---|---|---|---|
 | 1 | **ComfyUI** (Flux.2 / Qwen Image / Wan 2.2 / LTX) | `COMFYUI_URL` + optional workflow | Best open-source |
-| 2 | **Hugging Face** FLUX.1-schnell | `HF_TOKEN` | Strong, free tier credits |
+| 2 | **Hugging Face** Flux (fal-ai via Inference Providers) | `HF_TOKEN` | Strong, free tier credits |
 | 3 | Pollinations | `POLLINATIONS_*` | Only if entitled |
 | — | SVG fallback | none | Honest placeholder |
 
@@ -49,8 +49,9 @@ MCP (Cursor control of local Comfy):
 
 ## Hugging Face fallback
 
-Create a free token at huggingface.co → Inference Providers → set `HF_TOKEN`.
-Default model: `black-forest-labs/FLUX.1-schnell`.
+Create a fine-grained **Inference** token at huggingface.co → Settings → Access Tokens → set `HF_TOKEN`.
+Default path: fal-ai Flux.schnell via `https://router.huggingface.co/fal-ai/...` (`HF_IMAGE_MODEL=fal-ai/flux/schnell`).
+Legacy `api-inference` / OpenAI `/v1/images/generations` often 404/410 for Flux.
 
 ## Video assembly
 

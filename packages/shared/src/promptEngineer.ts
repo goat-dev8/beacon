@@ -83,7 +83,8 @@ export async function engineerMediaPrompt(
     env.AI_MODEL_PROMPT_ENGINEER ||
     env.AI_MODEL_GENERATOR ||
     "claude-opus-5";
-  const fallbacks = [model, "claude-opus-5", "gpt-5.6-sol", "claude-opus-4-8"];
+  // Prefer configured model, then fast Sol, then Opus — avoid long multi-Opus hangs.
+  const fallbacks = [...new Set([model, "gpt-5.6-sol", "claude-opus-5"])];
 
   const system =
     kind === "image"

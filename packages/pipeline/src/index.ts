@@ -365,7 +365,8 @@ async function composeVideoDeliverable(
   }
 
   // 2) Pro stills (same cascade as images) → ffmpeg-static zoom/xfade MP4
-  const shots =
+  // Keep 2 beats for latency — Opus engineering can still return 3; we take first 2.
+  const shotsRaw =
     engineered.shotList?.length ?
       engineered.shotList
     : [
@@ -373,12 +374,12 @@ async function composeVideoDeliverable(
         { beat: "Promise", seconds: 5, prompt: engineered.prompt },
         { beat: "CTA", seconds: 4, prompt: engineered.prompt },
       ];
+  const shots = shotsRaw.slice(0, 2);
 
   const framePaths: Array<{ filePath: string; seconds: number; beat: string }> = [];
   for (let i = 0; i < shots.length; i++) {
     const shot = shots[i]!;
     try {
-      if (i > 0) await new Promise((r) => setTimeout(r, 2000));
       const img = await generateProImage(shot.prompt, { width: 1080, height: 1920 });
       const framePath = path.join(job.outputDir, `frame-${i + 1}.jpg`);
       await writeFile(framePath, img.bytes);
@@ -392,6 +393,7 @@ async function composeVideoDeliverable(
           model: img.model,
           beat: shot.beat,
           at: shot.seconds,
+          // First frame is always a primary deliverable; extras are companions.
           companion: i > 0,
         },
       });
@@ -467,11 +469,19 @@ async function composeVideoDeliverable(
       .join("\n")}\n\n_Prompt engineer: ${engineered.source}. Full Remotion/OpenMontage when roots configured._\n`,
     "utf8",
   );
+
+  const hasPrimaryMedia = artifacts.some(
+    (a) =>
+      (a.kind === "video" || a.kind === "image") &&
+      !(a.meta && typeof a.meta === "object" && (a.meta as { companion?: boolean }).companion),
+  );
+
+  // Never ship video jobs with only companion JSON — L1 would fail "No deliverables".
   artifacts.push({
     kind: "captions",
     uri: captionsPath,
     mimeType: "text/markdown",
-    meta: { companion: true },
+    meta: hasPrimaryMedia ? { companion: true } : { role: "fallback_pack" },
   });
 
   return artifacts;
