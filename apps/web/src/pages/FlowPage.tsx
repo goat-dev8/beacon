@@ -4,19 +4,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Hexagon,
-  Radio,
-  ArrowLeftRight,
-  GitBranch,
-  Wallet,
-  LineChart,
   Briefcase,
   Send,
   Loader2,
   ExternalLink,
   Sparkles,
   Shield,
-  Image as ImageIcon,
-  Film,
   Search,
   CheckCircle2,
   Clock,
@@ -32,8 +25,6 @@ import {
 import { NETWORK } from "@/lib/chain";
 import { cn } from "@/lib/utils";
 import type { Address, Hex } from "viem";
-
-const FLOW_STORAGE_KEY = "beacon.flow.v1";
 
 type AgentId =
   | "general"
@@ -66,22 +57,24 @@ type ConvState = {
   bridgeTo?: string;
 } | null;
 
-const ROOM_ICONS: Record<AgentId, typeof Radio> = {
-  general: Sparkles,
-  signals: Radio,
-  swap: ArrowLeftRight,
-  bridge: GitBranch,
-  pay: Wallet,
-  trade: LineChart,
-  desk: Briefcase,
-  image: ImageIcon,
-  video: Film,
-  research: Search,
-};
-
 function explorerTx(hash: string) {
   return `${NETWORK.explorer}/tx/${hash}`;
 }
+
+const WELCOME: ChatMsg = {
+  id: "welcome",
+  role: "system",
+  text: "Hi — I'm Beacon on Flare Coston2. Intent → Quote → Pay (if needed) → Execute → Receipt. Ask for FTSO, swap, bridge routes, a logo, or Bound Work.",
+};
+
+type FlowConv = {
+  id: string;
+  title: string;
+  agent_id: string;
+  pinned: boolean;
+  updated_at: string;
+  created_at: string;
+};
 
 export function FlowPage() {
   const qc = useQueryClient();
@@ -89,52 +82,34 @@ export function FlowPage() {
   const [input, setInput] = useState("");
   const [wallet, setWallet] = useState<string | null>(null);
   const [convState, setConvState] = useState<ConvState>(null);
-  const [messages, setMessages] = useState<ChatMsg[]>([
-    {
-      id: "welcome",
-      role: "system",
-      text: "Hi — I'm Beacon on Flare Coston2. Intent → Quote → Pay (if needed) → Execute → Receipt. Ask for FTSO, swap, bridge routes, a logo, or Bound Work.",
-    },
-  ]);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMsg[]>([WELCOME]);
+  const [convSearch, setConvSearch] = useState("");
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   useEffect(() => {
     void (async () => {
       const restored = await tryRestoreWallet();
       if (restored) setWallet(restored);
-      try {
-        const raw = localStorage.getItem(FLOW_STORAGE_KEY);
-        if (!raw) return;
-        const parsed = JSON.parse(raw) as {
-          wallet?: string;
-          messages?: ChatMsg[];
-          convState?: ConvState;
-          agentId?: AgentId;
-        };
-        if (parsed.messages?.length) setMessages(parsed.messages.slice(-40));
-        if (parsed.convState) setConvState(parsed.convState);
-        if (parsed.agentId) setAgentId(parsed.agentId);
-      } catch {
-        /* ignore corrupt storage */
-      }
     })();
   }, []);
 
+  // Auto-resume most recent conversation when wallet reconnects
   useEffect(() => {
-    try {
-      localStorage.setItem(
-        FLOW_STORAGE_KEY,
-        JSON.stringify({
-          wallet,
-          messages: messages.slice(-40),
-          convState,
-          agentId,
-        }),
-      );
-    } catch {
-      /* quota */
-    }
-  }, [wallet, messages, convState, agentId]);
+    if (!wallet || conversationId) return;
+    void (async () => {
+      try {
+        const { conversations } = await api.listFlowConversations(wallet);
+        if (conversations[0]?.id) {
+          await loadConversation(conversations[0].id, wallet);
+        }
+      } catch {
+        /* empty history is fine */
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only on wallet connect
+  }, [wallet]);
 
   const agentsQuery = useQuery({
     queryKey: ["agents"],
@@ -148,18 +123,68 @@ export function FlowPage() {
     refetchInterval: 20_000,
   });
 
+  const conversationsQuery = useQuery({
+    queryKey: ["flow-conversations", wallet],
+    queryFn: () => api.listFlowConversations(wallet!),
+    enabled: Boolean(wallet),
+    refetchInterval: 30_000,
+  });
+
+  const activityQuery = useQuery({
+    queryKey: ["flow-activity", wallet],
+    queryFn: () => api.listFlowActivity(wallet!),
+    enabled: Boolean(wallet),
+  });
+
+  async function loadConversation(id: string, w: string) {
+    const data = await api.getFlowConversation(id, w);
+    setConversationId(data.conversation.id);
+    setAgentId((data.conversation.agent_id as AgentId) || "general");
+    const state = data.conversation.state_json as ConvState;
+    setConvState(state && typeof state === "object" && "intent" in state ? (state as ConvState) : null);
+    const loaded: ChatMsg[] =
+      data.messages.length > 0
+        ? data.messages.map((m) => ({
+            id: m.id,
+            role: m.role as ChatMsg["role"],
+            agentId: m.agentId as AgentId | undefined,
+            text: m.text,
+            cards: m.cards as AgentCard[] | undefined,
+            displayModel: m.displayModel,
+          }))
+        : [WELCOME];
+    setMessages(loaded);
+  }
+
+  async function startNewChat() {
+    if (!wallet) {
+      setConversationId(null);
+      setConvState(null);
+      setAgentId("general");
+      setMessages([WELCOME]);
+      return;
+    }
+    const { conversation } = await api.createFlowConversation(wallet, "New chat", agentId);
+    setConversationId(conversation.id);
+    setConvState(null);
+    setMessages([WELCOME]);
+    void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
+  }
+
   const chat = useMutation({
     mutationFn: (message: string) =>
       api.agentChat({
         agentId,
         message,
         wallet: wallet ?? undefined,
+        conversationId: conversationId ?? undefined,
         state: convState,
       }),
     onSuccess: (data, message) => {
       const nextAgent = data.agentId as AgentId;
       setAgentId(nextAgent);
       setConvState(data.state);
+      if (data.conversationId) setConversationId(data.conversationId);
       setMessages((m) => [
         ...m,
         { id: crypto.randomUUID(), role: "user", text: message, agentId },
@@ -172,7 +197,11 @@ export function FlowPage() {
           displayModel: data.displayModel || "Beacon",
         },
       ]);
-      if (wallet) void qc.invalidateQueries({ queryKey: ["balances", wallet] });
+      if (wallet) {
+        void qc.invalidateQueries({ queryKey: ["balances", wallet] });
+        void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
+        void qc.invalidateQueries({ queryKey: ["flow-activity", wallet] });
+      }
     },
     onError: (err) => {
       setMessages((m) => [
@@ -193,15 +222,17 @@ export function FlowPage() {
     [agents, agentId],
   );
 
+  const conversations = useMemo(() => {
+    const list = (conversationsQuery.data?.conversations ?? []) as FlowConv[];
+    const q = convSearch.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((c) => c.title.toLowerCase().includes(q));
+  }, [conversationsQuery.data, convSearch]);
+
   async function onConnect() {
     const acct = await connectEvmWallet();
     setWallet(acct);
   }
-
-  const recentSwaps = messages.filter(
-    (m) => m.cards?.some((c) => c.type === "swap_prepare" || c.type === "swap_quote"),
-  ).length;
-  const recentPays = messages.filter((m) => m.cards?.some((c) => c.type === "x402_quote" || c.type === "media_result")).length;
 
   function send() {
     const text = input.trim();
@@ -211,9 +242,11 @@ export function FlowPage() {
   }
 
   const bal = balancesQuery.data?.balances;
+  const recentActivity = activityQuery.data?.activity?.slice(0, 5) ?? [];
 
   return (
-    <div className="flex min-h-dvh bg-[#0a0c0b] text-[#f0f2ef]">
+    <div className="flex h-dvh max-h-dvh overflow-hidden bg-[#0a0c0b] text-[#f0f2ef]">
+      {/* Icon rail — fixed */}
       <aside className="flex w-14 shrink-0 flex-col items-center gap-3 border-r border-white/10 py-4">
         <Link to="/" className="grid size-9 place-items-center rounded-xl bg-signal text-ink" title="Beacon">
           <Hexagon className="size-5" />
@@ -242,57 +275,182 @@ export function FlowPage() {
         </a>
       </aside>
 
+      {/* Conversations sidebar — ChatGPT-style */}
       <aside className="hidden w-72 shrink-0 flex-col border-r border-white/10 bg-[#101412] md:flex">
-        <div className="flex items-center justify-between px-4 py-4">
-          <div>
-            <p className="font-display text-lg font-semibold tracking-tight">beacon</p>
-            <p className="font-mono text-[10px] uppercase tracking-widest text-white/40">Flow · Coston2</p>
+        <div className="shrink-0 space-y-3 border-b border-white/10 px-3 py-3">
+          <div className="flex items-center justify-between px-1">
+            <div>
+              <p className="font-display text-lg font-semibold tracking-tight">beacon</p>
+              <p className="font-mono text-[10px] uppercase tracking-widest text-white/40">AI OS · Coston2</p>
+            </div>
+            <span className="rounded-full bg-signal/20 px-2 py-0.5 font-mono text-[10px] text-signal">LIVE</span>
           </div>
-          <span className="rounded-full bg-signal/20 px-2 py-0.5 font-mono text-[10px] text-signal">LIVE</span>
+          <button
+            type="button"
+            onClick={() => void startNewChat()}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-signal/90 px-3 py-2 text-sm font-medium text-ink hover:bg-signal"
+          >
+            New chat
+          </button>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-white/35" />
+            <input
+              value={convSearch}
+              onChange={(e) => setConvSearch(e.target.value)}
+              placeholder="Search chats…"
+              className="w-full rounded-lg border border-white/10 bg-black/20 py-2 pl-8 pr-2 text-xs text-white outline-none placeholder:text-white/30 focus:border-signal/40"
+            />
+          </div>
         </div>
-        <div className="flex-1 space-y-1 overflow-y-auto px-2 pb-4">
-          {agents.map((a) => {
-            const Icon = ROOM_ICONS[a.id as AgentId] ?? Sparkles;
-            const on = a.id === agentId;
-            return (
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+          {!wallet && (
+            <p className="px-2 py-4 text-xs leading-relaxed text-white/40">
+              Connect your wallet — chats, swaps, payments, and receipts persist by address across refresh and devices.
+            </p>
+          )}
+          {wallet && conversations.length === 0 && !conversationsQuery.isLoading && (
+            <p className="px-2 py-4 text-xs text-white/40">No conversations yet. Send a message to start.</p>
+          )}
+          <div className="space-y-0.5">
+            {conversations.map((c) => {
+              const on = c.id === conversationId;
+              return (
+                <div
+                  key={c.id}
+                  className={cn(
+                    "group flex items-center gap-1 rounded-lg px-2 py-2 text-left text-sm transition",
+                    on ? "bg-white/10" : "hover:bg-white/5",
+                  )}
+                >
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 text-left"
+                    onClick={() => wallet && void loadConversation(c.id, wallet)}
+                  >
+                    {renamingId === c.id ? (
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && wallet) {
+                            e.preventDefault();
+                            void api
+                              .patchFlowConversation(c.id, { wallet, title: renameValue.trim() || c.title })
+                              .then(() => {
+                                setRenamingId(null);
+                                void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
+                              });
+                          }
+                          if (e.key === "Escape") setRenamingId(null);
+                        }}
+                        className="w-full rounded bg-black/40 px-1.5 py-0.5 text-xs outline-none"
+                      />
+                    ) : (
+                      <>
+                        <span className="flex items-center gap-1.5">
+                          {c.pinned && <span className="text-[10px] text-signal">Pinned</span>}
+                          <span className="truncate font-medium">{c.title}</span>
+                        </span>
+                        <span className="mt-0.5 block truncate font-mono text-[10px] text-white/35">
+                          {new Date(c.updated_at).toLocaleString()} · {c.agent_id}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                  {wallet && renamingId !== c.id && (
+                    <div className="hidden shrink-0 gap-0.5 group-hover:flex">
+                      <button
+                        type="button"
+                        title="Rename"
+                        className="rounded p-1 text-white/40 hover:bg-white/10 hover:text-white"
+                        onClick={() => {
+                          setRenamingId(c.id);
+                          setRenameValue(c.title);
+                        }}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        title={c.pinned ? "Unpin" : "Pin"}
+                        className="rounded p-1 text-white/40 hover:bg-white/10 hover:text-signal"
+                        onClick={() =>
+                          void api.patchFlowConversation(c.id, { wallet, pinned: !c.pinned }).then(() =>
+                            qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] }),
+                          )
+                        }
+                      >
+                        ★
+                      </button>
+                      <button
+                        type="button"
+                        title="Archive"
+                        className="rounded p-1 text-white/40 hover:bg-white/10 hover:text-red-300"
+                        onClick={() =>
+                          void api.patchFlowConversation(c.id, { wallet, archive: true }).then(() => {
+                            if (conversationId === c.id) void startNewChat();
+                            void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
+                          })
+                        }
+                      >
+                        ×
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {recentActivity.length > 0 && (
+            <div className="mt-4 border-t border-white/10 px-1 pt-3">
+              <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-white/35">Recent activity</p>
+              <ul className="space-y-1.5">
+                {recentActivity.map((a) => (
+                  <li key={a.id} className="truncate text-[11px] text-white/45">
+                    <span className="text-signal">{a.kind}</span> · {a.title}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="shrink-0 border-t border-white/10 px-3 py-3">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-white/35">Agents (shortcut)</p>
+          <div className="mt-2 flex max-h-28 flex-wrap gap-1 overflow-y-auto">
+            {agents.map((a) => (
               <button
                 key={a.id}
                 type="button"
                 onClick={() => {
                   setAgentId(a.id as AgentId);
-                  setConvState(null);
+                  setInput((v) => (v.includes("@") ? v : `${a.mention} `));
                 }}
                 className={cn(
-                  "flex w-full items-start gap-3 rounded-xl px-3 py-2.5 text-left transition",
-                  on ? "bg-white/10" : "hover:bg-white/5",
+                  "rounded-full border px-2 py-0.5 text-[10px]",
+                  a.id === agentId
+                    ? "border-signal/50 bg-signal/15 text-signal"
+                    : "border-white/10 text-white/50 hover:border-white/25",
                 )}
               >
-                <span className="mt-0.5 grid size-8 place-items-center rounded-full bg-white/5">
-                  <Icon className="size-4 text-signal" />
-                </span>
-                <span className="min-w-0">
-                  <span className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{a.name}</span>
-                    {a.builtIn && (
-                      <span className="rounded bg-[#3b82f6]/20 px-1.5 py-0.5 font-mono text-[9px] text-[#93c5fd]">
-                        Built-in
-                      </span>
-                    )}
-                  </span>
-                  <span className="mt-0.5 block truncate text-xs text-white/45">{a.blurb}</span>
-                </span>
+                {a.name}
               </button>
-            );
-          })}
+            ))}
+          </div>
         </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
-          <div>
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+        {/* Fixed header */}
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
+          <div className="min-w-0">
             <h1 className="font-display text-xl font-semibold">{active.name}</h1>
-            <p className="mt-0.5 max-w-xl text-sm text-white/50">
-              {(active as { blurb?: string }).blurb || "Conversational Flare assistant — quotes before execution."}
+            <p className="mt-0.5 max-w-xl truncate text-sm text-white/50">
+              {(active as { blurb?: string }).blurb || "Intent → Quote → Pay → Execute → Receipt"}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -305,10 +463,10 @@ export function FlowPage() {
             )}
             <button
               type="button"
-              onClick={() => setHistoryOpen((v) => !v)}
-              className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/60 hover:border-signal/40"
+              onClick={() => void startNewChat()}
+              className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/60 hover:border-signal/40 md:hidden"
             >
-              History
+              New
             </button>
             <Link
               to="/flow/security"
@@ -332,29 +490,8 @@ export function FlowPage() {
           </div>
         </header>
 
-        {historyOpen && (
-          <div className="border-b border-white/10 bg-white/[0.03] px-5 py-3 text-xs text-white/55">
-            Session memory · swaps touched {recentSwaps} · payments/media {recentPays} · messages {messages.length}
-            <button
-              type="button"
-              className="ml-3 text-signal underline-offset-2 hover:underline"
-              onClick={() => {
-                setMessages([
-                  {
-                    id: "welcome",
-                    role: "system",
-                    text: "Session cleared. Intent → Quote → Pay → Execute → Receipt.",
-                  },
-                ]);
-                setConvState(null);
-              }}
-            >
-              Clear
-            </button>
-          </div>
-        )}
-
-        <div className="flex-1 space-y-6 overflow-y-auto px-5 py-6">
+        {/* Only messages scroll */}
+        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-6">
           <AnimatePresence initial={false}>
             {messages.map((msg) => (
               <motion.div
@@ -381,7 +518,7 @@ export function FlowPage() {
                         </span>
                       )}
                     </div>
-                    <div className="text-sm leading-relaxed text-white/90 whitespace-pre-wrap">{msg.text}</div>
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-white/90">{msg.text}</div>
                     {msg.cards?.map((card, i) => (
                       <ActionCard
                         key={`${msg.id}-${i}`}
@@ -404,11 +541,13 @@ export function FlowPage() {
                               agentId: msg.agentId,
                               message: lastUser.text,
                               wallet: wallet ?? undefined,
+                              conversationId: conversationId ?? undefined,
                               state: convState,
                               payment,
                             })
                             .then((data) => {
                               setConvState(data.state);
+                              if (data.conversationId) setConversationId(data.conversationId);
                               setMessages((m) => [
                                 ...m,
                                 {
@@ -420,6 +559,10 @@ export function FlowPage() {
                                   displayModel: data.displayModel || "Beacon",
                                 },
                               ]);
+                              if (wallet) {
+                                void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
+                                void qc.invalidateQueries({ queryKey: ["flow-activity", wallet] });
+                              }
                             });
                         }}
                       />
@@ -437,8 +580,9 @@ export function FlowPage() {
           )}
         </div>
 
-        <div className="border-t border-white/10 px-5 py-4">
-          <div className="mb-3 flex flex-wrap gap-2">
+        {/* Fixed composer */}
+        <div className="shrink-0 border-t border-white/10 bg-[#0a0c0b] px-5 py-3">
+          <div className="mb-2 flex flex-wrap gap-2">
             {agents.slice(0, 8).map((a) => (
               <button
                 key={a.id}
@@ -469,7 +613,7 @@ export function FlowPage() {
                 }
               }}
               rows={2}
-              placeholder="Message Beacon…"
+              placeholder="Message Beacon… (intent auto-detects — or use @swap @bridge @image)"
               className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/35"
             />
             <button
@@ -482,7 +626,7 @@ export function FlowPage() {
             </button>
           </div>
           <p className="mt-2 text-center text-[11px] text-white/30">
-            Flare Coston2 · real FTSO · SparkDEX · x402 · verify every tx on explorer
+            Flare Coston2 · FTSO · SparkDEX · LayerZero OFT · x402 · EIP-3009 · verify every tx on explorer
           </p>
         </div>
       </main>
@@ -693,6 +837,7 @@ function ActionCard({
   if (card.type === "bridge_clarify" || card.type === "media_clarify") {
     const prompts = (card.prompts as string[]) ?? [];
     const isVideo = card.kind === "video";
+    const isImage = card.kind === "image" || card.type === "media_clarify";
     return (
       <div className="rounded-2xl border border-white/12 bg-white/[0.04] p-4">
         <p className="font-mono text-[11px] uppercase tracking-widest text-white/45">{card.title}</p>
@@ -714,6 +859,24 @@ function ActionCard({
                 className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/70 hover:border-signal/40"
               >
                 {d}s
+              </button>
+            ))}
+          </div>
+        )}
+        {isImage && !isVideo && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              { label: "Minimal green", text: "Company Beacon, colors green + black, minimal geometric, transparent yes" },
+              { label: "Bold mark", text: "Bold logo mark, high contrast, no serif, transparent background" },
+              { label: "Skip to quote", text: "Name Beacon OS, colors signal green, style minimal, transparent yes" },
+            ].map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                onClick={() => onQuickReply(c.text)}
+                className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/70 hover:border-signal/40"
+              >
+                {c.label}
               </button>
             ))}
           </div>

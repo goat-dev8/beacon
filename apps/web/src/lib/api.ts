@@ -156,6 +156,7 @@ export const api = {
     agentId?: string;
     message: string;
     wallet?: string;
+    conversationId?: string;
     state?: {
       intent: string;
       phase: string;
@@ -167,6 +168,7 @@ export const api = {
   }) =>
     request<{
       ok: boolean;
+      conversationId?: string | null;
       agentId: string;
       text: string;
       cards: Array<Record<string, unknown> & { type: string }>;
@@ -184,6 +186,76 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  listFlowConversations: (wallet: string) =>
+    request<{
+      ok: boolean;
+      conversations: Array<{
+        id: string;
+        title: string;
+        agent_id: string;
+        pinned: boolean;
+        updated_at: string;
+        created_at: string;
+      }>;
+    }>(`/v1/flow/conversations?wallet=${encodeURIComponent(wallet)}`),
+  createFlowConversation: (wallet: string, title?: string, agentId?: string) =>
+    request<{
+      ok: boolean;
+      conversation: {
+        id: string;
+        title: string;
+        agent_id: string;
+        pinned: boolean;
+        updated_at: string;
+        created_at: string;
+      };
+    }>("/v1/flow/conversations", {
+      method: "POST",
+      body: JSON.stringify({ wallet, title, agentId }),
+    }),
+  getFlowConversation: (id: string, wallet: string) =>
+    request<{
+      ok: boolean;
+      conversation: {
+        id: string;
+        title: string;
+        agent_id: string;
+        pinned: boolean;
+        state_json: Record<string, unknown>;
+        updated_at: string;
+        created_at: string;
+      };
+      messages: Array<{
+        id: string;
+        role: string;
+        agentId?: string;
+        text: string;
+        cards?: Array<Record<string, unknown> & { type: string }>;
+        displayModel?: string;
+        createdAt: string;
+      }>;
+    }>(`/v1/flow/conversations/${id}?wallet=${encodeURIComponent(wallet)}`),
+  patchFlowConversation: (
+    id: string,
+    body: { wallet: string; title?: string; pinned?: boolean; archive?: boolean },
+  ) =>
+    request<{ ok: boolean }>(`/v1/flow/conversations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  listFlowActivity: (wallet: string) =>
+    request<{
+      ok: boolean;
+      activity: Array<{
+        id: string;
+        kind: string;
+        title: string;
+        meta: Record<string, unknown>;
+        explorer_url?: string;
+        ref_id?: string;
+        created_at: string;
+      }>;
+    }>(`/v1/flow/activity?wallet=${encodeURIComponent(wallet)}`),
   agentSignals: () =>
     request<{
       ok: boolean;

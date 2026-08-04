@@ -303,20 +303,20 @@ function pickModel(intent: BeaconAgentId, env: BeaconEnv): string {
 
 function detectIntent(message: string, fallback: BeaconAgentId, state?: ConversationState): BeaconAgentId {
   const m = message.toLowerCase();
+  // Strong keyword intents always win (auto-route from General)
+  if (/@signals|ftso|price feed|oracle|\bsignals?\b/.test(m)) return "signals";
+  if (/@swap|\bswap\b|usdt0.*fxrp/.test(m) && /swap|usdt|fxrp|@swap/.test(m)) return "swap";
+  if (/@bridge|\bbridge\b|layerzero|oft|stargate/.test(m)) return "bridge";
+  if (/@pay|x402|micropay/.test(m)) return "pay";
+  if (/@trade|trade signal|\blong\b|\bshort\b/.test(m)) return "trade";
+  if (/@desk|bound work/.test(m)) return "desk";
+  if (/@image|create image|generate image|\blogo\b|icon for|thumbnail/.test(m)) return "image";
+  if (/@video|create video|generate video|storyboard/.test(m)) return "video";
+  if (/@research|research |competitors|market pack/.test(m)) return "research";
+  if (/@general/.test(m)) return "general";
   if (state && state.phase !== "idle" && !/^@\w+/.test(m.trim())) {
-    // Continue active intent unless user switches with @mention
     return state.intent;
   }
-  if (/@signals|ftso|price feed|oracle|\bsignals?\b/.test(m)) return "signals";
-  if (/@swap|swap|usdt0.*fxrp|fxrp/.test(m) && /swap|usdt|fxrp|@swap/.test(m)) return "swap";
-  if (/@bridge|bridge|layerzero|oft|stargate/.test(m)) return "bridge";
-  if (/@pay|x402|micropay/.test(m)) return "pay";
-  if (/@trade|trade signal|long |short /.test(m)) return "trade";
-  if (/@desk|bound work/.test(m)) return "desk";
-  if (/@image|create image|generate image|logo/.test(m)) return "image";
-  if (/@video|create video|generate video/.test(m)) return "video";
-  if (/@research|research /.test(m)) return "research";
-  if (/@general/.test(m)) return "general";
   return fallback;
 }
 
@@ -618,8 +618,16 @@ export async function runBeaconAgentChat(opts: {
     };
   }
 
-  // ——— Bridge: always lead with documented OFT routes ———
+  // ——— Bridge: routes → destination+amount quote (honest fees) ———
   if (intent === "bridge") {
+    const m = opts.message.toLowerCase();
+    const dest =
+      /sepolia/.test(m) ? "Sepolia"
+      : /hyperliquid|hyperevm/.test(m) ? "Hyperliquid EVM Testnet"
+      : /bsc|bnb/.test(m) ? "BSC Testnet"
+      : state.bridgeTo;
+    const amount = extractAmount(opts.message) ?? state.amountInUnits;
+
     cards.push({
       type: "bridge_routes",
       title: "FXRP OFT routes · Coston2",
@@ -635,16 +643,64 @@ export async function runBeaconAgentChat(opts: {
       honesty:
         "Supported peers from official getOftPeers. Beacon will not claim a bridge filled without an OFT send receipt. Fees require an on-chain quote at send time.",
     });
-    const wantsAmount = Boolean(extractAmount(opts.message));
+
+    if (dest && amount && amount !== "all") {
+      const route = COSTON2_FXRP_OFT_ROUTES.find((r) => r.chain === dest);
+      cards.push({
+        type: "bridge_intent",
+        title: `Plan · Coston2 → ${dest}`,
+        summary: `Bridge **${amount} FXRP** from Coston2 to **${dest}** (EID ${route?.eid ?? "—"}) via LayerZero OFT Adapter. Asset: FXRP (FAssets). ETA: minutes after send confirms. Messaging fee is quoted on-chain at send — we do not invent fee amounts.`,
+        links: [
+          { label: "FXRP automint + bridge", href: "https://dev.flare.network/fxrp/oft/fxrp-automint" },
+          { label: "LayerZero Flare Testnet", href: "https://docs.layerzero.network/v2/deployments/chains/flare-testnet" },
+        ],
+        honesty:
+          "Execution requires OFT send from a funded FXRP balance (EOA or Smart Account custom instruction for XRPL users). Beacon stores this plan in history — explorer receipt appears only after a real send tx.",
+      });
+      const narr = await narrate({
+        intent: "bridge",
+        userMessage: opts.message,
+        situation: `User selected ${dest} and amount ${amount} FXRP. Confirm the plan clearly. Fees unknown until quoteSend. Do not pretend the bridge already executed.`,
+        fallback: `Plan ready: **${amount} FXRP** Coston2 → **${dest}** via LayerZero OFT.\n\nNext: fund FXRP on Coston2, then run OFT send (fee quoted on-chain). I’ll record the plan in your history — no fake fill.`,
+        env,
+      });
+      return {
+        agentId: "bridge",
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent: "bridge", phase: "await_confirm", bridgeTo: dest, amountInUnits: amount },
+      };
+    }
+
+    if (dest && !amount) {
+      const narr = await narrate({
+        intent: "bridge",
+        userMessage: opts.message,
+        situation: `User picked ${dest}. Ask only how much FXRP to bridge. Do not re-list all clarifying questions.`,
+        fallback: `Got it — destination **${dest}**. How much **FXRP** should we plan to bridge from Coston2?`,
+        env,
+      });
+      return {
+        agentId: "bridge",
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent: "bridge", phase: "clarify", bridgeTo: dest },
+      };
+    }
+
     const narr = await narrate({
       intent: "bridge",
       userMessage: opts.message,
-      situation: wantsAmount
-        ? "User may have amount/route. Summarize the three supported destinations and ask which peer + amount of FXRP to plan next. Do not invent fees."
-        : "User asked about bridges. Present the three supported FXRP OFT destinations (BSC, Sepolia, Hyperliquid). Ask which destination and FXRP amount next. Do not re-ask empty clarify loops.",
-      fallback: wantsAmount
-        ? "Supported FXRP OFT destinations from Coston2: **BSC**, **Sepolia**, **Hyperliquid**. Pick one and confirm FXRP amount — I’ll plan the LayerZero send without inventing fees."
-        : "Here are the **documented FXRP OFT routes from Coston2**: BSC, Sepolia, and Hyperliquid. Which destination and how much FXRP?",
+      situation:
+        "Present the three supported FXRP OFT destinations. Ask which destination and FXRP amount. Do not invent fees.",
+      fallback:
+        "Here are the **documented FXRP OFT routes from Coston2**: BSC, Sepolia, and Hyperliquid. Which destination and how much FXRP?",
       env,
     });
     return {
@@ -730,6 +786,45 @@ export async function runBeaconAgentChat(opts: {
     }
 
     if (isSmallImage && !isLargeCreative) {
+      const briefReady =
+        state.phase === "await_confirm" ||
+        state.phase === "quote" ||
+        /color|style|transparent|serif|sans|minimal|bold|reference|company|brand|name is/i.test(m);
+
+      if (!briefReady && state.phase !== "await_confirm") {
+        cards.push({
+          type: "media_clarify",
+          title: "Logo brief",
+          kind: "image",
+          prompts: [
+            "Company / product name?",
+            "Colors / palette?",
+            "Style (minimal, bold, geometric…)?",
+            "Transparent background?",
+            "Any reference?",
+          ],
+          deskHref: "/app",
+        });
+        const narr = await narrate({
+          intent: "image",
+          userMessage: opts.message,
+          situation:
+            "Small logo job. Clarify name, colors, style, transparency, reference BEFORE quoting price. Do not show payment yet.",
+          fallback:
+            "Happy to make that logo.\n\nQuick brief: **name**, **colors**, **style**, **transparent?** — then I’ll quote provider, price, and ETA before x402.",
+          env,
+        });
+        return {
+          agentId: "image",
+          text: narr.text,
+          cards,
+          model: narr.model,
+          displayModel: narr.displayModel,
+          paid: false,
+          state: { intent: "image", phase: "clarify", imageStyle: m.slice(0, 80) },
+        };
+      }
+
       const res = PAID_RESOURCES.find((r) => r.id === "image-logo")!;
       cards.push({
         type: "x402_quote",
@@ -749,8 +844,8 @@ export async function runBeaconAgentChat(opts: {
       const narr = await narrate({
         intent: "image",
         userMessage: opts.message,
-        situation: `Small image job. Quote ${res.priceUsdt0} USDT0 via x402. Provider ${res.provider}. ETA ~${res.etaSeconds}s. After payment, generate immediately. Do not send them to Bound Work unless they ask for a large pack.`,
-        fallback: `This looks like a **small logo job**.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} MockUSDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay to run it now — or open Bound Work for a larger escrowed pack.`,
+        situation: `Brief ready. Quote ${res.priceUsdt0} USDT0 via x402. Provider ${res.provider}. ETA ~${res.etaSeconds}s. After payment, generate immediately.`,
+        fallback: `Creative brief locked.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} MockUSDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay & run to generate — or Bound Work for a larger escrowed pack.`,
         env,
       });
       return {
@@ -761,6 +856,78 @@ export async function runBeaconAgentChat(opts: {
         displayModel: narr.displayModel,
         paid: Boolean(opts.paidResource),
         state: { intent: "image", phase: "await_confirm" },
+      };
+    }
+
+    // Research: clarify → x402 brief (not Bound Work by default)
+    if (intent === "research") {
+      const scoped =
+        state.phase === "await_confirm" ||
+        /depth|source|pdf|slide|competitor|topic|outline|brief/i.test(m) ||
+        m.length > 40;
+      if (!scoped) {
+        cards.push({
+          type: "media_clarify",
+          title: "Research scope",
+          kind: "research",
+          prompts: [
+            "Topic?",
+            "Depth (scan / deep)?",
+            "Sources preference?",
+            "PDF or slides?",
+            "Competitor focus?",
+          ],
+          deskHref: "/app",
+        });
+        const narr = await narrate({
+          intent: "research",
+          userMessage: opts.message,
+          situation: "Clarify research scope before quoting. Do not charge yet.",
+          fallback:
+            "Let’s scope it first: **topic**, **depth**, **sources**, **PDF/slides?**, **competitors?** — then I’ll quote the research brief.",
+          env,
+        });
+        return {
+          agentId: "research",
+          text: narr.text,
+          cards,
+          model: narr.model,
+          displayModel: narr.displayModel,
+          paid: false,
+          state: { intent: "research", phase: "clarify" },
+        };
+      }
+      const res = PAID_RESOURCES.find((r) => r.id === "research-brief")!;
+      cards.push({
+        type: "x402_quote",
+        title: res.title,
+        priceUsdt0: res.priceUsdt0,
+        resource: res.resource,
+        payTo: env.X402_PAYEE_ADDRESS || "",
+        token: env.X402_TOKEN_ADDRESS || "",
+        facilitator: env.X402_FACILITATOR_ADDRESS || "",
+        chainId: 114,
+        provider: res.provider,
+        reason: res.reason,
+        etaSeconds: res.etaSeconds,
+        flarePrimitive: res.flarePrimitive,
+        serviceId: res.id,
+      });
+      const narr = await narrate({
+        intent: "research",
+        userMessage: opts.message,
+        situation: `Scope ready. Quote $${res.priceUsdt0} research brief via x402. Deliver after payment.`,
+        fallback: `Scope locked.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} MockUSDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay & run for the brief — larger packs use Bound Work escrow.`,
+        env,
+      });
+      return {
+        agentId: "research",
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: Boolean(opts.paidResource),
+        state: { intent: "research", phase: "await_confirm" },
       };
     }
 

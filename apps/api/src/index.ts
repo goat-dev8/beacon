@@ -47,6 +47,20 @@ import {
   recordSpendUsdt0,
   type BeaconSecurityPolicy,
 } from "./securityPolicy.js";
+import {
+  appendMessage,
+  archiveConversation,
+  createConversation,
+  ensureFlowSchema,
+  getConversation,
+  listActivity,
+  listConversations,
+  listMessages,
+  pinConversation,
+  recordActivity,
+  renameConversation,
+  updateConversationState,
+} from "./flowStore.js";
 
 const env = loadEnv();
 assertFlareRequired(env);
@@ -721,6 +735,7 @@ const agentChatSchema = z.object({
     .optional(),
   message: z.string().min(1).max(4000),
   wallet: z.string().optional(),
+  conversationId: z.string().uuid().optional(),
   state: z
     .object({
       intent: z.string(),
@@ -819,7 +834,126 @@ app.post("/v1/agents/chat", async (req) => {
     state: (body.state as ConversationState | null | undefined) ?? null,
     env,
   });
-  return { ok: true, ...result };
+
+  let conversationId = body.conversationId ?? null;
+  if (body.wallet) {
+    try {
+      if (!conversationId) {
+        const title =
+          body.message.length > 48 ? `${body.message.slice(0, 48)}…` : body.message;
+        const conv = await createConversation(pool, body.wallet, title, result.agentId);
+        conversationId = conv.id as string;
+      }
+      await appendMessage(pool, conversationId, {
+        role: "user",
+        agentId: body.agentId,
+        text: body.message,
+      });
+      await appendMessage(pool, conversationId, {
+        role: "assistant",
+        agentId: result.agentId,
+        text: result.text,
+        cards: result.cards,
+        displayModel: result.displayModel,
+      });
+      await updateConversationState(pool, conversationId, result.state, result.agentId);
+      if (paidResource) {
+        await recordActivity(pool, body.wallet, "payment", `x402 · ${result.agentId}`, {
+          agentId: result.agentId,
+        });
+      }
+      if (result.cards.some((c) => c.type === "swap_prepare" || c.type === "media_result")) {
+        await recordActivity(
+          pool,
+          body.wallet,
+          result.cards.some((c) => c.type === "media_result") ? "media" : "swap",
+          result.cards.find((c) => c.type === "media_result" || c.type === "swap_prepare")?.title ??
+            result.agentId,
+          { agentId: result.agentId },
+        );
+      }
+    } catch (err) {
+      app.log.warn({ err }, "flow persistence skipped");
+    }
+  }
+
+  return { ok: true, conversationId, ...result };
+});
+
+/** Flow conversations — wallet identity */
+app.get("/v1/flow/conversations", async (req) => {
+  const wallet = z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/i)
+    .parse((req.query as { wallet?: string }).wallet);
+  const conversations = await listConversations(pool, wallet);
+  return { ok: true, conversations };
+});
+
+app.post("/v1/flow/conversations", async (req) => {
+  const body = z
+    .object({
+      wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
+      title: z.string().min(1).max(120).optional(),
+      agentId: z.string().optional(),
+    })
+    .parse(req.body ?? {});
+  const conversation = await createConversation(
+    pool,
+    body.wallet,
+    body.title ?? "New chat",
+    body.agentId ?? "general",
+  );
+  return { ok: true, conversation };
+});
+
+app.get("/v1/flow/conversations/:id", async (req) => {
+  const id = (req.params as { id: string }).id;
+  const wallet = z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/i)
+    .parse((req.query as { wallet?: string }).wallet);
+  const conversation = await getConversation(pool, id, wallet);
+  if (!conversation) throw new AppError("JOB_NOT_FOUND", { message: "Conversation not found." });
+  const messages = await listMessages(pool, id);
+  return {
+    ok: true,
+    conversation,
+    messages: messages.map((m) => ({
+      id: m.id,
+      role: m.role,
+      agentId: m.agent_id,
+      text: m.text,
+      cards: m.cards_json,
+      displayModel: m.display_model,
+      createdAt: m.created_at,
+    })),
+  };
+});
+
+app.patch("/v1/flow/conversations/:id", async (req) => {
+  const id = (req.params as { id: string }).id;
+  const body = z
+    .object({
+      wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
+      title: z.string().min(1).max(120).optional(),
+      pinned: z.boolean().optional(),
+      archive: z.boolean().optional(),
+    })
+    .parse(req.body ?? {});
+  if (body.title) await renameConversation(pool, id, body.wallet, body.title);
+  if (body.pinned != null) await pinConversation(pool, id, body.wallet, body.pinned);
+  if (body.archive) await archiveConversation(pool, id, body.wallet);
+  return { ok: true };
+});
+
+app.get("/v1/flow/activity", async (req) => {
+  const wallet = z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/i)
+    .parse((req.query as { wallet?: string }).wallet);
+  const activity = await listActivity(pool, wallet);
+  return { ok: true, activity };
 });
 
 /** Security Center policies — persisted in Redis when available. */
@@ -895,6 +1029,12 @@ app.post("/v1/security/revoke", async (req) => {
 });
 
 const port = Number(process.env.PORT || env.API_PORT || 3001);
+try {
+  await ensureFlowSchema(pool);
+  console.log("Flow persistence schema ready");
+} catch (err) {
+  console.warn("Flow schema ensure failed", err instanceof Error ? err.message : err);
+}
 await app.listen({ port, host: "0.0.0.0" });
 console.log(`Beacon API listening on ${port}`);
 

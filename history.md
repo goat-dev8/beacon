@@ -4,6 +4,25 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-05 — Hackathon win mode · AI OS productization
+
+**Goal:** Beacon feels like production Flare AI OS, not chatbot + demos.
+
+**Research:** `FLAGSHIP_FINAL_RESEARCH.md` (DevHub MCP: FTSO, SparkDEX, FAssets, OFT peers BSC/Sepolia/Hyperliquid 40362, x402/EIP-3009, Smart Accounts honesty, Coston2 developer tools).
+
+**Shipped**
+- Fixed ChatGPT layout: `h-dvh`, fixed sidebars/header/composer; only messages scroll
+- Postgres persistence: `flow_conversations` / `flow_messages` / `flow_activity` by wallet; resume on reconnect; rename / pin / archive / search
+- Intent auto-detect from General (logo→image, swap→swap, bridge→bridge, research→research)
+- Image: clarify brief → quote → x402 → generate (never pay-first)
+- Research: scope clarify → x402 brief
+- Bridge: OFT routes → destination+amount plan card (honest fees; no fake fill)
+- API client: `/v1/flow/*` + `conversationId` on chat
+
+**Verify:** unit tests + web build + push + live `/v1/flow/conversations` + desk `/flow`
+
+---
+
 ## 2026-08-05 — Flagship productization (gap analysis → one pipeline)
 
 **Problem:** Screenshots showed working swap e2e, but product still felt like disconnected demos — generic x402 $0.10, bridge clarify loops, every image forced to Bound Work, no session memory, inconsistent model badges.
