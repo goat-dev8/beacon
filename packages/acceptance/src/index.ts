@@ -124,7 +124,15 @@ const INTERMEDIATE_KINDS = new Set([
 export function runL1Objective(ctx: AcceptContext): LayerResult {
   const notes: string[] = [];
   // Draft/plan/manifest are intermediates — only final deliverables gate L1.
-  const primary = ctx.artifacts.filter((a) => !INTERMEDIATE_KINDS.has(a.kind));
+  const primary = ctx.artifacts.filter((a) => {
+    if (INTERMEDIATE_KINDS.has(a.kind)) return false;
+    const companion = Boolean(
+      a.payload &&
+        typeof a.payload === "object" &&
+        (a.payload as { companion?: boolean }).companion,
+    );
+    return !companion;
+  });
   if (primary.length === 0) {
     return { layer: "L1", passed: false, notes: ["No deliverables attached."] };
   }
