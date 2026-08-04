@@ -123,6 +123,14 @@ export const envSchema = z.object({
   VIDEO_TOOLKIT_ROOT: optionalString,
   REMOTION_ENABLED: optionalBool,
 
+  /** pollinations | agentrouter | svg | auto */
+  IMAGE_PROVIDER: optionalString,
+  /** remotion | pollinations-stills | storyboard | auto */
+  VIDEO_PROVIDER: optionalString,
+  POLLINATIONS_IMAGE_BASE: optionalString,
+  POLLINATIONS_MODEL: optionalString,
+  POLLINATIONS_API_KEY: optionalString,
+
   X402_TOKEN_ADDRESS: optionalString,
   X402_FACILITATOR_ADDRESS: optionalString,
   X402_PAYEE_ADDRESS: optionalString,

@@ -692,8 +692,8 @@ function ResultPanel({
   const needsLook = status === "NEEDS_LOOK";
 
   const primary =
-    artifacts.find((a) => a.kind === "image") ??
     artifacts.find((a) => a.kind === "video") ??
+    artifacts.find((a) => a.kind === "image") ??
     artifacts.find((a) => a.kind === "draft") ??
     artifacts.find((a) => a.kind === "document") ??
     artifacts.find((a) => a.kind === "captions") ??
@@ -820,6 +820,14 @@ function ResultPanel({
                 className="mx-auto max-h-[min(70vh,640px)] w-full object-contain"
               />
             )}
+            {(bodyKind === "video" || bodyMime.startsWith("video/")) && rawSrc && (
+              <video
+                src={rawSrc}
+                controls
+                playsInline
+                className="mx-auto max-h-[min(70vh,640px)] w-full bg-ink"
+              />
+            )}
             {isImage && rawSrc && bodyMime.includes("svg") && (
               <p className="mt-3">
                 <a href={rawSrc} target="_blank" rel="noreferrer" className="font-mono text-xs text-signal-deep underline">
@@ -827,12 +835,12 @@ function ResultPanel({
                 </a>
               </p>
             )}
-            {body && !isImage && (
+            {body && !isImage && !bodyMime.startsWith("video/") && bodyKind !== "video" && (
               <div className="prose-beacon whitespace-pre-wrap font-sans text-[15px] leading-7 text-ink">
                 {body}
               </div>
             )}
-            {!body && !isImage && !selectedQuery.isLoading && !selectedQuery.isError && (
+            {!body && !isImage && bodyKind !== "video" && !bodyMime.startsWith("video/") && !selectedQuery.isLoading && !selectedQuery.isError && (
               <p className="text-sm text-ink-muted">
                 No preview available for this artifact type.
               </p>

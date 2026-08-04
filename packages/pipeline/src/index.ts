@@ -2,15 +2,23 @@ import { mkdir, writeFile, access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { chatForRole, isAiConfigured, loadEnv } from "@beacon/shared";
+import {
+  chatForRole,
+  generatePollinationsImage,
+  isAiConfigured,
+  isPollinationsConfigured,
+  loadEnv,
+} from "@beacon/shared";
 
 export type PipelineStage = "plan" | "generate" | "compose" | "normalize";
 
 /** Bumped when deliverable composers change — exposed via /health for deploy proof. */
 export const PIPELINE_CAPS = {
-  version: "2026-08-04-image-svg-v2",
+  version: "2026-08-04-pollinations-media",
   imageSvg: true,
+  imagePollinations: true,
   videoStoryboard: true,
+  videoPollinationsStills: true,
 } as const;
 
 export interface PipelineJob {
@@ -160,83 +168,7 @@ async function composeDeliverable(
   }
 
   if (sid === "video") {
-    const manifestPath = path.join(job.outputDir, "composition.manifest.json");
-    const manifest: RemotionComposition = {
-      id: "BeaconPack",
-      props: {
-        title: job.briefText.slice(0, 80),
-        body: inputs.find((a) => a.kind === "draft")?.uri ?? "",
-      },
-      durationInFrames: 450,
-      fps: 30,
-      width: 1080,
-      height: 1920,
-    };
-    await writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
-
-    const videoOut = path.join(job.outputDir, "output.mp4");
-    const render = await renderRemotion({
-      composition: manifest,
-      outputPath: videoOut,
-      remotionRoot: loadEnv().OPENMONTAGE_ROOT || undefined,
-    });
-
-    const artifacts: StageArtifact[] = [
-      {
-        kind: "composition_manifest",
-        uri: manifestPath,
-        mimeType: "application/json",
-        meta: { render },
-      },
-    ];
-
-    if (render.rendered) {
-      artifacts.push({
-        kind: "video",
-        uri: render.outputPath,
-        mimeType: "video/mp4",
-        meta: { durationSeconds: 15 },
-      });
-    } else {
-      // Remotion unavailable: still ship a reviewable storyboard pack (not a fake MP4).
-      const storyboardPath = path.join(job.outputDir, "storyboard.json");
-      const draftUri = inputs.find((a) => a.kind === "draft")?.uri ?? "";
-      const storyboard = {
-        kind: "video_storyboard",
-        title: job.briefText.slice(0, 80),
-        durationSeconds: 15,
-        fps: 30,
-        shots: [
-          { at: 0, beat: "Hook", onScreen: job.briefText.slice(0, 120) },
-          { at: 5, beat: "Promise", onScreen: "Finish AI work. Pay only when it passes." },
-          { at: 10, beat: "CTA", onScreen: "Open Beacon → Start a job" },
-        ],
-        scriptUri: draftUri,
-        renderStatus: "manifest_only",
-        message: render.message,
-      };
-      await writeFile(storyboardPath, JSON.stringify(storyboard, null, 2), "utf8");
-      artifacts.push({
-        kind: "storyboard",
-        uri: storyboardPath,
-        mimeType: "application/json",
-        meta: { durationSeconds: 15, render },
-      });
-      const captionsPath = path.join(job.outputDir, "captions.md");
-      await writeFile(
-        captionsPath,
-        `# Captions\n\n${job.briefText}\n\n## Beats\n\n- 0s Hook\n- 5s Promise\n- 10s CTA\n`,
-        "utf8",
-      );
-      artifacts.push({
-        kind: "captions",
-        uri: captionsPath,
-        mimeType: "text/markdown",
-        meta: { companion: true },
-      });
-    }
-
-    return artifacts;
+    return composeVideoDeliverable(job, inputs);
   }
 
   const packPath = path.join(job.outputDir, "deliverable.md");
@@ -264,6 +196,50 @@ async function composeImageDeliverable(
   job: PipelineJob,
   inputs: StageArtifact[],
 ): Promise<StageArtifact[]> {
+  const env = loadEnv();
+  const briefPath = path.join(job.outputDir, "image-brief.md");
+  const prompt =
+    job.briefText.trim() ||
+    "Minimal mint Beacon mark on warm paper, flat vector creative, green accent";
+
+  // 1) Free Pollinations JPEG (works without AgentRouter image entitlements)
+  if (isPollinationsConfigured(env)) {
+    try {
+      const img = await generatePollinationsImage(
+        { prompt, width: 1024, height: 1024, model: env.POLLINATIONS_MODEL || "flux" },
+        env,
+      );
+      const ext = img.mimeType.includes("png") ? "png" : "jpg";
+      const imagePath = path.join(job.outputDir, `creative.${ext}`);
+      await writeFile(imagePath, img.bytes);
+      await writeFile(
+        briefPath,
+        `# Image creative\n\n${job.briefText}\n\n_Generated via Pollinations (${img.model}) · ${img.latencyMs}ms._\n`,
+        "utf8",
+      );
+      return [
+        {
+          kind: "image",
+          uri: imagePath,
+          mimeType: img.mimeType,
+          meta: {
+            generator: "pollinations",
+            model: img.model,
+            size: "1024x1024",
+            latencyMs: img.latencyMs,
+          },
+        },
+        { kind: "document", uri: briefPath, mimeType: "text/markdown", meta: { companion: true } },
+      ];
+    } catch (err) {
+      console.warn(
+        "[pipeline] Pollinations image failed, falling back to SVG:",
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
+  // 2) Honest SVG fallback when free image APIs are unavailable
   const title = (job.briefText.slice(0, 48) || "Beacon creative")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -278,15 +254,13 @@ async function composeImageDeliverable(
     '<circle cx="512" cy="420" r="140" fill="#39e08a"/>',
     '<path d="M512 300 L580 480 L512 560 L444 480 Z" fill="#2a2735"/>',
     `<text x="512" y="680" text-anchor="middle" font-family="Georgia, serif" font-size="36" fill="#2a2735">${title}</text>`,
-    '<text x="512" y="740" text-anchor="middle" font-family="monospace" font-size="18" fill="#6b6575">Beacon · Image · Flare Coston2</text>',
+    '<text x="512" y="740" text-anchor="middle" font-family="monospace" font-size="18" fill="#6b6575">Beacon · Image · fallback SVG</text>',
     "</svg>",
   ].join("");
   await writeFile(svgPath, svg, "utf8");
-
-  const briefPath = path.join(job.outputDir, "image-brief.md");
   await writeFile(
     briefPath,
-    `# Image creative\n\n${job.briefText}\n\n_SVG pack (AgentRouter /images/generations returns 403)._\n`,
+    `# Image creative\n\n${job.briefText}\n\n_SVG fallback (Pollinations / AgentRouter image unavailable)._\n`,
     "utf8",
   );
 
@@ -299,6 +273,194 @@ async function composeImageDeliverable(
     },
     { kind: "document", uri: briefPath, mimeType: "text/markdown", meta: { companion: true } },
   ];
+}
+
+async function composeVideoDeliverable(
+  job: PipelineJob,
+  inputs: StageArtifact[],
+): Promise<StageArtifact[]> {
+  const env = loadEnv();
+  const provider = (env.VIDEO_PROVIDER || "auto").toLowerCase();
+  const draftUri = inputs.find((a) => a.kind === "draft")?.uri ?? "";
+
+  const manifestPath = path.join(job.outputDir, "composition.manifest.json");
+  const manifest: RemotionComposition = {
+    id: "BeaconPack",
+    props: {
+      title: job.briefText.slice(0, 80),
+      body: draftUri,
+    },
+    durationInFrames: 450,
+    fps: 30,
+    width: 1080,
+    height: 1920,
+  };
+  await writeFile(manifestPath, JSON.stringify(manifest, null, 2), "utf8");
+
+  const artifacts: StageArtifact[] = [
+    {
+      kind: "composition_manifest",
+      uri: manifestPath,
+      mimeType: "application/json",
+      meta: { provider },
+    },
+  ];
+
+  // 1) Remotion / OpenMontage when available (local toolkit or REMOTION_ENABLED)
+  if (provider === "remotion" || provider === "auto") {
+    const videoOut = path.join(job.outputDir, "output.mp4");
+    const render = await renderRemotion({
+      composition: manifest,
+      outputPath: videoOut,
+      remotionRoot: env.OPENMONTAGE_ROOT || env.VIDEO_TOOLKIT_ROOT || undefined,
+    });
+    if (render.rendered) {
+      artifacts.push({
+        kind: "video",
+        uri: render.outputPath,
+        mimeType: "video/mp4",
+        meta: { durationSeconds: 15, generator: "remotion", render },
+      });
+      return artifacts;
+    }
+    artifacts[0]!.meta = { ...(artifacts[0]!.meta ?? {}), remotion: render };
+  }
+
+  // 2) Free Pollinations stills → optional ffmpeg slideshow MP4
+  const shots = [
+    { at: 0, beat: "Hook", prompt: `${job.briefText.slice(0, 160)}, cinematic opening frame` },
+    {
+      at: 8,
+      beat: "CTA",
+      prompt: `Beacon desk call to action, Start a job, pay only when it passes, ${job.briefText.slice(0, 80)}`,
+    },
+  ];
+
+  const framePaths: string[] = [];
+  if (provider === "pollinations-stills" || provider === "auto" || provider === "storyboard") {
+    for (let i = 0; i < shots.length; i++) {
+      const shot = shots[i]!;
+      try {
+        // Respect anonymous Pollinations rate limit (~15s)
+        if (i > 0) await new Promise((r) => setTimeout(r, 16_000));
+        const img = await generatePollinationsImage(
+          {
+            prompt: shot.prompt,
+            width: 1080,
+            height: 1920,
+            model: env.POLLINATIONS_MODEL || "flux",
+          },
+          env,
+        );
+        const framePath = path.join(job.outputDir, `frame-${i + 1}.jpg`);
+        await writeFile(framePath, img.bytes);
+        framePaths.push(framePath);
+        artifacts.push({
+          kind: "image",
+          uri: framePath,
+          mimeType: img.mimeType,
+          meta: {
+            generator: "pollinations",
+            beat: shot.beat,
+            at: shot.at,
+            companion: i > 0,
+          },
+        });
+      } catch (err) {
+        console.warn(
+          "[pipeline] video still failed",
+          shot.beat,
+          err instanceof Error ? err.message : err,
+        );
+      }
+    }
+  }
+
+  const videoOut = path.join(job.outputDir, "output.mp4");
+  if (framePaths.length >= 2) {
+    const slideshow = await renderSlideshowMp4(framePaths, videoOut);
+    if (slideshow.ok) {
+      artifacts.push({
+        kind: "video",
+        uri: videoOut,
+        mimeType: "video/mp4",
+        meta: {
+          durationSeconds: framePaths.length * 5,
+          generator: "pollinations-stills+ffmpeg",
+          frames: framePaths.length,
+        },
+      });
+    }
+  }
+
+  const storyboardPath = path.join(job.outputDir, "storyboard.json");
+  const storyboard = {
+    kind: "video_storyboard",
+    title: job.briefText.slice(0, 80),
+    durationSeconds: 15,
+    fps: 30,
+    shots: shots.map((s, i) => ({
+      at: s.at,
+      beat: s.beat,
+      onScreen: s.prompt.slice(0, 120),
+      frame: framePaths[i] ? path.basename(framePaths[i]!) : null,
+    })),
+    scriptUri: draftUri,
+    renderStatus: artifacts.some((a) => a.kind === "video") ? "mp4_ready" : "stills_or_manifest",
+    openmontage: "Use /openmontage or VIDEO_TOOLKIT_ROOT for full Remotion packs locally.",
+  };
+  await writeFile(storyboardPath, JSON.stringify(storyboard, null, 2), "utf8");
+  artifacts.push({
+    kind: "storyboard",
+    uri: storyboardPath,
+    mimeType: "application/json",
+    meta: { durationSeconds: 15, companion: true },
+  });
+
+  const captionsPath = path.join(job.outputDir, "captions.md");
+  await writeFile(
+    captionsPath,
+    `# Captions\n\n${job.briefText}\n\n## Beats\n\n- 0s Hook\n- 5s Promise\n- 10s CTA\n\n_Frames via Pollinations · Remotion via OpenMontage when configured._\n`,
+    "utf8",
+  );
+  artifacts.push({
+    kind: "captions",
+    uri: captionsPath,
+    mimeType: "text/markdown",
+    meta: { companion: true },
+  });
+
+  return artifacts;
+}
+
+async function renderSlideshowMp4(
+  framePaths: string[],
+  outputPath: string,
+): Promise<{ ok: boolean; message: string }> {
+  const listPath = path.join(path.dirname(outputPath), "frames.txt");
+  const listBody = framePaths
+    .map((f) => `file '${f.replace(/\\/g, "/")}'\nduration 5`)
+    .join("\n");
+  // last frame needs a trailing file line for concat demuxer
+  const last = framePaths[framePaths.length - 1]!.replace(/\\/g, "/");
+  await writeFile(listPath, `${listBody}\nfile '${last}'\n`, "utf8");
+
+  const code = await runCommand("ffmpeg", [
+    "-y",
+    "-f",
+    "concat",
+    "-safe",
+    "0",
+    "-i",
+    listPath,
+    "-vsync",
+    "vfr",
+    "-pix_fmt",
+    "yuv420p",
+    outputPath,
+  ]);
+  if (code === 0) return { ok: true, message: "ffmpeg slideshow ok" };
+  return { ok: false, message: `ffmpeg exit ${code}` };
 }
 
 async function normalizePack(job: PipelineJob, artifacts: StageArtifact[]): Promise<StageArtifact[]> {

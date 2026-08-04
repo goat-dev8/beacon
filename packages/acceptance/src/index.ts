@@ -176,7 +176,15 @@ export function runL1Objective(ctx: AcceptContext): LayerResult {
 
 function isAllowedMime(serviceId: string, mime: string): boolean {
   const map: Record<string, string[]> = {
-    video: ["video/mp4", "video/webm", "application/json", "text/markdown"],
+    video: [
+      "video/mp4",
+      "video/webm",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+      "application/json",
+      "text/markdown",
+    ],
     image: ["image/png", "image/jpeg", "image/webp", "image/svg+xml", "application/json", "text/markdown"],
     voice: ["audio/mpeg", "audio/wav", "audio/mp4", "application/json", "text/markdown"],
     presentations: [

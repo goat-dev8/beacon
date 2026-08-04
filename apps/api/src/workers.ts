@@ -65,7 +65,7 @@ async function tickPipeline(db: pg.Pool, redis: Redis): Promise<void> {
 
 async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promise<void> {
   const lockKey = `lock:job:${job.id}`;
-  const locked = await redis.set(lockKey, "1", { nx: true, ex: 180 });
+  const locked = await redis.set(lockKey, "1", { nx: true, ex: 600 });
   if (!locked) return;
 
   try {
