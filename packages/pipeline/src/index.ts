@@ -17,7 +17,7 @@ export type PipelineStage = "plan" | "generate" | "compose" | "normalize";
 
 /** Bumped when deliverable composers change — exposed via /health for deploy proof. */
 export const PIPELINE_CAPS = {
-  version: "2026-08-04-pro-media-v2-cf-flux",
+  version: "2026-08-04-pro-media-v3-video-fast",
   imageSvg: true,
   imagePollinations: true,
   imageComfy: true,
@@ -27,6 +27,7 @@ export const PIPELINE_CAPS = {
   videoStoryboard: true,
   videoPollinationsStills: true,
   videoProFfmpeg: true,
+  videoFastHold: true,
   flareRequired: true,
 } as const;
 
@@ -122,11 +123,18 @@ async function generateContent(job: PipelineJob): Promise<StageArtifact[]> {
   let body = `# ${job.serviceId} draft\n\n${job.briefText}\n`;
   let providerMeta: Record<string, unknown> = { provider: "local-fallback" };
 
+  const sidEarly = String(job.serviceId ?? "")
+    .toLowerCase()
+    .trim();
+  const mediaFast = (env.MEDIA_FAST || "").toLowerCase() === "true";
+  // Never call AgentRouter for image/video under MEDIA_FAST — keeps Render health alive.
+  const skipAiDraft = mediaFast && ["image", "video"].includes(sidEarly);
+
   if (!isAiConfigured(env)) {
     if (env.AI_REQUIRE_REAL) {
       throw new Error("AI_REQUIRE_REAL=true but AI_API_KEY / AI_BASE_URL are missing");
     }
-  } else {
+  } else if (!skipAiDraft) {
     try {
       const result = await chatForRole(
         "generator",
@@ -153,14 +161,15 @@ async function generateContent(job: PipelineJob): Promise<StageArtifact[]> {
     } catch (err) {
       // Image/video drafts are companions — never block Flux/ffmpeg on AgentRouter outages.
       const mediaSoft =
-        ["image", "video"].includes(String(job.serviceId).toLowerCase()) ||
-        (env.MEDIA_FAST || "").toLowerCase() === "true";
+        ["image", "video"].includes(sidEarly) || mediaFast;
       if (env.AI_REQUIRE_REAL && !mediaSoft) throw err;
       providerMeta = {
         provider: "local-fallback",
         error: err instanceof Error ? err.message : String(err),
       };
     }
+  } else {
+    providerMeta = { provider: "media-fast-skip-draft" };
   }
 
   await writeFile(draftPath, body, "utf8");
@@ -392,26 +401,34 @@ async function composeVideoDeliverable(
     artifacts[0]!.meta = { ...(artifacts[0]!.meta ?? {}), remotion: render };
   }
 
-  // 2) Pro stills (same cascade as images) → ffmpeg-static zoom/xfade MP4
-  // Keep 2 beats for latency — Opus engineering can still return 3; we take first 2.
+  // 2) Pro stills → ffmpeg MP4. MEDIA_FAST: 1 CF frame + light encode (Render-safe).
+  const mediaFastVideo = (env.MEDIA_FAST || "").toLowerCase() === "true";
   const shotsRaw =
     engineered.shotList?.length ?
       engineered.shotList
     : [
         { beat: "Hook", seconds: 4, prompt: engineered.prompt },
-        { beat: "Promise", seconds: 5, prompt: engineered.prompt },
-        { beat: "CTA", seconds: 4, prompt: engineered.prompt },
+        { beat: "Action", seconds: 5, prompt: engineered.prompt },
       ];
-  const shots = shotsRaw.slice(0, 2);
+  const shots = shotsRaw.slice(0, mediaFastVideo ? 1 : 2);
+  const frameW = mediaFastVideo ? 768 : 1080;
+  const frameH = mediaFastVideo ? 1344 : 1920;
 
   const framePaths: Array<{ filePath: string; seconds: number; beat: string }> = [];
   for (let i = 0; i < shots.length; i++) {
     const shot = shots[i]!;
     try {
-      const img = await generateProImage(shot.prompt, { width: 1080, height: 1920 });
-      const framePath = path.join(job.outputDir, `frame-${i + 1}.jpg`);
+      const img = await generateProImage(shot.prompt, { width: frameW, height: frameH });
+      const ext = img.mimeType.includes("png") ? "png" : "jpg";
+      const framePath = path.join(job.outputDir, `frame-${i + 1}.${ext}`);
       await writeFile(framePath, img.bytes);
-      framePaths.push({ filePath: framePath, seconds: shot.seconds, beat: shot.beat });
+      // Yield so /health can answer on Render free tier during multi-frame work.
+      await new Promise((r) => setImmediate(r));
+      framePaths.push({
+        filePath: framePath,
+        seconds: mediaFastVideo ? 4 : shot.seconds,
+        beat: shot.beat,
+      });
       artifacts.push({
         kind: "image",
         uri: framePath,
@@ -421,7 +438,6 @@ async function composeVideoDeliverable(
           model: img.model,
           beat: shot.beat,
           at: shot.seconds,
-          // First frame is always a primary deliverable; extras are companions.
           companion: i > 0,
         },
       });

@@ -23,27 +23,21 @@ const redis = new Redis({
 });
 
 const stuck = await db.query(
-  `SELECT id, status, updated_at
-   FROM jobs
+  `SELECT id, status FROM jobs
    WHERE status IN ('GENERATING','AUTHORIZED','PREPARING','COMPOSING','ACCEPTING')
-   ORDER BY updated_at ASC
-   LIMIT 30`,
+   ORDER BY updated_at ASC LIMIT 30`,
 );
 console.log("active", stuck.rows);
-
 for (const row of stuck.rows) {
-  if (row.status === "GENERATING") {
+  await redis.del(`lock:job:${row.id}`);
+  if (row.status === "GENERATING" || row.status === "ACCEPTING") {
     await db.query(`UPDATE jobs SET status = 'FAILED', updated_at = NOW() WHERE id = $1`, [
       row.id,
     ]);
-    await redis.del(`lock:job:${row.id}`);
     await redis.lpush("q:settle", `refuse:${row.id}`);
-    console.log("failed stuck", row.id);
+    console.log("failed", row.id, row.status);
   } else {
-    await redis.del(`lock:job:${row.id}`);
     console.log("cleared lock", row.id, row.status);
   }
 }
-
 await db.end();
-console.log("done");

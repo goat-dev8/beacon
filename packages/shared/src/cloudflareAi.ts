@@ -47,7 +47,8 @@ export async function generateCloudflareImage(
       prompt: req.prompt.slice(0, 2048),
       num_steps: req.steps ?? 8,
     }),
-    signal: AbortSignal.timeout(90_000),
+    // Keep under Render free-tier pipeline budget (video = 1 frame + ffmpeg).
+    signal: AbortSignal.timeout(55_000),
   });
   const text = await res.text();
   let json: {

@@ -51,12 +51,13 @@ async function loop(fn: () => Promise<void>, ms: number): Promise<void> {
 }
 
 async function tickPipeline(db: pg.Pool, redis: Redis): Promise<void> {
+  // One job at a time — video ffmpeg must not stack on Render free tier.
   const { rows } = await db.query<JobRow>(
     `SELECT id, service_id, status, brief_text
      FROM jobs
      WHERE status IN ('AUTHORIZED', 'PREPARING', 'GENERATING', 'COMPOSING', 'ACCEPTING')
      ORDER BY updated_at ASC
-     LIMIT 5`,
+     LIMIT 1`,
   );
   for (const job of rows) {
     await processPipelineJob(db, redis, job);
@@ -65,7 +66,11 @@ async function tickPipeline(db: pg.Pool, redis: Redis): Promise<void> {
 
 async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promise<void> {
   const lockKey = `lock:job:${job.id}`;
-  const locked = await redis.set(lockKey, "1", { nx: true, ex: 180 });
+  const isVideo = String(job.service_id).toLowerCase() === "video";
+  // Video needs CF + ffmpeg headroom; keep under Render free-tier health window via fast path.
+  const lockTtl = isVideo ? 240 : 180;
+  const pipelineMs = isVideo ? 150_000 : 90_000;
+  const locked = await redis.set(lockKey, "1", { nx: true, ex: lockTtl });
   if (!locked) return;
 
   try {
@@ -87,7 +92,10 @@ async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promi
             outputDir,
           }),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("pipeline timeout after 120s")), 120_000),
+            setTimeout(
+              () => reject(new Error(`pipeline timeout after ${pipelineMs / 1000}s`)),
+              pipelineMs,
+            ),
           ),
         ]);
         console.log(

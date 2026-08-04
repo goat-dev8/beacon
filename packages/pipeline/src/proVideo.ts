@@ -29,8 +29,14 @@ function resolveFfmpeg(): string | null {
   return process.env.FFMPEG_PATH || null;
 }
 
+function mediaFast(): boolean {
+  return (process.env.MEDIA_FAST || "").toLowerCase() === "true";
+}
+
 /**
- * Build a polished vertical MP4 from stills: gentle zoom + crossfades (commercial feel).
+ * Build a vertical MP4 from stills.
+ * MEDIA_FAST / Render free tier: lightweight scale+hold (no zoompan) so health checks stay alive.
+ * Full quality: gentle zoom + crossfades.
  */
 export async function assembleProVideoFromStills(
   frames: ProVideoFrame[],
@@ -46,14 +52,54 @@ export async function assembleProVideoFromStills(
 
   await mkdir(path.dirname(outputPath), { recursive: true });
   const work = path.dirname(outputPath);
+  const fast = mediaFast();
+  const w = fast ? 720 : 1080;
+  const h = fast ? 1280 : 1920;
+  const fps = fast ? 24 : 30;
+  const preset = fast ? "ultrafast" : "veryfast";
+  const crf = fast ? "26" : "18";
 
-  // Normalize each still to 1080x1920 clip with slow zoom
+  if (fast || frames.length === 1) {
+    const frame = frames[0]!;
+    const dur = Math.min(6, Math.max(3, frame.seconds || 4));
+    const code = await run(ffmpeg, [
+      "-y",
+      "-loop",
+      "1",
+      "-i",
+      frame.filePath,
+      "-t",
+      String(dur),
+      "-vf",
+      `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},fps=${fps}`,
+      "-c:v",
+      "libx264",
+      "-preset",
+      preset,
+      "-crf",
+      crf,
+      "-pix_fmt",
+      "yuv420p",
+      "-movflags",
+      "+faststart",
+      "-an",
+      outputPath,
+    ]);
+    return {
+      ok: code === 0,
+      outputPath,
+      message: code === 0 ? (fast ? "fast-hold ok" : "single-hold ok") : "encode failed",
+      ffmpegPath: ffmpeg,
+    };
+  }
+
+  // Full path: zoom clips + xfade (local / paid CPU only)
   const clipPaths: string[] = [];
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i]!;
     const clip = path.join(work, `clip-${i}.mp4`);
     const dur = Math.max(2, frame.seconds);
-    const framesCount = Math.round(dur * 30);
+    const framesCount = Math.round(dur * fps);
     const code = await run(ffmpeg, [
       "-y",
       "-loop",
@@ -61,7 +107,7 @@ export async function assembleProVideoFromStills(
       "-i",
       frame.filePath,
       "-vf",
-      `scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,zoompan=z='min(zoom+0.0008,1.08)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${framesCount}:s=1080x1920:fps=30`,
+      `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},zoompan=z='min(zoom+0.0008,1.08)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${framesCount}:s=${w}x${h}:fps=${fps}`,
       "-t",
       String(dur),
       "-pix_fmt",
@@ -69,9 +115,9 @@ export async function assembleProVideoFromStills(
       "-c:v",
       "libx264",
       "-preset",
-      "veryfast",
+      preset,
       "-crf",
-      "18",
+      crf,
       clip,
     ]);
     if (code !== 0) {
@@ -80,17 +126,6 @@ export async function assembleProVideoFromStills(
     clipPaths.push(clip);
   }
 
-  if (clipPaths.length === 1) {
-    const code = await run(ffmpeg, ["-y", "-i", clipPaths[0]!, "-c", "copy", outputPath]);
-    return {
-      ok: code === 0,
-      outputPath,
-      message: code === 0 ? "single-clip ok" : "single-clip failed",
-      ffmpegPath: ffmpeg,
-    };
-  }
-
-  // xfade chain
   const inputs: string[] = [];
   for (const c of clipPaths) inputs.push("-i", c);
   const fade = 0.6;
@@ -117,15 +152,14 @@ export async function assembleProVideoFromStills(
     "-c:v",
     "libx264",
     "-preset",
-    "veryfast",
+    preset,
     "-crf",
-    "18",
+    crf,
     "-movflags",
     "+faststart",
     outputPath,
   ]);
 
-  // Fallback concat if xfade fails
   if (code !== 0) {
     const listPath = path.join(work, "concat.txt");
     await writeFile(
