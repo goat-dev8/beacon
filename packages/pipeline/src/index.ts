@@ -1,4 +1,4 @@
-import { mkdir, writeFile, access } from "node:fs/promises";
+import { mkdir, writeFile, access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -173,15 +173,125 @@ async function composeDeliverable(
         mimeType: "video/mp4",
         meta: { durationSeconds: 15 },
       });
+    } else {
+      // Remotion unavailable: still ship a reviewable storyboard pack (not a fake MP4).
+      const storyboardPath = path.join(job.outputDir, "storyboard.json");
+      const draftUri = inputs.find((a) => a.kind === "draft")?.uri ?? "";
+      const storyboard = {
+        kind: "video_storyboard",
+        title: job.briefText.slice(0, 80),
+        durationSeconds: 15,
+        fps: 30,
+        shots: [
+          { at: 0, beat: "Hook", onScreen: job.briefText.slice(0, 120) },
+          { at: 5, beat: "Promise", onScreen: "Finish AI work. Pay only when it passes." },
+          { at: 10, beat: "CTA", onScreen: "Open Beacon → Start a job" },
+        ],
+        scriptUri: draftUri,
+        renderStatus: "manifest_only",
+        message: render.message,
+      };
+      await writeFile(storyboardPath, JSON.stringify(storyboard, null, 2), "utf8");
+      artifacts.push({
+        kind: "storyboard",
+        uri: storyboardPath,
+        mimeType: "application/json",
+        meta: { durationSeconds: 15, render },
+      });
+      const captionsPath = path.join(job.outputDir, "captions.md");
+      await writeFile(
+        captionsPath,
+        `# Captions\n\n${job.briefText}\n\n## Beats\n\n- 0s Hook\n- 5s Promise\n- 10s CTA\n`,
+        "utf8",
+      );
+      artifacts.push({
+        kind: "captions",
+        uri: captionsPath,
+        mimeType: "text/markdown",
+        meta: { companion: true },
+      });
     }
 
     return artifacts;
   }
 
+  if (job.serviceId === "image") {
+    return composeImageDeliverable(job, inputs);
+  }
+
   const packPath = path.join(job.outputDir, "deliverable.md");
-  const pack = inputs.map((i) => `- ${i.kind}: ${i.uri}`).join("\n");
-  await writeFile(packPath, `# Deliverable\n\n${pack}\n`, "utf8");
+  const draftUri = inputs.find((a) => a.kind === "draft")?.uri;
+  let body = "";
+  if (draftUri) {
+    try {
+      body = await readFile(draftUri, "utf8");
+    } catch {
+      body = "";
+    }
+  }
+  if (!body.trim()) {
+    body = `# ${job.serviceId}\n\n${job.briefText}\n`;
+  }
+  await writeFile(
+    packPath,
+    `${body.trim()}\n\n---\n\n_Delivered by Beacon · service \`${job.serviceId}\`_\n`,
+    "utf8",
+  );
   return [{ kind: "document", uri: packPath, mimeType: "text/markdown" }];
+}
+
+async function composeImageDeliverable(
+  job: PipelineJob,
+  inputs: StageArtifact[],
+): Promise<StageArtifact[]> {
+  const title = job.briefText.slice(0, 72).replace(/[<>&]/g, "") || "Beacon creative";
+  const draftUri = inputs.find((a) => a.kind === "draft")?.uri;
+  let notes = "";
+  if (draftUri) {
+    try {
+      notes = (await readFile(draftUri, "utf8")).slice(0, 400);
+    } catch {
+      notes = "";
+    }
+  }
+
+  // AgentRouter blocks /v1/images/generations (403). Ship a real SVG creative
+  // so Image jobs return a visible asset — not a markdown path list.
+  const svgPath = path.join(job.outputDir, "creative.svg");
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="${title}">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f4f3f1"/>
+      <stop offset="100%" stop-color="#e8f8ef"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g fill="none" stroke="#2a2735" stroke-width="2" opacity="0.12">
+    ${Array.from({ length: 8 }, (_, i) => {
+      const x = 80 + i * 120;
+      return `<path d="M${x} 40 V984"/><path d="M40 ${x} H984"/>`;
+    }).join("")}
+  </g>
+  <circle cx="512" cy="420" r="120" fill="#39e08a" opacity="0.9"/>
+  <path d="M512 320 L560 460 L512 520 L464 460 Z" fill="#2a2735"/>
+  <text x="512" y="620" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="#2a2735">${title.slice(0, 40)}</text>
+  <text x="512" y="680" text-anchor="middle" font-family="ui-monospace, monospace" font-size="18" fill="#6b6575">Beacon · Image · Flare Coston2</text>
+  <text x="80" y="900" font-family="ui-monospace, monospace" font-size="14" fill="#6b6575">${notes.replace(/[<>&"']/g, " ").slice(0, 90)}</text>
+</svg>`;
+  await writeFile(svgPath, svg, "utf8");
+
+  const briefPath = path.join(job.outputDir, "image-brief.md");
+  await writeFile(
+    briefPath,
+    `# Image creative\n\n${job.briefText}\n\n## Notes\n\n${notes || "_Generated visual pack (SVG). External PNG APIs were unavailable._"}\n`,
+    "utf8",
+  );
+
+  return [
+    { kind: "image", uri: svgPath, mimeType: "image/svg+xml", meta: { generator: "beacon-svg", size: "1024x1024" } },
+    { kind: "document", uri: briefPath, mimeType: "text/markdown", meta: { companion: true } },
+  ];
 }
 
 async function normalizePack(job: PipelineJob, artifacts: StageArtifact[]): Promise<StageArtifact[]> {

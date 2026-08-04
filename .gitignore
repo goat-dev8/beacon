@@ -19,7 +19,12 @@ packages/contracts/cache/
 packages/contracts/lib/
 packages/remotion-pack/node_modules/
 packages/remotion-pack/dist/
-apps/web/
+apps/web/node_modules/
+apps/web/dist/
+apps/web/.env
+apps/web/.env.local
+apps/web/.env.*.local
+*.tsbuildinfo
 tmp/
 .tmp*
 tmp-job.json

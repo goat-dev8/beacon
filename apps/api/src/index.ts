@@ -23,6 +23,7 @@ import {
 } from "@beacon/quote";
 import { registryFromEnv, assertRegistryConfigured, encodeCreditDepositMemo } from "@beacon/smart-accounts";
 import { buildEip3009Domain, TRANSFER_WITH_AUTHORIZATION_TYPES, randomAuthNonce } from "@beacon/x402";
+import { startEmbeddedWorkers } from "./workers.js";
 
 const env = loadEnv();
 
@@ -244,13 +245,32 @@ app.get("/v1/jobs/:id", async (req) => {
     `SELECT type, payload, ts FROM job_events WHERE job_id = $1 ORDER BY ts DESC LIMIT 20`,
     [jobId],
   );
-  return { job, recentEvents: events };
+  const { rows: accepts } = await pool.query(
+    `SELECT result, confidence, report_json FROM accept_reports WHERE job_id = $1 ORDER BY id DESC LIMIT 1`,
+    [jobId],
+  );
+  return {
+    job,
+    recentEvents: events,
+    acceptance: accepts[0]
+      ? {
+          result: accepts[0].result,
+          confidence: accepts[0].confidence,
+          summary: (accepts[0].report_json as { summary?: string })?.summary ?? null,
+          notes: (accepts[0].report_json as { layers?: Array<{ notes?: string[] }> })?.layers?.flatMap(
+            (l) => l.notes ?? [],
+          ),
+        }
+      : null,
+  };
 });
 
 app.get("/v1/jobs/:id/events", async (req, reply) => {
   const jobId = (req.params as { id: string }).id;
   await getJob(jobId);
 
+  // Hijack so Fastify does not try to send a second response after SSE headers.
+  reply.hijack();
   reply.raw.writeHead(200, {
     "Content-Type": "text/event-stream",
     "Cache-Control": "no-cache",
@@ -262,12 +282,26 @@ app.get("/v1/jobs/:id/events", async (req, reply) => {
     reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
+  const parseLogItem = (item: unknown): unknown => {
+    if (item && typeof item === "object") return item;
+    const raw = String(item ?? "");
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return { type: "raw", payload: { raw } };
+    }
+  };
+
   send("connected", { jobId });
 
   if (redis) {
-    const history = await redis.lrange(`sse:job:${jobId}:log`, 0, 49);
-    for (const item of history.reverse()) {
-      send("message", JSON.parse(String(item)));
+    try {
+      const history = await redis.lrange(`sse:job:${jobId}:log`, 0, 49);
+      for (const item of history.reverse()) {
+        send("message", parseLogItem(item));
+      }
+    } catch (err) {
+      send("error", { message: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -283,6 +317,96 @@ app.get("/v1/jobs/:id/artifacts", async (req) => {
     [jobId],
   );
   return { jobId, artifacts: rows };
+});
+
+app.get("/v1/jobs/:id/artifacts/:artifactId", async (req) => {
+  const { id: jobId, artifactId } = req.params as { id: string; artifactId: string };
+  await getJob(jobId);
+  const { rows } = await pool.query(
+    `SELECT id, kind, uri, sha256, meta FROM artifacts WHERE job_id = $1 AND id = $2`,
+    [jobId, artifactId],
+  );
+  const row = rows[0];
+  if (!row) throw new AppError("JOB_NOT_FOUND", { message: "Artifact not found." });
+
+  const mimeType =
+    (row.meta as { mimeType?: string } | null)?.mimeType ?? "application/octet-stream";
+  const textReadable =
+    mimeType.includes("text") ||
+    mimeType.includes("json") ||
+    mimeType.includes("markdown") ||
+    mimeType.includes("svg") ||
+    ["draft", "document", "captions", "plan", "index", "storyboard"].includes(row.kind);
+
+  let content: string | null = null;
+  let truncated = false;
+  if (textReadable && row.uri) {
+    try {
+      const { readFile } = await import("node:fs/promises");
+      const raw = await readFile(row.uri, "utf8");
+      const max = 120_000;
+      truncated = raw.length > max;
+      content = truncated ? raw.slice(0, max) : raw;
+    } catch {
+      content = null;
+    }
+  }
+
+  return {
+    id: row.id,
+    kind: row.kind,
+    mimeType,
+    sha256: row.sha256,
+    meta: row.meta,
+    content,
+    truncated,
+    available: content !== null || Boolean(row.uri),
+    rawUrl: `/v1/jobs/${jobId}/artifacts/${artifactId}/raw`,
+  };
+});
+
+app.get("/v1/jobs/:id/artifacts/:artifactId/raw", async (req, reply) => {
+  const { id: jobId, artifactId } = req.params as { id: string; artifactId: string };
+  await getJob(jobId);
+  const { rows } = await pool.query(
+    `SELECT id, kind, uri, meta FROM artifacts WHERE job_id = $1 AND id = $2`,
+    [jobId, artifactId],
+  );
+  const row = rows[0];
+  if (!row?.uri) throw new AppError("JOB_NOT_FOUND", { message: "Artifact not found." });
+  const mimeType =
+    (row.meta as { mimeType?: string } | null)?.mimeType ?? "application/octet-stream";
+  try {
+    const { createReadStream } = await import("node:fs");
+    const { stat } = await import("node:fs/promises");
+    await stat(row.uri);
+    reply.header("Content-Type", mimeType);
+    reply.header("Cache-Control", "private, max-age=60");
+    return reply.send(createReadStream(row.uri));
+  } catch {
+    throw new AppError("JOB_NOT_FOUND", { message: "Artifact file missing on server." });
+  }
+});
+
+app.get("/v1/jobs/:id/receipt", async (req) => {
+  const jobId = (req.params as { id: string }).id;
+  await getJob(jobId);
+  const { rows } = await pool.query(
+    `SELECT id, tx_hash, receipt_json, created_at FROM receipts WHERE job_id = $1 ORDER BY created_at DESC LIMIT 1`,
+    [jobId],
+  );
+  if (rows.length === 0) return { jobId, receipt: null };
+  return {
+    jobId,
+    receipt: {
+      id: rows[0].id,
+      txHash: rows[0].tx_hash,
+      createdAt: rows[0].created_at,
+      ...(typeof rows[0].receipt_json === "object" && rows[0].receipt_json
+        ? (rows[0].receipt_json as object)
+        : {}),
+    },
+  };
 });
 
 const lookSchema = z.object({
@@ -412,6 +536,12 @@ function xrpToDrops(xrp: string): string {
 const port = Number(process.env.PORT || env.API_PORT || 3001);
 await app.listen({ port, host: "0.0.0.0" });
 console.log(`Beacon API listening on ${port}`);
+
+if (redis) {
+  startEmbeddedWorkers(pool, redis);
+} else {
+  console.warn("[workers] Redis unavailable — pipeline/settler not started");
+}
 
 // expose typed data helper for clients that need approve payloads
 export function buildApproveTypedData(tokenAddress: string, chainId: number, fields: Record<string, unknown>) {

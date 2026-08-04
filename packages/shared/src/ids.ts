@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { v4 as uuidv4, parse as uuidParse, validate as uuidValidate } from "uuid";
 
 export function newId(): string {
@@ -19,6 +20,11 @@ export function uuidToBytes32(value: string): `0x${string}` {
   const bytes = parseUuid(value);
   const hex = Buffer.from(bytes).toString("hex");
   return `0x${hex.padStart(64, "0")}` as `0x${string}`;
+}
+
+/** Canonical escrow job id: sha256(utf8 uuid) — must match web + e2e. */
+export function jobIdToBytes32(jobId: string): `0x${string}` {
+  return `0x${createHash("sha256").update(jobId).digest("hex")}` as `0x${string}`;
 }
 
 export function shortId(value: string, length = 8): string {

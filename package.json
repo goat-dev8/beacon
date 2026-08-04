@@ -18,10 +18,13 @@
     "packages/smart-accounts",
     "services/orchestrator",
     "services/settler",
-    "apps/api"
+    "apps/api",
+    "apps/web"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
+    "web": "npm run dev -w @beacon/web",
+    "web:build": "npm run build -w @beacon/web",
     "test": "vitest run",
     "test:contracts": "cd packages/contracts && forge test",
     "typecheck": "tsc -b",

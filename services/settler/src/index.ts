@@ -8,6 +8,7 @@ import {
   loadEnv,
   requireEnv,
   newId,
+  jobIdToBytes32,
 } from "@beacon/shared";
 import { FacilitatorClient } from "@beacon/x402";
 import { buildReceipt } from "@beacon/receipts";
@@ -94,8 +95,7 @@ async function settleJob(
             ],
             signer,
           );
-          const jobBytes = jobId.replace(/-/g, "").slice(0, 64).padEnd(64, "0");
-          const jobHash = `0x${jobBytes}`;
+          const jobHash = jobIdToBytes32(jobId);
           const tx = await escrow.releaseToPayee(jobHash);
           const receipt = await tx.wait();
           settled = true;
@@ -188,12 +188,46 @@ async function settleJob(
 }
 
 async function refuseJob(db: pg.Pool, redis: Redis, jobId: string): Promise<void> {
+  const env = loadEnv();
   const { rows } = await db.query(`SELECT status FROM jobs WHERE id = $1`, [jobId]);
   const status = rows[0]?.status ?? JobStatus.FAILED;
-  const next = transition(status, "settler_fail");
-  const closed = transition(next, "terminal_close");
-  await db.query(`UPDATE jobs SET status = $2, updated_at = NOW() WHERE id = $1`, [jobId, closed]);
-  await redis.publish(`sse:job:${jobId}`, JSON.stringify({ type: "status", payload: { status: closed } }));
+
+  // Always attempt escrow refund so FAIL never leaves funds locked.
+  if (env.BEACON_ESCROW && env.SETTLER_PRIVATE_KEY && env.COSTON2_RPC_URL) {
+    try {
+      const { Contract, JsonRpcProvider, Wallet } = await import("ethers");
+      const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
+      const signer = new Wallet(env.SETTLER_PRIVATE_KEY, provider);
+      const escrow = new Contract(
+        env.BEACON_ESCROW,
+        ["function refund(bytes32 jobId)", "function locks(bytes32) view returns (address,uint256,bool,bool)"],
+        signer,
+      );
+      const jobHash = jobIdToBytes32(jobId);
+      const lock = await escrow.locks(jobHash);
+      const payer = lock[0] as string;
+      const refunded = Boolean(lock[3]);
+      const released = Boolean(lock[2]);
+      if (payer && payer !== "0x0000000000000000000000000000000000000000" && !refunded && !released) {
+        const tx = await escrow.refund(jobHash);
+        await tx.wait();
+        console.log("escrow refunded", jobId, tx.hash);
+      }
+    } catch (err) {
+      console.error("escrow refund error", jobId, err);
+    }
+  }
+
+  let next = status;
+  try {
+    next = transition(status, "settler_fail");
+    next = transition(next, "terminal_close");
+  } catch {
+    // Already terminal / unexpected — force CLOSED for UX honesty.
+    next = JobStatus.CLOSED;
+  }
+  await db.query(`UPDATE jobs SET status = $2, updated_at = NOW() WHERE id = $1`, [jobId, next]);
+  await redis.publish(`sse:job:${jobId}`, JSON.stringify({ type: "status", payload: { status: next } }));
 }
 
 function sleep(ms: number): Promise<void> {

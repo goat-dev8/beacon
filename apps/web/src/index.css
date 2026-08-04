@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Anybody", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+
+  --color-ink: #2a2735;
+  --color-ink-muted: #6b6778;
+  --color-ink-faint: #9a96a8;
+  --color-paper: #f4f3f1;
+  --color-paper-2: #ebe9e6;
+  --color-surface: #ffffff;
+  --color-line: #d9d6d0;
+  --color-line-strong: #2a2735;
+  --color-signal: #39e08a;
+  --color-signal-deep: #1fbf6a;
+  --color-dusk: #2a2735;
+  --color-dusk-2: #1c1a24;
+  --color-danger: #e25555;
+  --color-warn: #d4a017;
+  --color-ok: #1fbf6a;
+  --color-rose: #f4a2d8;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply m-0 min-h-dvh bg-paper font-sans text-ink antialiased;
+    background-image:
+      url("data:image/svg+xml,%3Csvg width='32' height='32' xmlns='http://www.w3.org/2000/svg'%3E%3Cline x1='16' y1='13' x2='16' y2='19' stroke='%23000' stroke-width='0.75' opacity='0.05'/%3E%3Cline x1='13' y1='16' x2='19' y2='16' stroke='%23000' stroke-width='0.75' opacity='0.05'/%3E%3C/svg%3E");
+    background-size: 32px 32px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-signal) 45%, white);
+    color: var(--color-ink);
+  }
+
+  a {
+    @apply text-inherit no-underline;
+  }
+
+  button {
+    font: inherit;
+  }
+}
+
+@keyframes beacon-glow {
+  0%,
+  100% {
+    filter: invert(1) drop-shadow(0 0 2px rgba(57, 224, 138, 0.95))
+      drop-shadow(0 0 8px rgba(57, 224, 138, 0.55)) drop-shadow(0 0 16px rgba(57, 224, 138, 0.28));
+  }
+  50% {
+    filter: invert(1) drop-shadow(0 0 2px rgba(134, 239, 172, 0.95))
+      drop-shadow(0 0 10px rgba(134, 239, 172, 0.55)) drop-shadow(0 0 20px rgba(134, 239, 172, 0.3));
+  }
+}
+
+@keyframes float-sphere {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(-12px, -18px, 0);
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  .crosshair-grid {
+    background-image: url("data:image/svg+xml,%3Csvg width='32' height='32' xmlns='http://www.w3.org/2000/svg'%3E%3Cline x1='16' y1='13' x2='16' y2='19' stroke='%23000' stroke-width='0.75' opacity='0.06'/%3E%3Cline x1='13' y1='16' x2='19' y2='16' stroke='%23000' stroke-width='0.75' opacity='0.06'/%3E%3C/svg%3E");
+    background-size: 32px 32px;
+  }
+
+  .beacon-glow {
+    animation: beacon-glow 6s ease-in-out infinite;
+  }
+
+  .float-soft {
+    animation: float-sphere 8s ease-in-out infinite;
+  }
+
+  .clip-facet-left {
+    clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 50%, 100% 100%, 10px 100%, 0 50%);
+  }
+
+  .clip-facet-right {
+    clip-path: polygon(10px 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 10px 100%, 0 50%);
+  }
+
+  .clip-facet-nav-left {
+    clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 50%, 100% 100%, 8px 100%, 0 50%);
+  }
+
+  .clip-facet-nav-right {
+    clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
+  }
+
+  .ruler-ticks {
+    background-image: repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 11px,
+      color-mix(in oklab, var(--color-ink) 18%, transparent) 11px,
+      color-mix(in oklab, var(--color-ink) 18%, transparent) 12px
+    );
+  }
+}
