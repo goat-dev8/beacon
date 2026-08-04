@@ -25,6 +25,8 @@ Living log of what was done. No secrets in this file.
 
 **Commit:** `32cc287` (pushed to `goat-dev8/beacon` main)
 
+**Follow-up:** `2586644` — narrate fallbacks never leak internal situation prompts when AI upstream fails.
+
 ---
 
 ## 2026-08-05 — Production conversation engine (Flow redesign)
