@@ -247,6 +247,12 @@ export function Workspace() {
             <span className="font-display text-lg font-bold">Beacon</span>
           </Link>
           <div className="flex items-center gap-2">
+            <Link
+              to="/flow"
+              className="hidden rounded-full border border-line bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink hover:border-signal sm:inline-flex"
+            >
+              Flow
+            </Link>
             <Badge tone="signal">Live desk</Badge>
             {account ? (
               <Badge>{shortAddress(account)}</Badge>
@@ -273,6 +279,13 @@ export function Workspace() {
 
       <main className="mx-auto max-w-5xl px-5 py-10">
         <StepRail step={step} />
+
+        <p className="mb-6 text-sm text-ink-muted">
+          Need Flare swap / FTSO signals / x402 agents?{" "}
+          <Link to="/flow" className="font-medium text-signal-deep underline">
+            Open Beacon Flow →
+          </Link>
+        </p>
 
         {!hasEvmProvider() && (
           <p className="mb-4 text-sm text-warn">

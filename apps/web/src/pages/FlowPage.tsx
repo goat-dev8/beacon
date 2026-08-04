@@ -65,13 +65,14 @@ export function FlowPage() {
     mutationFn: (message: string) =>
       api.agentChat({ agentId, message, wallet: wallet ?? undefined }),
     onSuccess: (data, message) => {
+      const nextAgent = data.agentId as AgentId;
       setMessages((m) => [
         ...m,
         { id: crypto.randomUUID(), role: "user", text: message, agentId },
         {
           id: crypto.randomUUID(),
           role: "assistant",
-          agentId: data.agentId,
+          agentId: nextAgent,
           text: data.text,
           cards: data.cards as AgentCard[],
           model: data.model,
@@ -97,7 +98,7 @@ export function FlowPage() {
   );
 
   async function onConnect() {
-                const acct = await connectEvmWallet();
+    const acct = await connectEvmWallet();
     setWallet(acct);
   }
 
@@ -246,7 +247,7 @@ export function FlowPage() {
                                 {
                                   id: crypto.randomUUID(),
                                   role: "assistant",
-                                  agentId: data.agentId,
+                                  agentId: data.agentId as AgentId,
                                   text: data.text,
                                   cards: data.cards as AgentCard[],
                                   model: data.model,
