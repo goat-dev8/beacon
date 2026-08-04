@@ -9,6 +9,9 @@ const AppPage = lazy(() =>
 const FlowPage = lazy(() =>
   import("@/pages/FlowPage").then((m) => ({ default: m.FlowPage })),
 );
+const SecurityPage = lazy(() =>
+  import("@/pages/SecurityPage").then((m) => ({ default: m.SecurityPage })),
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +50,14 @@ export default function App() {
             element={
               <Suspense fallback={<RouteFallback />}>
                 <FlowPage />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/flow/security"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <SecurityPage />
               </Suspense>
             }
           />

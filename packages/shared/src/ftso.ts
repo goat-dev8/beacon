@@ -100,6 +100,48 @@ export async function resolveFxrpAddress(env: BeaconEnv = loadEnv()): Promise<st
   return manager.fAsset() as Promise<string>;
 }
 
+export async function readErc20Balance(
+  token: string,
+  owner: string,
+  env: BeaconEnv = loadEnv(),
+): Promise<{ raw: bigint; formatted: string; decimals: number; symbol: string }> {
+  const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
+  const erc = new Contract(
+    token,
+    [
+      "function balanceOf(address) view returns (uint256)",
+      "function decimals() view returns (uint8)",
+      "function symbol() view returns (string)",
+    ],
+    provider,
+  );
+  const [raw, decimals, symbol] = await Promise.all([
+    erc.balanceOf(owner) as Promise<bigint>,
+    erc.decimals() as Promise<number>,
+    erc.symbol() as Promise<string>,
+  ]);
+  const d = Number(decimals);
+  const formatted = (Number(raw) / 10 ** d).toFixed(Math.min(6, d));
+  return { raw, formatted, decimals: d, symbol };
+}
+
+/** Estimate FXRP out from USDT0 in using FTSO XRP/USD (FXRP ≈ XRP). */
+export async function estimateUsdt0ToFxrp(
+  amountInUnits: string,
+  env: BeaconEnv = loadEnv(),
+): Promise<{ amountIn: string; estimatedFxrp: string; xrpUsd: number; slippageBps: number }> {
+  const snap = await readFtsoFeeds(env);
+  const xrp = snap.feeds.find((f) => f.symbol === "XRP/USD")?.value ?? 1;
+  const amountIn = parseFloat(amountInUnits);
+  const estimated = xrp > 0 ? amountIn / xrp : 0;
+  return {
+    amountIn: amountInUnits,
+    estimatedFxrp: estimated.toFixed(6),
+    xrpUsd: xrp,
+    slippageBps: 100,
+  };
+}
+
 /**
  * Prepare Uniswap V3 exactInputSingle calldata for SparkDEX USDT0 → FXRP.
  * User must approve router then send this tx from MetaMask — we never auto-broadcast.
@@ -113,7 +155,10 @@ export async function prepareUsdt0ToFxrpSwap(
   router: string;
   fee: number;
   amountIn: string;
+  amountInDisplay: string;
   amountOutMinimum: string;
+  estimatedFxrp: string;
+  xrpUsd: number;
   deadline: number;
   approveTo: string;
   swapTo: string;
@@ -124,8 +169,12 @@ export async function prepareUsdt0ToFxrpSwap(
 }> {
   const { Interface, parseUnits } = await import("ethers");
   const fxrp = await resolveFxrpAddress(env);
+  const estimate = await estimateUsdt0ToFxrp(params.amountInUnits, env);
   const amountIn = parseUnits(params.amountInUnits, 6);
-  const amountOutMinimum = parseUnits(params.amountOutMinUnits ?? "0", 6);
+  const minOut =
+    params.amountOutMinUnits ??
+    (Math.max(0, parseFloat(estimate.estimatedFxrp) * 0.99) || 0).toFixed(6);
+  const amountOutMinimum = parseUnits(minOut, 6);
   const deadline = Math.floor(Date.now() / 1000) + 20 * 60;
   const erc20 = new Interface([
     "function approve(address spender, uint256 amount) returns (bool)",
@@ -152,7 +201,10 @@ export async function prepareUsdt0ToFxrpSwap(
     router: SPARKDEX_SWAP_ROUTER,
     fee: SPARKDEX_POOL_FEE,
     amountIn: amountIn.toString(),
+    amountInDisplay: params.amountInUnits,
     amountOutMinimum: amountOutMinimum.toString(),
+    estimatedFxrp: estimate.estimatedFxrp,
+    xrpUsd: estimate.xrpUsd,
     deadline,
     approveTo: COSTON2_USDT0,
     swapTo: SPARKDEX_SWAP_ROUTER,

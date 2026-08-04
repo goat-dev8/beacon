@@ -88,11 +88,69 @@ export function walletClient() {
   return createWalletClient({ chain: coston2, transport: custom(window.ethereum) });
 }
 
-function publicClient() {
+export function publicClient() {
   return createPublicClient({
     chain: coston2,
     transport: window.ethereum ? custom(window.ethereum) : http(NETWORK.rpc),
   });
+}
+
+export type SwapExecutionStep =
+  | { step: "approve"; status: "pending" | "confirmed" | "skipped"; hash?: Hex }
+  | { step: "swap"; status: "pending" | "confirmed" | "failed"; hash?: Hex; error?: string };
+
+/** Approve (if needed) + SparkDEX exactInputSingle; wait for receipts. */
+export async function executeSparkDexSwap(params: {
+  approveTo: Address;
+  approveData: Hex;
+  swapTo: Address;
+  swapData: Hex;
+  onStep?: (s: SwapExecutionStep) => void;
+}): Promise<{ approveHash?: Hex; swapHash: Hex }> {
+  await ensureCoston2Network();
+  const wallet = walletClient();
+  const pub = publicClient();
+  const [account] = await wallet.getAddresses();
+  if (!account) throw new Error("Connect a wallet first.");
+
+  let approveHash: Hex | undefined;
+  params.onStep?.({ step: "approve", status: "pending" });
+  try {
+    approveHash = await wallet.sendTransaction({
+      account,
+      to: params.approveTo,
+      data: params.approveData,
+      chain: coston2,
+    });
+    params.onStep?.({ step: "approve", status: "pending", hash: approveHash });
+    await pub.waitForTransactionReceipt({ hash: approveHash });
+    params.onStep?.({ step: "approve", status: "confirmed", hash: approveHash });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    // If user already has allowance, some wallets may reject a zero-change approve — continue to swap.
+    if (!/user rejected|denied|reject/i.test(msg)) {
+      // still try swap; allowance may already exist
+      params.onStep?.({ step: "approve", status: "skipped" });
+    } else {
+      throw e;
+    }
+  }
+
+  params.onStep?.({ step: "swap", status: "pending" });
+  const swapHash = await wallet.sendTransaction({
+    account,
+    to: params.swapTo,
+    data: params.swapData,
+    chain: coston2,
+  });
+  params.onStep?.({ step: "swap", status: "pending", hash: swapHash });
+  const receipt = await pub.waitForTransactionReceipt({ hash: swapHash });
+  if (receipt.status === "reverted") {
+    params.onStep?.({ step: "swap", status: "failed", hash: swapHash, error: "Swap reverted on-chain" });
+    throw new Error("Swap transaction reverted. Check USDT0 balance, allowance, and pool liquidity.");
+  }
+  params.onStep?.({ step: "swap", status: "confirmed", hash: swapHash });
+  return { approveHash, swapHash };
 }
 
 export function jobIdToBytes32(jobId: string): Hex {

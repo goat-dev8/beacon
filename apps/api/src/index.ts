@@ -18,7 +18,11 @@ import {
   runBeaconAgentChat,
   readFtsoFeeds,
   prepareUsdt0ToFxrpSwap,
+  readErc20Balance,
+  resolveFxrpAddress,
+  COSTON2_USDT0,
   type BeaconAgentId,
+  type ConversationState,
 } from "@beacon/shared";
 import { FacilitatorClient } from "@beacon/x402";
 import { JsonRpcProvider, Wallet, Signature } from "ethers";
@@ -33,6 +37,16 @@ import { registryFromEnv, assertRegistryConfigured, encodeCreditDepositMemo } fr
 import { buildEip3009Domain, TRANSFER_WITH_AUTHORIZATION_TYPES, randomAuthNonce } from "@beacon/x402";
 import { startEmbeddedWorkers } from "./workers.js";
 import { PIPELINE_CAPS } from "@beacon/pipeline";
+import {
+  assertPolicyAllows,
+  DEFAULT_SECURITY_POLICY,
+  getDailySpendUsdt0,
+  loadPolicy,
+  parseUsdt0Display,
+  policyKey,
+  recordSpendUsdt0,
+  type BeaconSecurityPolicy,
+} from "./securityPolicy.js";
 
 const env = loadEnv();
 assertFlareRequired(env);
@@ -287,14 +301,31 @@ app.post("/v1/jobs/:id/approve", async (req) => {
     });
   }
 
-  const offer = await pool.query(`SELECT id, expires_at FROM offers WHERE id = $1 AND job_id = $2`, [
-    body.offerId,
-    jobId,
-  ]);
+  const offer = await pool.query(
+    `SELECT id, expires_at, price_usdt0 FROM offers WHERE id = $1 AND job_id = $2`,
+    [body.offerId, jobId],
+  );
   if (offer.rowCount === 0) throw new AppError("VALIDATION", { message: "Quote not found for this job." });
   if (new Date(offer.rows[0].expires_at).getTime() < Date.now()) {
     await updateJobStatus(jobId, JobStatus.EXPIRED);
     throw new AppError("OFFER_EXPIRED");
+  }
+
+  const payer = body.authorization?.payer;
+  const priceRaw = offer.rows[0].price_usdt0;
+  // price_usdt0 is stored as 6-decimal integer units
+  const amountUsdt0 =
+    typeof priceRaw === "bigint" || typeof priceRaw === "number" || /^\d+$/.test(String(priceRaw))
+      ? Number(priceRaw) / 1e6
+      : parseUsdt0Display(body.authorization?.amount ?? "0");
+
+  if (payer) {
+    await assertPolicyAllows(redis, {
+      wallet: payer,
+      serviceId: String(job.service_id ?? ""),
+      amountUsdt0,
+      agentId: "desk",
+    });
   }
 
   const userId = job.user_id ?? (await ensureGuestUser());
@@ -317,6 +348,9 @@ app.post("/v1/jobs/:id/approve", async (req) => {
   const next = transition(JobStatus.QUOTED, "user_approve");
   await updateJobStatus(jobId, next);
   if (redis) await redis.lpush("q:pipeline", jobId);
+  if (payer && amountUsdt0 > 0) {
+    await recordSpendUsdt0(redis, payer, amountUsdt0);
+  }
 
   return { jobId, status: next, offerId: body.offerId };
 });
@@ -635,6 +669,29 @@ app.get("/v1/agents/signals", async () => {
   return { ok: true, ...snap };
 });
 
+app.get("/v1/agents/balances", async (req) => {
+  const wallet = z.string().regex(/^0x[a-fA-F0-9]{40}$/).parse((req.query as { wallet?: string }).wallet);
+  const fxrp = await resolveFxrpAddress(env);
+  const [usdt0, fxrpBal, mock] = await Promise.all([
+    readErc20Balance(COSTON2_USDT0, wallet, env),
+    readErc20Balance(fxrp, wallet, env),
+    env.X402_TOKEN_ADDRESS
+      ? readErc20Balance(env.X402_TOKEN_ADDRESS, wallet, env)
+      : Promise.resolve(null),
+  ]);
+  return {
+    ok: true,
+    wallet,
+    network: "coston2",
+    chainId: 114,
+    balances: {
+      usdt0: { address: COSTON2_USDT0, ...usdt0 },
+      fxrp: { address: fxrp, ...fxrpBal },
+      mockUsdt0: mock && env.X402_TOKEN_ADDRESS ? { address: env.X402_TOKEN_ADDRESS, ...mock } : null,
+    },
+  };
+});
+
 app.post("/v1/agents/swap/prepare", async (req) => {
   const body = z
     .object({
@@ -649,10 +706,31 @@ app.post("/v1/agents/swap/prepare", async (req) => {
 
 const agentChatSchema = z.object({
   agentId: z
-    .enum(["general", "signals", "swap", "bridge", "pay", "trade", "desk"])
+    .enum([
+      "general",
+      "signals",
+      "swap",
+      "bridge",
+      "pay",
+      "trade",
+      "desk",
+      "image",
+      "video",
+      "research",
+    ])
     .optional(),
   message: z.string().min(1).max(4000),
   wallet: z.string().optional(),
+  state: z
+    .object({
+      intent: z.string(),
+      phase: z.string(),
+      amountInUnits: z.string().optional(),
+      bridgeFrom: z.string().optional(),
+      bridgeTo: z.string().optional(),
+    })
+    .optional()
+    .nullable(),
   payment: z
     .object({
       from: z.string(),
@@ -674,7 +752,22 @@ app.post("/v1/agents/chat", async (req) => {
   const body = agentChatSchema.parse(req.body ?? {});
   let paidResource = false;
 
+  if (body.wallet) {
+    await assertPolicyAllows(redis, {
+      wallet: body.wallet,
+      agentId: body.agentId,
+    });
+  }
+
   if (body.payment?.signature || (body.payment?.r && body.payment?.s)) {
+    const spendUnits = Number(BigInt(body.payment.value)) / 1e6;
+    if (body.wallet || body.payment.from) {
+      await assertPolicyAllows(redis, {
+        wallet: body.wallet || body.payment.from,
+        agentId: body.agentId ?? "pay",
+        amountUsdt0: spendUnits,
+      });
+    }
     const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
     const client = new FacilitatorClient({
       facilitatorAddress: env.X402_FACILITATOR_ADDRESS!,
@@ -715,6 +808,7 @@ app.post("/v1/agents/chat", async (req) => {
       );
     }
     paidResource = true;
+    await recordSpendUsdt0(redis, body.payment.from, spendUnits);
   }
 
   const result = await runBeaconAgentChat({
@@ -722,9 +816,82 @@ app.post("/v1/agents/chat", async (req) => {
     message: body.message,
     wallet: body.wallet,
     paidResource,
+    state: (body.state as ConversationState | null | undefined) ?? null,
     env,
   });
   return { ok: true, ...result };
+});
+
+/** Security Center policies — persisted in Redis when available. */
+app.get("/v1/security/policy", async (req) => {
+  const wallet = z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/i)
+    .parse((req.query as { wallet?: string }).wallet);
+  const { policy, source } = await loadPolicy(redis, wallet);
+  const spentToday = await getDailySpendUsdt0(redis, wallet);
+  const remaining = Math.max(0, policy.dailySpendUsdt0 - spentToday);
+  return {
+    ok: true,
+    policy,
+    source,
+    receipt: {
+      title: "Authorization receipt",
+      network: "Flare Testnet Coston2",
+      chainId: 114,
+      spentTodayUsdt0: Number(spentToday.toFixed(4)),
+      remainingUsdt0: Number(remaining.toFixed(4)),
+      dailyBudgetUsdt0: policy.dailySpendUsdt0,
+      perJobLimitUsdt0: policy.perJobLimitUsdt0,
+      emergencyPause: policy.emergencyPause,
+      allowedAgents: policy.allowedAgents,
+      note: "Your agent spends only within this budget. Pause or revoke anytime.",
+    },
+  };
+});
+
+app.put("/v1/security/policy", async (req) => {
+  const body = z
+    .object({
+      wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
+      policy: z.object({
+        dailySpendUsdt0: z.number().min(0).max(1_000_000),
+        perJobLimitUsdt0: z.number().min(0).max(1_000_000),
+        allowedAgents: z.array(z.string()),
+        allowedChains: z.array(z.number()),
+        maxImageCostUsdt0: z.number().min(0),
+        maxVideoSeconds: z.number().min(0),
+        emergencyPause: z.boolean(),
+        sessionExpiryHours: z.number().min(1).max(720),
+      }),
+    })
+    .parse(req.body ?? {});
+  if (!redis) {
+    return { ok: true, policy: body.policy, source: "ephemeral" };
+  }
+  await redis.set(policyKey(body.wallet), body.policy as BeaconSecurityPolicy);
+  return { ok: true, policy: body.policy, source: "redis" };
+});
+
+app.post("/v1/security/revoke", async (req) => {
+  const body = z.object({ wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i) }).parse(req.body ?? {});
+  const paused: BeaconSecurityPolicy = {
+    ...DEFAULT_SECURITY_POLICY,
+    dailySpendUsdt0: 0,
+    perJobLimitUsdt0: 0,
+    allowedAgents: [],
+    maxImageCostUsdt0: 0,
+    maxVideoSeconds: 0,
+    emergencyPause: true,
+    sessionExpiryHours: 1,
+  };
+  if (redis) {
+    await redis.set(policyKey(body.wallet), paused);
+  }
+  return {
+    ok: true,
+    message: "Emergency pause on. Clear allowances for SparkDEX router in your wallet if you approved spending.",
+  };
 });
 
 const port = Number(process.env.PORT || env.API_PORT || 3001);

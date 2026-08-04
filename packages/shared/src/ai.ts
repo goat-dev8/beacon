@@ -144,11 +144,14 @@ export async function chatCompletion(
   }
 
   if (!response || !response.ok) {
-    const message =
-      typeof raw === "object" && raw && "error" in raw
-        ? JSON.stringify((raw as { error: unknown }).error)
-        : lastError || text.slice(0, 400);
-    throw new Error(`AI provider ${response?.status ?? 0}: ${message}`);
+    const status = response?.status ?? 0;
+    // Never leak HTML / gateway pages into product chat.
+    const looksHtml = /^\s*</.test(text) || /<!doctype/i.test(text);
+    throw new Error(
+      looksHtml
+        ? `AI temporarily unavailable (${status}). Please try again.`
+        : `AI temporarily unavailable (${status}).`,
+    );
   }
 
   const data = raw as {

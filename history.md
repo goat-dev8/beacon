@@ -4,6 +4,48 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-05 — Flagship Flare OS upgrade (hackathon winner mode)
+
+**Problem:** Flow felt prototype-y; Security Center was UI-only; FCC/Smart Accounts risked being over-claimed; chat lacked creative briefing.
+
+**Root cause / research:** Re-verified via DevHub MCP + skills. FCC is **not fully public production** yet. Smart Accounts are XRPL→PersonalAccount, not MetaMask session keys. Closest popup reduction = x402/EIP-3009. SparkDEX remains approve+swap with receipts. See `FLAGSHIP_FLARE_OS_RESEARCH.md` + `FLOW_PRODUCTION_RESEARCH.md`.
+
+**Fix**
+- Policy engine `apps/api/src/securityPolicy.ts` — enforce pause / allowlist / per-job / daily spend on desk **approve** + agent **chat/x402**; record daily spend in Redis
+- Authorization Receipt in Security Center (`/flow/security`) — budget remaining, spent today
+- Conversational video/image brief (15/30/60 + aspect/style) before Bound Work
+- Trade desk FTSO-driven swap / hold suggestion
+- Bound Work quote honesty: MockUSDT0 vs SparkDEX USDT0 + Security link
+- Conversation engine: Thinking → Beacon + Powered by Claude/GPT; real SparkDEX receipt UX (prior)
+
+**Verification**
+- `vitest` `flareAgents.test.ts` (amount parser + model labels)
+- Coston2 probe: FTSO live, FXRP `0x0b6A…`, swap prepare `1 USDT0` → est FXRP
+- `npm run build -w @beacon/web` succeeds
+
+**Commit:** (this push)
+
+---
+
+## 2026-08-05 — Production conversation engine (Flow redesign)
+
+**Research:** `FLOW_PRODUCTION_RESEARCH.md` (DevHub Smart Accounts, SparkDEX USDT0→FXRP, x402/EIP-3009, LayerZero Flare testnet, FAssets, honesty on session keys).
+
+**Shipped**
+- Multi-turn agent chat: clarify → quote → confirm → prepare (never one-shot calldata)
+- Fixed amount parser so `USDT0` no longer yields `amountIn=0`
+- AI errors sanitized (no HTML/405 dumps); UI shows **Thinking…** → **Beacon** + subtle **Powered by Claude Opus 5 / GPT-5.6** (never AgentRouter brand)
+- Real SparkDEX path: approve + swap, `waitForTransactionReceipt`, explorer links, balance refresh via `GET /v1/agents/balances`
+- Security Center `/flow/security` + `GET/PUT /v1/security/policy` + `POST /v1/security/revoke` (Redis when configured)
+- Conversation `state` round-tripped on `/v1/agents/chat`
+
+**Honesty**
+- MetaMask still required for SparkDEX EOA swaps (1–2 txs) — Flare Smart Accounts ≠ MetaMask session keys
+- Best popup reduction for Beacon services remains **x402 / EIP-3009**
+- MockUSDT0 (desk/x402) ≠ SparkDEX Coston2 USDT0
+
+---
+
 ## 2026-08-04 — Beacon Flow (Anvita-style Flare agents)
 
 **Research:** `AGENT_FLOW_RESEARCH.md` (skills + DevHub MCP + flare-foundation + LayerZero + FAssets + USDT0↔FXRP docs + Anvita Flow UX).

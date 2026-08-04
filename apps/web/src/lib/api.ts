@@ -156,6 +156,13 @@ export const api = {
     agentId?: string;
     message: string;
     wallet?: string;
+    state?: {
+      intent: string;
+      phase: string;
+      amountInUnits?: string;
+      bridgeFrom?: string;
+      bridgeTo?: string;
+    } | null;
     payment?: Record<string, unknown>;
   }) =>
     request<{
@@ -164,7 +171,15 @@ export const api = {
       text: string;
       cards: Array<Record<string, unknown> & { type: string }>;
       model: string;
+      displayModel: string;
       paid: boolean;
+      state: {
+        intent: string;
+        phase: string;
+        amountInUnits?: string;
+        bridgeFrom?: string;
+        bridgeTo?: string;
+      };
     }>("/v1/agents/chat", {
       method: "POST",
       body: JSON.stringify(body),
@@ -176,6 +191,53 @@ export const api = {
       timestamp: number;
       feeds: Array<{ symbol: string; value: number }>;
     }>("/v1/agents/signals"),
+  agentBalances: (wallet: string) =>
+    request<{
+      ok: boolean;
+      wallet: string;
+      balances: {
+        usdt0: { address: string; formatted: string; symbol: string };
+        fxrp: { address: string; formatted: string; symbol: string };
+        mockUsdt0: { address: string; formatted: string; symbol: string } | null;
+      };
+    }>(`/v1/agents/balances?wallet=${encodeURIComponent(wallet)}`),
+  getSecurityPolicy: (wallet: string) =>
+    request<{
+      ok: boolean;
+      policy: SecurityPolicy;
+      source: string;
+      receipt?: {
+        title: string;
+        spentTodayUsdt0: number;
+        remainingUsdt0: number;
+        dailyBudgetUsdt0: number;
+        perJobLimitUsdt0: number;
+        emergencyPause: boolean;
+        allowedAgents: string[];
+        note: string;
+      };
+    }>(`/v1/security/policy?wallet=${encodeURIComponent(wallet)}`),
+  putSecurityPolicy: (wallet: string, policy: SecurityPolicy) =>
+    request<{ ok: boolean; policy: SecurityPolicy; source: string }>("/v1/security/policy", {
+      method: "PUT",
+      body: JSON.stringify({ wallet, policy }),
+    }),
+  revokeSecurity: (wallet: string) =>
+    request<{ ok: boolean; message: string }>("/v1/security/revoke", {
+      method: "POST",
+      body: JSON.stringify({ wallet }),
+    }),
+};
+
+export type SecurityPolicy = {
+  dailySpendUsdt0: number;
+  perJobLimitUsdt0: number;
+  allowedAgents: string[];
+  allowedChains: number[];
+  maxImageCostUsdt0: number;
+  maxVideoSeconds: number;
+  emergencyPause: boolean;
+  sessionExpiryHours: number;
 };
 
 /** Live job event stream — production SSE from the API. */

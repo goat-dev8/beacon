@@ -416,6 +416,14 @@ export function Workspace() {
                 <p className="mt-4 font-mono text-[11px] text-ink-faint">
                   Expires {new Date(quote.expiresAt).toLocaleTimeString()}
                 </p>
+                <p className="mt-3 text-xs leading-relaxed text-ink-muted">
+                  Bound Offer on Flare Coston2: EIP-3009 auth → BeaconEscrow lock → acceptance → release or refund.
+                  Desk credit uses Beacon MockUSDT0 (not SparkDEX USDT0).{" "}
+                  <Link to="/flow/security" className="text-signal-deep underline-offset-2 hover:underline">
+                    Security Center
+                  </Link>{" "}
+                  enforces your daily / per-job budget.
+                </p>
               </div>
 
               {!account && (
