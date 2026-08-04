@@ -119,6 +119,7 @@ const INTERMEDIATE_KINDS = new Set([
   "composition_manifest",
   "draft",
   "artifact-index",
+  "prompt",
 ]);
 
 export function runL1Objective(ctx: AcceptContext): LayerResult {

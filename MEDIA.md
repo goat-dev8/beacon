@@ -1,38 +1,58 @@
-# Beacon media tooling
+# Beacon professional media stack
 
-Beacon production jobs generate **real images** via Pollinations (free HTTP API) and **video packs** via Remotion/OpenMontage when available, otherwise Pollinations stills (+ ffmpeg slideshow when present).
+Pollinations anonymous Flux is **no longer reliable** (402/500 — Pollen balance). Production quality requires one of:
 
-## Linked skills (Cursor)
+| Priority | Provider | Env | Quality |
+|---|---|---|---|
+| 1 | **ComfyUI** (Flux.2 / Qwen Image / Wan 2.2 / LTX) | `COMFYUI_URL` + optional workflow | Best open-source |
+| 2 | **Hugging Face** FLUX.1-schnell | `HF_TOKEN` | Strong, free tier credits |
+| 3 | Pollinations | `POLLINATIONS_*` | Only if entitled |
+| — | SVG fallback | none | Honest placeholder |
 
-| Slash / skill | Path | Role |
-|---|---|---|
-| `/openmontage` | `D:\route\OpenMontage` + `~/.cursor/skills/openmontage` | Full agentic video studio / Remotion pipelines |
-| `/agent-demo-video` | `~/.cursor/skills/agent-demo-video` | Product demo film (toolkit at `D:/route/okx/claude-code-video-toolkit`) |
-| `/remotion-create` | `~/.claude/skills/remotion-create` | Scaffold Remotion compositions |
+**Always:** Claude Opus 5 / GPT-5.6 Sol (AgentRouter) engineer the prompt before pixels (`AI_MODEL_PROMPT_ENGINEER`).
 
-Set `OPENMONTAGE_ROOT` / `VIDEO_TOOLKIT_ROOT` for local Remotion MP4 renders. On Render free tier those paths are usually empty — Pollinations stills still ship.
+## Linked skills
 
-## MCP
+| Skill | Use |
+|---|---|
+| `/openmontage` | Full GPU video pipelines (Wan/LTX/Remotion) at `D:\route\OpenMontage` |
+| `/agent-demo-video` | Beacon product demo film via Remotion toolkit |
+| `/remotion-create` | Scaffold Remotion compositions |
 
-Pollinations MCP (agent-side generation in Cursor):
+Set `OPENMONTAGE_ROOT` / `VIDEO_TOOLKIT_ROOT` so job video compose can call Remotion.
+
+## ComfyUI (recommended for “best ever”)
+
+1. Install ComfyUI + Flux.2 (or Wan for video) on a GPU machine.
+2. Export your workflow **API Format** → save as `workflows/comfy-flux-api.json`.
+3. Placeholders `__PROMPT__` `__NEGATIVE__` `__SEED__` `__WIDTH__` `__HEIGHT__` are injected; or CLIPTextEncode nodes are auto-patched.
+4. Run ComfyUI (`:8188`). Tunnel if needed (`cloudflared` / ngrok).
+5. Set on Render + local:
+
+```
+COMFYUI_URL=https://your-tunnel.example
+COMFYUI_WORKFLOW_PATH=/opt/render/project/src/workflows/comfy-flux-api.json
+IMAGE_PROVIDER=auto
+VIDEO_PROVIDER=auto
+AI_MODEL_PROMPT_ENGINEER=claude-opus-5
+```
+
+MCP (Cursor control of local Comfy):
 
 ```json
-"pollinations": {
+"comfyui": {
   "command": "npx",
-  "args": ["-y", "@pollinations/mcp"]
+  "args": ["-y", "comfyui-mcp-server"],
+  "env": { "COMFYUI_URL": "http://127.0.0.1:8188" }
 }
 ```
 
-Server-side Beacon does **not** need MCP — it calls `https://image.pollinations.ai/prompt/...` directly (`packages/shared/src/pollinations.ts`).
+## Hugging Face fallback
 
-## Env
+Create a free token at huggingface.co → Inference Providers → set `HF_TOKEN`.
+Default model: `black-forest-labs/FLUX.1-schnell`.
 
-```
-IMAGE_PROVIDER=pollinations
-VIDEO_PROVIDER=auto
-POLLINATIONS_IMAGE_BASE=https://image.pollinations.ai/prompt
-POLLINATIONS_MODEL=flux
-POLLINATIONS_API_KEY=   # optional; gen.pollinations.ai paid/auth tiers
-```
+## Video assembly
 
-AgentRouter chat models (`gpt-5.6-sol`, Claude) are used for briefs/quotes/judges. They do **not** replace Pollinations for pixels — AgentRouter image models return 403 on this token.
+Without Remotion CLI, Beacon uses **ffmpeg-static**: engineered stills → slow zoom + crossfade MP4 (vertical 9:16).
+With OpenMontage/Remotion roots, prefers Remotion render.

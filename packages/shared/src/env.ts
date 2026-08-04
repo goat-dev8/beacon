@@ -112,6 +112,7 @@ export const envSchema = z.object({
   AI_MODEL_JUDGE: optionalString,
   AI_MODEL_QUOTE: optionalString,
   AI_MODEL_ACCEPTANCE: optionalString,
+  AI_MODEL_PROMPT_ENGINEER: optionalString,
   AI_REQUIRE_REAL: optionalBool,
   OPENAI_BASE_URL: optionalString,
   OPENAI_API_KEY: optionalString,
@@ -123,13 +124,22 @@ export const envSchema = z.object({
   VIDEO_TOOLKIT_ROOT: optionalString,
   REMOTION_ENABLED: optionalBool,
 
-  /** pollinations | agentrouter | svg | auto */
+  /** pollinations | agentrouter | comfyui | huggingface | svg | auto */
   IMAGE_PROVIDER: optionalString,
-  /** remotion | pollinations-stills | storyboard | auto */
+  /** remotion | pollinations-stills | storyboard | comfyui | auto */
   VIDEO_PROVIDER: optionalString,
   POLLINATIONS_IMAGE_BASE: optionalString,
   POLLINATIONS_MODEL: optionalString,
   POLLINATIONS_API_KEY: optionalString,
+
+  COMFYUI_URL: optionalString,
+  COMFYUI_API_KEY: optionalString,
+  COMFYUI_WORKFLOW_PATH: optionalString,
+  COMFYUI_WORKFLOW_JSON: optionalString,
+
+  HF_TOKEN: optionalString,
+  HUGGINGFACE_API_KEY: optionalString,
+  HF_IMAGE_MODEL: optionalString,
 
   X402_TOKEN_ADDRESS: optionalString,
   X402_FACILITATOR_ADDRESS: optionalString,
