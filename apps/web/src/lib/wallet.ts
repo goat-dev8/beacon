@@ -83,7 +83,7 @@ export async function connectEvmWallet(): Promise<Address> {
   return getAddress(accounts[0]);
 }
 
-function walletClient() {
+export function walletClient() {
   if (!window.ethereum) throw new Error("No EVM provider");
   return createWalletClient({ chain: coston2, transport: custom(window.ethereum) });
 }

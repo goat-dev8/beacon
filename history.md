@@ -4,6 +4,20 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-04 — Beacon Flow (Anvita-style Flare agents)
+
+**Research:** `AGENT_FLOW_RESEARCH.md` (skills + DevHub MCP + flare-foundation + LayerZero + FAssets + USDT0↔FXRP docs + Anvita Flow UX).
+
+**Shipped**
+- `/flow` multi-agent chrome (rooms: general, signals, swap, bridge, pay, trade, desk)
+- API: `GET /v1/agents`, `GET /v1/agents/signals`, `POST /v1/agents/swap/prepare`, `POST /v1/agents/chat` (+ optional x402 settle)
+- Shared: `ftso.ts` (live `getFeedsById`), `flareAgents.ts` (tool router + action cards)
+- Real FTSO on Coston2; SparkDEX USDT0→FXRP prepare (user signs); x402 for premium trade/bridge; honest LZ bridge planner; desk deep-link
+
+**Honesty:** Beacon MockUSDT0 ≠ Coston2 SparkDEX USDT0 — labeled in cards/UI.
+
+---
+
 ## Status snapshot (2026-08-04)
 
 **Product:** Beacon — Finish AI work. Pay only when it passes.  

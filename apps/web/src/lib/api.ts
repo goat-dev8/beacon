@@ -138,6 +138,44 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ amountXrp }),
     }),
+  agents: () =>
+    request<{
+      network: string;
+      chainId: number;
+      agents: Array<{
+        id: string;
+        name: string;
+        blurb: string;
+        builtIn: boolean;
+        x402PriceUsdt0: number;
+        mention: string;
+      }>;
+      rails: Record<string, string>;
+    }>("/v1/agents"),
+  agentChat: (body: {
+    agentId?: string;
+    message: string;
+    wallet?: string;
+    payment?: Record<string, unknown>;
+  }) =>
+    request<{
+      ok: boolean;
+      agentId: string;
+      text: string;
+      cards: Array<Record<string, unknown> & { type: string }>;
+      model: string;
+      paid: boolean;
+    }>("/v1/agents/chat", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  agentSignals: () =>
+    request<{
+      ok: boolean;
+      ftsoV2: string;
+      timestamp: number;
+      feeds: Array<{ symbol: string; value: number }>;
+    }>("/v1/agents/signals"),
 };
 
 /** Live job event stream — production SSE from the API. */

@@ -32,6 +32,9 @@ export function Navbar() {
           </Link>
 
           <nav className="hidden items-center gap-6 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-muted lg:flex">
+            <Link to="/flow" className="hover:text-ink">
+              Flow
+            </Link>
             <a href="#how" className="hover:text-ink">
               How it works
             </a>
@@ -46,7 +49,7 @@ export function Navbar() {
             </a>
           </nav>
 
-          <FacetCtaPair left="How it works" right="Start a job" leftTo="#how" rightTo="/app" size="sm" />
+          <FacetCtaPair left="Open Flow" right="Start a job" leftTo="/flow" rightTo="/app" size="sm" />
         </div>
       </header>
     </>

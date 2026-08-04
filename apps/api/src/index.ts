@@ -14,7 +14,14 @@ import {
   isAppError,
   newId,
   assertFlareRequired,
+  BEACON_AGENTS,
+  runBeaconAgentChat,
+  readFtsoFeeds,
+  prepareUsdt0ToFxrpSwap,
+  type BeaconAgentId,
 } from "@beacon/shared";
+import { FacilitatorClient } from "@beacon/x402";
+import { JsonRpcProvider, Wallet, Signature } from "ethers";
 import {
   buildBoundOffer,
   evaluateSealedFit,
@@ -608,6 +615,117 @@ function xrpToDrops(xrp: string): string {
   const frac = (parts[1] ?? "0").padEnd(6, "0").slice(0, 6);
   return (BigInt(whole) * 1_000_000n + BigInt(frac)).toString();
 }
+
+/** ——— Beacon Flow agents (Anvita-style rooms on Flare) ——— */
+app.get("/v1/agents", async () => ({
+  network: env.NETWORK_NAME,
+  chainId: env.CHAIN_ID,
+  agents: BEACON_AGENTS,
+  rails: {
+    mockUsdt0: env.X402_TOKEN_ADDRESS,
+    facilitator: env.X402_FACILITATOR_ADDRESS,
+    escrow: env.BEACON_ESCROW,
+    coston2Usdt0: "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+    sparkdexRouter: "0x8a1E35F5c98C4E85B36B7B253222eE17773b2781",
+  },
+}));
+
+app.get("/v1/agents/signals", async () => {
+  const snap = await readFtsoFeeds(env);
+  return { ok: true, ...snap };
+});
+
+app.post("/v1/agents/swap/prepare", async (req) => {
+  const body = z
+    .object({
+      amountInUnits: z.string().default("1"),
+      recipient: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+      amountOutMinUnits: z.string().optional(),
+    })
+    .parse(req.body ?? {});
+  const prep = await prepareUsdt0ToFxrpSwap(body, env);
+  return { ok: true, prep };
+});
+
+const agentChatSchema = z.object({
+  agentId: z
+    .enum(["general", "signals", "swap", "bridge", "pay", "trade", "desk"])
+    .optional(),
+  message: z.string().min(1).max(4000),
+  wallet: z.string().optional(),
+  payment: z
+    .object({
+      from: z.string(),
+      to: z.string(),
+      token: z.string().optional(),
+      value: z.string(),
+      validAfter: z.string(),
+      validBefore: z.string(),
+      nonce: z.string(),
+      v: z.number().optional(),
+      r: z.string().optional(),
+      s: z.string().optional(),
+      signature: z.string().optional(),
+    })
+    .optional(),
+});
+
+app.post("/v1/agents/chat", async (req) => {
+  const body = agentChatSchema.parse(req.body ?? {});
+  let paidResource = false;
+
+  if (body.payment?.signature || (body.payment?.r && body.payment?.s)) {
+    const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
+    const client = new FacilitatorClient({
+      facilitatorAddress: env.X402_FACILITATOR_ADDRESS!,
+      tokenAddress: env.X402_TOKEN_ADDRESS!,
+      provider,
+    });
+    let signature = body.payment.signature ?? "";
+    if (!signature && body.payment.r && body.payment.s && body.payment.v != null) {
+      signature = Signature.from({
+        r: body.payment.r,
+        s: body.payment.s,
+        v: body.payment.v,
+      }).serialized;
+    }
+    const ok = await client.verifyPayment(
+      body.payment.from,
+      body.payment.to,
+      BigInt(body.payment.value),
+      BigInt(body.payment.validAfter),
+      BigInt(body.payment.validBefore),
+      body.payment.nonce as `0x${string}`,
+      signature,
+    );
+    if (!ok) {
+      throw new AppError("VALIDATION", { message: "x402 payment authorization invalid." });
+    }
+    if (env.DEPLOYER_PRIVATE_KEY) {
+      const wallet = new Wallet(env.DEPLOYER_PRIVATE_KEY, provider);
+      await client.settlePayment(
+        wallet,
+        body.payment.from,
+        body.payment.to,
+        BigInt(body.payment.value),
+        BigInt(body.payment.validAfter),
+        BigInt(body.payment.validBefore),
+        body.payment.nonce as `0x${string}`,
+        signature,
+      );
+    }
+    paidResource = true;
+  }
+
+  const result = await runBeaconAgentChat({
+    agentId: body.agentId as BeaconAgentId | undefined,
+    message: body.message,
+    wallet: body.wallet,
+    paidResource,
+    env,
+  });
+  return { ok: true, ...result };
+});
 
 const port = Number(process.env.PORT || env.API_PORT || 3001);
 await app.listen({ port, host: "0.0.0.0" });
