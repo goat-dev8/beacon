@@ -224,11 +224,16 @@ async function narrate(opts: {
   intent: BeaconAgentId;
   userMessage: string;
   situation: string;
+  /** Shown if the model is unavailable — never dump internal situation. */
+  fallback?: string;
   env: BeaconEnv;
 }): Promise<{ text: string; model: string }> {
   const model = pickModel(opts.intent, opts.env);
+  const safeFallback =
+    opts.fallback ??
+    "Sure — I'm with you. Tell me the next detail you want, and I'll keep this conversational.";
   if (!isAiConfigured(opts.env)) {
-    return { text: opts.situation, model: "beacon-local" };
+    return { text: safeFallback, model: "beacon-local" };
   }
   try {
     const result = await chatCompletion(
@@ -253,7 +258,7 @@ Situation for this turn:\n${opts.situation}`,
     );
     return { text: sanitizeAssistantText(result.content), model: result.model };
   } catch {
-    return { text: sanitizeAssistantText(opts.situation), model };
+    return { text: sanitizeAssistantText(safeFallback), model };
   }
 }
 
@@ -291,6 +296,7 @@ export async function runBeaconAgentChat(opts: {
       intent,
       userMessage: opts.message,
       situation: `User asked for market signals. Bias=${signal.bias}. ${signal.summary}. Feeds: ${signal.highlights.join(", ")}.`,
+      fallback: `${signal.summary} Bias looks ${signal.bias} from live FTSO feeds.`,
       env,
     });
     if (intent === "trade" && !/swap/i.test(opts.message)) {
@@ -336,6 +342,7 @@ export async function runBeaconAgentChat(opts: {
         intent: "swap",
         userMessage: opts.message,
         situation: "User wants to swap but wallet is not connected. Ask them to connect.",
+        fallback: "Sure — connect your wallet on Flare Coston2 and I’ll read your USDT0 balance before we swap.",
         env,
       });
       return {
@@ -374,6 +381,7 @@ export async function runBeaconAgentChat(opts: {
         intent: "swap",
         userMessage: opts.message,
         situation: `Ask how much USDT0 to swap to FXRP. Wallet ${wallet.slice(0, 6)}… has ${usdtBal.formatted} USDT0 and ${fxrpBal.formatted} FXRP on Coston2. Suggest they can say a number or "swap all". Do not prepare a transaction yet.`,
+        fallback: `Sure.\n\nHow much USDT0 would you like to swap to FXRP?\nYou currently have **${usdtBal.formatted} USDT0** and **${fxrpBal.formatted} FXRP**. You can say a number or “swap all”.`,
         env,
       });
       return {
@@ -410,6 +418,7 @@ export async function runBeaconAgentChat(opts: {
         intent: "swap",
         userMessage: opts.message,
         situation: `Present a clear quote: swap ${amount} USDT0 ≈ ${prepPreview.estimatedFxrp} FXRP at ~$${prepPreview.xrpUsd.toFixed(4)}/XRP. Wallet balance ${usdtBal.formatted} USDT0. Ask them to reply "confirm" to open the wallet for approve + swap. No raw addresses.`,
+        fallback: `Here’s the quote: **${amount} USDT0 ≈ ${prepPreview.estimatedFxrp} FXRP** (FTSO XRP/USD ~$${prepPreview.xrpUsd.toFixed(4)}).\n\nReply **confirm** when you want me to open approve + swap in your wallet.`,
         env,
       });
       return {
@@ -466,6 +475,7 @@ export async function runBeaconAgentChat(opts: {
       intent: "swap",
       userMessage: opts.message,
       situation: `User confirmed swap of ${finalAmount} USDT0 (~${prep.estimatedFxrp} FXRP). Tell them to tap Confirm in wallet, then wait for Pending → Confirmed. Do not invent a hash.`,
+      fallback: `Confirmed. Tap **Approve + Swap** — I’ll wait for the on-chain receipt and show the explorer link when it confirms.`,
       env,
     });
     return {
@@ -498,6 +508,8 @@ export async function runBeaconAgentChat(opts: {
         userMessage: opts.message,
         situation:
           "Ask clarifying questions for a LayerZero/OFT bridge. Be honest that FXRP OFT is mainly documented for mainnet routes; on Coston2 we plan carefully and never fake a filled bridge.",
+        fallback:
+          "Happy to plan a bridge. What’s the source chain, destination, asset, and amount? I’ll only claim a fill when we have a real OFT route.",
         env,
       });
       return {
@@ -527,6 +539,8 @@ export async function runBeaconAgentChat(opts: {
       intent: "bridge",
       userMessage: opts.message,
       situation: "Summarize bridge options and next steps without inventing fees or ETAs.",
+      fallback:
+        "Here’s a careful bridge plan using LayerZero / FXRP OFT docs. Confirm the destination OFT and liquidity before signing anything.",
       env,
     });
     return {
@@ -574,6 +588,12 @@ export async function runBeaconAgentChat(opts: {
           intent === "video"
             ? `User wants a video/ad. Ask conversationally for duration (offer 15/30/60), aspect, voice, language, style, audience. Do not start generation yet. When enough is known, invite Bound Work desk to lock escrow.`
             : `Ask 2–4 short follow-ups for a ${intent} job, then invite Bound Work desk (/app) to seal a Bound Offer and lock escrow.`,
+        fallback:
+          intent === "video"
+            ? "Great — let’s define it.\n\nDuration: **15s**, **30s**, or **60s**?\nThen we’ll lock aspect ratio, voice, language, and style before Bound Offer."
+            : intent === "image"
+              ? "Perfect. What style and aspect ratio should we use? Once that’s clear, we’ll seal a Bound Offer on the desk."
+              : "Happy to research that. What’s the scope, preferred sources, depth, and output format?",
         env,
       });
       return {
@@ -605,6 +625,7 @@ export async function runBeaconAgentChat(opts: {
       intent,
       userMessage: opts.message,
       situation: `Summarize the brief warmly. Estimated duration preference ${durationHit?.[1] ?? state.videoDuration ?? "TBD"}. Invite them to /app to approve a Bound Offer. Never invent a price.`,
+      fallback: `Nice — brief looks solid. Open **Bound Work** to get a sealed Bound Offer (price + acceptance rubric), then lock escrow on Coston2.`,
       env,
     });
     return {
@@ -634,6 +655,8 @@ export async function runBeaconAgentChat(opts: {
       userMessage: opts.message,
       situation:
         "Explain they will sign one EIP-3009 authorization (gasless for them); Beacon settles on Coston2. This uses Beacon MockUSDT0 for agent micropay — not SparkDEX USDT0.",
+      fallback:
+        "You can pay with one EIP-3009 authorization (x402). Beacon settles on Coston2 using MockUSDT0 for agent micropays — separate from SparkDEX USDT0.",
       env,
     });
     return {
@@ -658,6 +681,7 @@ export async function runBeaconAgentChat(opts: {
       intent: "desk",
       userMessage: opts.message,
       situation: "Invite them to the Bound Work desk for escrowed image/video/docs jobs.",
+      fallback: "Bound Work is ready — open the desk to create a job, get a Bound Offer, and lock funds in escrow until quality passes.",
       env,
     });
     return {
@@ -677,6 +701,8 @@ export async function runBeaconAgentChat(opts: {
     userMessage: opts.message,
     situation:
       "Be a helpful Flare co-pilot. You can help with FTSO signals, USDT0→FXRP swaps, bridges, x402 pay, or Bound Work creative jobs. Ask what they want to do.",
+    fallback:
+      "I’m Beacon on Flare. I can pull FTSO signals, quote USDT0→FXRP swaps, plan bridges, take x402 micropays, or start Bound Work. What should we do?",
     env,
   });
   return {
