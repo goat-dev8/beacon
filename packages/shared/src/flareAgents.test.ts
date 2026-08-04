@@ -15,9 +15,10 @@ describe("extractAmount", () => {
 });
 
 describe("displayModelName", () => {
-  it("never exposes provider brands", () => {
+  it("never exposes provider brands or invents GPT-3.5", () => {
     expect(displayModelName("claude-opus-5")).toBe("Claude Opus 5");
     expect(displayModelName("gpt-5.6-sol")).toBe("GPT-5.6");
+    expect(displayModelName("gpt-4o")).toBe("GPT-5.6");
     expect(displayModelName("local-heuristic")).toBe("Beacon");
     expect(displayModelName("agentrouter-foo")).toBe("Beacon");
   });
