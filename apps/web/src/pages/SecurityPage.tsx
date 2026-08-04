@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Hexagon, Shield, ArrowLeft, Loader2 } from "lucide-react";
 import { api, type SecurityPolicy } from "@/lib/api";
-import { connectEvmWallet, shortAddress } from "@/lib/wallet";
+import { connectEvmWallet, shortAddress, tryRestoreWallet } from "@/lib/wallet";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_POLICY: SecurityPolicy = {
@@ -46,6 +46,12 @@ export function SecurityPage() {
   const [wallet, setWallet] = useState<string | null>(null);
   const [policy, setPolicy] = useState<SecurityPolicy>(DEFAULT_POLICY);
   const [savedNote, setSavedNote] = useState<string | null>(null);
+
+  useEffect(() => {
+    void tryRestoreWallet().then((acct) => {
+      if (acct) setWallet(acct);
+    });
+  }, []);
 
   const policyQuery = useQuery({
     queryKey: ["security-policy", wallet],

@@ -108,6 +108,24 @@ export type AgentCard =
       warning: string;
     }
   | {
+      type: "bridge_routes";
+      title: string;
+      source: string;
+      oftAdapter: string;
+      routes: Array<{
+        chain: string;
+        eid: number;
+        peer: string;
+        asset: string;
+        status: string;
+        eta: string;
+        fees: string;
+      }>;
+      unavailable: string[];
+      docs: Array<{ label: string; href: string }>;
+      honesty: string;
+    }
+  | {
       type: "bridge_clarify";
       title: string;
       prompts: string[];
@@ -135,6 +153,20 @@ export type AgentCard =
       token: string;
       facilitator: string;
       chainId: number;
+      provider?: string;
+      reason?: string;
+      etaSeconds?: number;
+      flarePrimitive?: string;
+      serviceId?: string;
+    }
+  | {
+      type: "media_result";
+      title: string;
+      kind: "image" | "research";
+      summary: string;
+      content?: string;
+      mimeType?: string;
+      paymentTxHint?: string;
     }
   | {
       type: "desk_link";
@@ -160,16 +192,107 @@ export interface AgentChatResult {
   state: ConversationState;
 }
 
-/** Human-facing model label — never expose provider brand. */
+/** Human-facing model label — never expose provider brand; never invent GPT-3.5/4.0. */
 export function displayModelName(model: string): string {
-  const m = model.toLowerCase();
+  const m = (model || "").toLowerCase();
   if (m.includes("claude-opus-5") || m.includes("opus-5")) return "Claude Opus 5";
-  if (m.includes("claude-opus-4") || m.includes("opus-4")) return "Claude Opus 4";
-  if (m.includes("gpt-5.6") || m.includes("gpt-5")) return "GPT-5.6";
-  if (m.includes("x402")) return "Beacon";
-  if (m.includes("local") || m.includes("heuristic")) return "Beacon";
+  if (m.includes("claude-opus-4") || m.includes("opus-4") || m.includes("claude")) return "Claude Opus 5";
+  if (m.includes("gpt-5.6") || m.includes("gpt-5") || m.includes("gpt")) return "GPT-5.6";
+  if (m.includes("beacon") || m.includes("local") || m.includes("heuristic") || m.includes("x402")) return "Beacon";
   return "Beacon";
 }
+
+const AGENT_SYSTEM: Record<BeaconAgentId, string> = {
+  general: "You are Beacon general co-pilot on Flare. Route users to FTSO, swap, bridge, x402, or Bound Work.",
+  signals: "You are Beacon Signals. Explain live FTSO feeds and bias. Never invent prices.",
+  swap: "You are Beacon Swap. Conversational USDT0→FXRP on SparkDEX. Quote before execute. Never dump calldata.",
+  bridge: "You are Beacon Bridge. Lead with documented LayerZero FXRP OFT peers. Never invent fills or fees.",
+  pay: "You are Beacon Payment. Every charge must name provider, price, reason, and ETA. No orphan micropays.",
+  trade: "You are Beacon Trade. Use FTSO first; only suggest swap when bias supports it.",
+  desk: "You are Bound Work. Escrow creative jobs with acceptance.",
+  image: "You are Beacon Image. Small logos → instant x402. Large packs → Bound Offer escrow.",
+  video: "You are Beacon Video. Prefer Bound Offer for motion packs; clarify duration first.",
+  research: "You are Beacon Research. Scope then quote; small briefs can be x402.",
+};
+
+/** Official Coston2 FXRP OFT peers from Flare DevHub getOftPeers. */
+export const COSTON2_FXRP_OFT_ROUTES = [
+  {
+    chain: "BSC Testnet",
+    eid: 40102,
+    peer: "0xac7c4a07670589cf83b134a843bfe86c45a4bf4e",
+    asset: "FXRP",
+    status: "supported" as const,
+    eta: "minutes (LayerZero)",
+    fees: "LayerZero messaging fee in native gas — quote on send",
+  },
+  {
+    chain: "Sepolia",
+    eid: 40161,
+    peer: "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+    asset: "FXRP",
+    status: "supported" as const,
+    eta: "minutes (LayerZero)",
+    fees: "LayerZero messaging fee in native gas — quote on send",
+  },
+  {
+    chain: "Hyperliquid EVM Testnet",
+    eid: 40362,
+    peer: "0x14bfb521e318fc3d5e92a8462c65079bc7d4284c",
+    asset: "FXRP",
+    status: "supported" as const,
+    eta: "minutes (LayerZero)",
+    fees: "HYPE gas + LZ fee — quote on send",
+  },
+];
+
+export type PaidResourceDef = {
+  id: string;
+  title: string;
+  provider: string;
+  priceUsdt0: string;
+  reason: string;
+  etaSeconds: number;
+  resource: string;
+  flarePrimitive: string;
+  agentId: BeaconAgentId;
+};
+
+export const PAID_RESOURCES: PaidResourceDef[] = [
+  {
+    id: "signals-deep",
+    title: "FTSO deep pack",
+    provider: "Beacon · FTSO V2",
+    priceUsdt0: "0.25",
+    reason: "Live feeds + bias narrative for trading decisions",
+    etaSeconds: 12,
+    resource: "/v1/agents/resources/signals-deep",
+    flarePrimitive: "FTSO + x402",
+    agentId: "signals",
+  },
+  {
+    id: "image-logo",
+    title: "Logo / icon still",
+    provider: "Beacon media · Flux",
+    priceUsdt0: "0.50",
+    reason: "Single creative still for a brand mark or icon",
+    etaSeconds: 45,
+    resource: "/v1/agents/resources/image-logo",
+    flarePrimitive: "x402",
+    agentId: "image",
+  },
+  {
+    id: "research-brief",
+    title: "Research brief",
+    provider: "Beacon · GPT-5.6",
+    priceUsdt0: "0.75",
+    reason: "Scoped written brief with sources checklist",
+    etaSeconds: 40,
+    resource: "/v1/agents/resources/research-brief",
+    flarePrimitive: "x402",
+    agentId: "research",
+  },
+];
 
 function pickModel(intent: BeaconAgentId, env: BeaconEnv): string {
   if (intent === "swap" || intent === "trade" || intent === "bridge" || intent === "pay" || intent === "signals") {
@@ -227,13 +350,14 @@ async function narrate(opts: {
   /** Shown if the model is unavailable — never dump internal situation. */
   fallback?: string;
   env: BeaconEnv;
-}): Promise<{ text: string; model: string }> {
+}): Promise<{ text: string; model: string; displayModel: string }> {
   const model = pickModel(opts.intent, opts.env);
+  const displayModel = displayModelName(model);
   const safeFallback =
     opts.fallback ??
     "Sure — I'm with you. Tell me the next detail you want, and I'll keep this conversational.";
   if (!isAiConfigured(opts.env)) {
-    return { text: safeFallback, model: "beacon-local" };
+    return { text: safeFallback, model: "beacon-local", displayModel: "Beacon" };
   }
   try {
     const result = await chatCompletion(
@@ -244,11 +368,12 @@ async function narrate(opts: {
         messages: [
           {
             role: "system",
-            content: `You are Beacon, a polished financial and creative assistant on Flare Coston2.
+            content: `${AGENT_SYSTEM[opts.intent]}
 Speak like Claude/ChatGPT: warm, clear, concise. Never invent transaction hashes.
-Never mention AgentRouter, providers, APIs, calldata, HTML, or internal errors.
+Never mention AgentRouter, providers keys, APIs, calldata, HTML, or internal errors.
 Never dump addresses unless the user asks. Prefer natural language.
 MockUSDT0 is for Beacon pay/escrow only. SparkDEX swaps use Coston2 USDT0.
+Pipeline: Intent → Quote → Payment (if needed) → Execution → Receipt.
 Situation for this turn:\n${opts.situation}`,
           },
           { role: "user", content: opts.userMessage },
@@ -256,9 +381,13 @@ Situation for this turn:\n${opts.situation}`,
       },
       opts.env,
     );
-    return { text: sanitizeAssistantText(result.content), model: result.model };
+    return {
+      text: sanitizeAssistantText(result.content),
+      model: result.model ?? model,
+      displayModel,
+    };
   } catch {
-    return { text: sanitizeAssistantText(safeFallback), model };
+    return { text: sanitizeAssistantText(safeFallback), model, displayModel };
   }
 }
 
@@ -310,7 +439,7 @@ export async function runBeaconAgentChat(opts: {
         }`,
         cards,
         model: narr.model,
-        displayModel: displayModelName(narr.model),
+        displayModel: narr.displayModel,
         paid: true,
         state,
       };
@@ -321,7 +450,7 @@ export async function runBeaconAgentChat(opts: {
         text: narr.text,
         cards,
         model: narr.model,
-        displayModel: displayModelName(narr.model),
+        displayModel: narr.displayModel,
         paid: true,
         state,
       };
@@ -350,7 +479,7 @@ export async function runBeaconAgentChat(opts: {
         text: narr.text,
         cards,
         model: narr.model,
-        displayModel: displayModelName(narr.model),
+        displayModel: narr.displayModel,
         paid: true,
         state: { intent: "swap", phase: "clarify" },
       };
@@ -389,7 +518,7 @@ export async function runBeaconAgentChat(opts: {
         text: narr.text,
         cards,
         model: narr.model,
-        displayModel: displayModelName(narr.model),
+        displayModel: narr.displayModel,
         paid: true,
         state: { intent: "swap", phase: "clarify" },
       };
@@ -426,7 +555,7 @@ export async function runBeaconAgentChat(opts: {
         text: narr.text,
         cards,
         model: narr.model,
-        displayModel: displayModelName(narr.model),
+        displayModel: narr.displayModel,
         paid: true,
         state: { intent: "swap", phase: "await_confirm", amountInUnits: amount },
       };
@@ -483,64 +612,39 @@ export async function runBeaconAgentChat(opts: {
       text: narr.text,
       cards,
       model: narr.model,
-      displayModel: displayModelName(narr.model),
+      displayModel: narr.displayModel,
       paid: true,
       state: { intent: "swap", phase: "ready_execute", amountInUnits: finalAmount },
     };
   }
 
-  // ——— Bridge clarify ———
+  // ——— Bridge: always lead with documented OFT routes ———
   if (intent === "bridge") {
-    const hasRoute = /coston2|flare|sepolia|ethereum|base|bnb/i.test(opts.message) && extractAmount(opts.message);
-    if (!hasRoute && state.phase !== "quote") {
-      cards.push({
-        type: "bridge_clarify",
-        title: "Let’s plan your bridge",
-        prompts: [
-          "Source chain? (e.g. Coston2 / Flare)",
-          "Destination chain?",
-          "Asset and amount?",
-          "Need arrival estimate + fees?",
-        ],
-      });
-      const narr = await narrate({
-        intent: "bridge",
-        userMessage: opts.message,
-        situation:
-          "Ask clarifying questions for a LayerZero/OFT bridge. Be honest that FXRP OFT is mainly documented for mainnet routes; on Coston2 we plan carefully and never fake a filled bridge.",
-        fallback:
-          "Happy to plan a bridge. What’s the source chain, destination, asset, and amount? I’ll only claim a fill when we have a real OFT route.",
-        env,
-      });
-      return {
-        agentId: "bridge",
-        text: narr.text,
-        cards,
-        model: narr.model,
-        displayModel: displayModelName(narr.model),
-        paid: true,
-        state: { intent: "bridge", phase: "clarify" },
-      };
-    }
     cards.push({
-      type: "bridge_intent",
-      title: "Bridge planner · LayerZero / FXRP OFT",
-      summary:
-        "Flare documents LayerZero V2 and FXRP OFT. On Coston2 we prepare an honest plan — we will not claim a bridge filled without a real OFT send receipt.",
-      links: [
+      type: "bridge_routes",
+      title: "FXRP OFT routes · Coston2",
+      source: "Flare Testnet Coston2",
+      oftAdapter: "0xCd3d2127935Ae82Af54Fc31cCD9D3440dbF46639",
+      routes: COSTON2_FXRP_OFT_ROUTES,
+      unavailable: ["Arbitrary EVM chains without OFT peer", "Fake fee quotes without quoteSend"],
+      docs: [
+        { label: "OFT peers discovery", href: "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes" },
         { label: "LayerZero · Flare Testnet", href: "https://docs.layerzero.network/v2/deployments/chains/flare-testnet" },
-        { label: "Developer Tools", href: "https://dev.flare.network/network/developer-tools?network=coston2" },
-        { label: "FXRP OFT", href: "https://dev.flare.network/fxrp/oft" },
-        { label: "Stargate", href: "https://stargate.finance/" },
+        { label: "FXRP automint + bridge", href: "https://dev.flare.network/fxrp/oft/fxrp-automint" },
       ],
-      honesty: "Confirm destination OFT + liquidity before signing anything.",
+      honesty:
+        "Supported peers from official getOftPeers. Beacon will not claim a bridge filled without an OFT send receipt. Fees require an on-chain quote at send time.",
     });
+    const wantsAmount = Boolean(extractAmount(opts.message));
     const narr = await narrate({
       intent: "bridge",
       userMessage: opts.message,
-      situation: "Summarize bridge options and next steps without inventing fees or ETAs.",
-      fallback:
-        "Here’s a careful bridge plan using LayerZero / FXRP OFT docs. Confirm the destination OFT and liquidity before signing anything.",
+      situation: wantsAmount
+        ? "User may have amount/route. Summarize the three supported destinations and ask which peer + amount of FXRP to plan next. Do not invent fees."
+        : "User asked about bridges. Present the three supported FXRP OFT destinations (BSC, Sepolia, Hyperliquid). Ask which destination and FXRP amount next. Do not re-ask empty clarify loops.",
+      fallback: wantsAmount
+        ? "Supported FXRP OFT destinations from Coston2: **BSC**, **Sepolia**, **Hyperliquid**. Pick one and confirm FXRP amount — I’ll plan the LayerZero send without inventing fees."
+        : "Here are the **documented FXRP OFT routes from Coston2**: BSC, Sepolia, and Hyperliquid. Which destination and how much FXRP?",
       env,
     });
     return {
@@ -548,84 +652,143 @@ export async function runBeaconAgentChat(opts: {
       text: narr.text,
       cards,
       model: narr.model,
-      displayModel: displayModelName(narr.model),
+      displayModel: narr.displayModel,
       paid: true,
       state: { intent: "bridge", phase: "quote" },
     };
   }
 
-  // ——— Media clarify (conversational creative brief) ———
+  // ——— Media: small → x402 quote; large → Bound Work ———
   if (intent === "image" || intent === "video" || intent === "research") {
     const m = opts.message.toLowerCase();
-    const durationHit = m.match(/\b(15|30|60)\s*(s|sec|secs|second|seconds)?\b/);
-    const hasAspect = /\b(1:1|9:16|16:9|4:5)\b/.test(m);
-    const hasStyle = /\b(cinematic|minimal|bold|warm|luxury|playful|documentary)\b/.test(m);
-    const readyForDesk =
-      intent === "video"
-        ? Boolean(durationHit && (hasAspect || hasStyle || state.phase === "quote"))
-        : intent === "image"
-          ? Boolean(hasAspect || hasStyle || /logo|poster|ad|packshot/.test(m))
-          : Boolean(/sources?|depth|format|brief/.test(m) && m.length > 40);
+    const isSmallImage =
+      intent === "image" &&
+      (/logo|icon|thumbnail|avatar|mark|badge|sticker/.test(m) || m.length < 80);
+    const isLargeCreative =
+      intent === "video" ||
+      (intent === "image" && /pack|campaign|brand kit|series|deck|multiple/.test(m));
 
-    if (!readyForDesk) {
-      const prompts =
-        intent === "image"
-          ? ["Style / mood?", "Aspect ratio (1:1, 9:16, 16:9)?", "Any reference?", "Quality bar?"]
-          : intent === "video"
-            ? ["Duration — 15s, 30s, or 60s?", "Aspect ratio?", "Voice / language?", "Style?", "Audience?", "Delivery deadline?"]
-            : ["Scope?", "Sources to prioritize?", "Depth?", "Output format?"];
+    if (opts.paidResource && (intent === "image" || intent === "research")) {
+      if (intent === "image") {
+        const { generateProImage } = await import("./mediaPro.js");
+        try {
+          const img = await generateProImage(
+            opts.message.replace(/^pay(ment)?\s*/i, "").trim() || opts.message,
+            { env, width: 1024, height: 1024 },
+          );
+          const b64 = img.bytes.toString("base64");
+          cards.push({
+            type: "media_result",
+            title: "Image ready",
+            kind: "image",
+            summary: `Generated via ${img.provider} after x402 settlement on Coston2.`,
+            content: `data:${img.mimeType};base64,${b64}`,
+            mimeType: img.mimeType,
+          });
+          return {
+            agentId: "image",
+            text: "Payment settled. Here’s your image — verify the x402 receipt on Coston2 if you need the settlement tx.",
+            cards,
+            model: "beacon-media",
+            displayModel: "Beacon",
+            paid: true,
+            state: { intent: "image", phase: "idle" },
+          };
+        } catch {
+          cards.push({
+            type: "desk_link",
+            title: "Generation busy — use Bound Work",
+            href: "/app",
+            summary: "Payment recorded. Open Bound Work to retry with escrow if instant media is saturated.",
+          });
+        }
+      }
+      if (intent === "research") {
+        const narr = await narrate({
+          intent: "research",
+          userMessage: opts.message,
+          situation: "User paid for a research brief. Deliver a concise structured brief with source checklist. No fake citations.",
+          fallback: "Paid research brief unlocked. Scope received — delivering a structured outline with source checklist (no invented URLs).",
+          env,
+        });
+        cards.push({
+          type: "media_result",
+          title: "Research brief",
+          kind: "research",
+          summary: narr.text,
+        });
+        return {
+          agentId: "research",
+          text: narr.text,
+          cards,
+          model: narr.model,
+          displayModel: narr.displayModel,
+          paid: true,
+          state: { intent: "research", phase: "idle" },
+        };
+      }
+    }
+
+    if (isSmallImage && !isLargeCreative) {
+      const res = PAID_RESOURCES.find((r) => r.id === "image-logo")!;
       cards.push({
-        type: "media_clarify",
-        title: intent === "image" ? "Image brief" : intent === "video" ? "Video brief" : "Research brief",
-        kind: intent,
-        prompts,
-        deskHref: "/app",
+        type: "x402_quote",
+        title: res.title,
+        priceUsdt0: res.priceUsdt0,
+        resource: res.resource,
+        payTo: env.X402_PAYEE_ADDRESS || "",
+        token: env.X402_TOKEN_ADDRESS || "",
+        facilitator: env.X402_FACILITATOR_ADDRESS || "",
+        chainId: 114,
+        provider: res.provider,
+        reason: res.reason,
+        etaSeconds: res.etaSeconds,
+        flarePrimitive: res.flarePrimitive,
+        serviceId: res.id,
       });
       const narr = await narrate({
-        intent,
+        intent: "image",
         userMessage: opts.message,
-        situation:
-          intent === "video"
-            ? `User wants a video/ad. Ask conversationally for duration (offer 15/30/60), aspect, voice, language, style, audience. Do not start generation yet. When enough is known, invite Bound Work desk to lock escrow.`
-            : `Ask 2–4 short follow-ups for a ${intent} job, then invite Bound Work desk (/app) to seal a Bound Offer and lock escrow.`,
-        fallback:
-          intent === "video"
-            ? "Great — let’s define it.\n\nDuration: **15s**, **30s**, or **60s**?\nThen we’ll lock aspect ratio, voice, language, and style before Bound Offer."
-            : intent === "image"
-              ? "Perfect. What style and aspect ratio should we use? Once that’s clear, we’ll seal a Bound Offer on the desk."
-              : "Happy to research that. What’s the scope, preferred sources, depth, and output format?",
+        situation: `Small image job. Quote ${res.priceUsdt0} USDT0 via x402. Provider ${res.provider}. ETA ~${res.etaSeconds}s. After payment, generate immediately. Do not send them to Bound Work unless they ask for a large pack.`,
+        fallback: `This looks like a **small logo job**.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} MockUSDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay to run it now — or open Bound Work for a larger escrowed pack.`,
         env,
       });
       return {
-        agentId: intent,
+        agentId: "image",
         text: narr.text,
         cards,
         model: narr.model,
-        displayModel: displayModelName(narr.model),
-        paid: true,
-        state: {
-          intent,
-          phase: "clarify",
-          videoDuration: durationHit?.[1],
-        },
+        displayModel: narr.displayModel,
+        paid: Boolean(opts.paidResource),
+        state: { intent: "image", phase: "await_confirm" },
       };
     }
 
+    const durationHit = m.match(/\b(15|30|60)\s*(s|sec|secs|second|seconds)?\b/);
+    const prompts =
+      intent === "image"
+        ? ["Style / mood?", "Aspect ratio (1:1, 9:16, 16:9)?", "Any reference?", "Quality bar?"]
+        : intent === "video"
+          ? ["Duration — 15s, 30s, or 60s?", "Aspect ratio?", "Voice / language?", "Style?", "Audience?"]
+          : ["Scope?", "Sources?", "Depth?", "Output format?"];
     cards.push({
       type: "media_clarify",
-      title: "Ready for Bound Offer",
+      title: intent === "video" ? "Video Bound Offer" : intent === "image" ? "Creative pack → Bound Work" : "Research → Bound Work",
       kind: intent,
-      prompts: [
-        "Open Bound Work desk to get a sealed price + acceptance rubric.",
-        "Funds lock in BeaconEscrow with EIP-3009 — pay only if quality passes.",
-      ],
+      prompts,
       deskHref: "/app",
     });
     const narr = await narrate({
       intent,
       userMessage: opts.message,
-      situation: `Summarize the brief warmly. Estimated duration preference ${durationHit?.[1] ?? state.videoDuration ?? "TBD"}. Invite them to /app to approve a Bound Offer. Never invent a price.`,
-      fallback: `Nice — brief looks solid. Open **Bound Work** to get a sealed Bound Offer (price + acceptance rubric), then lock escrow on Coston2.`,
+      situation:
+        intent === "video"
+          ? "Large video job. Clarify duration then send to Bound Work escrow. Do not pretend instant generation."
+          : "Larger creative/research job. Invite Bound Work for Bound Offer + escrow acceptance.",
+      fallback:
+        intent === "video"
+          ? "Great — let’s define duration (**15 / 30 / 60s**), then we’ll seal a Bound Offer and lock escrow."
+          : "This looks like a larger job. Open **Bound Work** for a sealed Bound Offer (price + acceptance) on Coston2.",
       env,
     });
     return {
@@ -633,30 +796,37 @@ export async function runBeaconAgentChat(opts: {
       text: narr.text,
       cards,
       model: narr.model,
-      displayModel: displayModelName(narr.model),
+      displayModel: narr.displayModel,
       paid: true,
-      state: { intent, phase: "quote", videoDuration: durationHit?.[1] ?? state.videoDuration },
+      state: { intent, phase: "clarify", videoDuration: durationHit?.[1] },
     };
   }
 
   if (intent === "pay") {
-    cards.push({
-      type: "x402_quote",
-      title: "Pay with x402",
-      priceUsdt0: "0.10",
-      resource: "/v1/agents/premium",
-      payTo: env.X402_PAYEE_ADDRESS || "",
-      token: env.X402_TOKEN_ADDRESS || "",
-      facilitator: env.X402_FACILITATOR_ADDRESS || "",
-      chainId: 114,
-    });
+    for (const res of PAID_RESOURCES) {
+      cards.push({
+        type: "x402_quote",
+        title: res.title,
+        priceUsdt0: res.priceUsdt0,
+        resource: res.resource,
+        payTo: env.X402_PAYEE_ADDRESS || "",
+        token: env.X402_TOKEN_ADDRESS || "",
+        facilitator: env.X402_FACILITATOR_ADDRESS || "",
+        chainId: 114,
+        provider: res.provider,
+        reason: res.reason,
+        etaSeconds: res.etaSeconds,
+        flarePrimitive: res.flarePrimitive,
+        serviceId: res.id,
+      });
+    }
     const narr = await narrate({
       intent: "pay",
       userMessage: opts.message,
       situation:
-        "Explain they will sign one EIP-3009 authorization (gasless for them); Beacon settles on Coston2. This uses Beacon MockUSDT0 for agent micropay — not SparkDEX USDT0.",
+        "Present the payable Beacon resources with provider, price, reason, ETA. No orphan $0.10 buttons. MockUSDT0 for x402.",
       fallback:
-        "You can pay with one EIP-3009 authorization (x402). Beacon settles on Coston2 using MockUSDT0 for agent micropays — separate from SparkDEX USDT0.",
+        "Every payment buys a real resource:\n• FTSO deep pack · $0.25\n• Logo still · $0.50\n• Research brief · $0.75\n\nPick one — EIP-3009 x402 on Coston2 (MockUSDT0).",
       env,
     });
     return {
@@ -664,7 +834,7 @@ export async function runBeaconAgentChat(opts: {
       text: narr.text,
       cards,
       model: narr.model,
-      displayModel: displayModelName(narr.model),
+      displayModel: narr.displayModel,
       paid: true,
       state: { intent: "pay", phase: "quote" },
     };
@@ -689,7 +859,7 @@ export async function runBeaconAgentChat(opts: {
       text: narr.text,
       cards,
       model: narr.model,
-      displayModel: displayModelName(narr.model),
+      displayModel: narr.displayModel,
       paid: true,
       state: { intent: "desk", phase: "idle" },
     };
@@ -702,7 +872,7 @@ export async function runBeaconAgentChat(opts: {
     situation:
       "Be a helpful Flare co-pilot. You can help with FTSO signals, USDT0→FXRP swaps, bridges, x402 pay, or Bound Work creative jobs. Ask what they want to do.",
     fallback:
-      "I’m Beacon on Flare. I can pull FTSO signals, quote USDT0→FXRP swaps, plan bridges, take x402 micropays, or start Bound Work. What should we do?",
+      "I'm Beacon on Flare. I can pull FTSO signals, quote USDT0→FXRP swaps, plan bridges, take x402 micropays, or start Bound Work. What should we do?",
     env,
   });
   return {
@@ -710,7 +880,7 @@ export async function runBeaconAgentChat(opts: {
     text: narr.text,
     cards: [],
     model: narr.model,
-    displayModel: displayModelName(narr.model),
+    displayModel: narr.displayModel,
     paid: true,
     state: { intent: "general", phase: "idle" },
   };

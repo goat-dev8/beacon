@@ -4,6 +4,24 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-05 — Flagship productization (gap analysis → one pipeline)
+
+**Problem:** Screenshots showed working swap e2e, but product still felt like disconnected demos — generic x402 $0.10, bridge clarify loops, every image forced to Bound Work, no session memory, inconsistent model badges.
+
+**Research:** `PRODUCT_GAP_ANALYSIS.md`, `PRODUCTION_AUDIT.md` (DevHub MCP re-verify: x402 resource payments, FXRP OFT peers BSC/Sepolia/Hyperliquid, FTSO, Smart Accounts honesty, FCC not public prod).
+
+**Fix**
+- One story: Intent → Quote → Pay → Execute → Receipt
+- Bridge: lead with documented OFT routes (no empty clarify loop)
+- x402: provider / price / reason / ETA / resource (no orphan $0.10)
+- Small image (logo) → instant x402 → generate; large → Bound Work
+- Agent-specific system prompts; model badge from requested model family
+- Wallet soft restore + Flow conversation persistence + History strip
+
+**Verification:** unit tests + web build + live push
+
+---
+
 ## 2026-08-05 — Flagship Flare OS upgrade (hackathon winner mode)
 
 **Problem:** Flow felt prototype-y; Security Center was UI-only; FCC/Smart Accounts risked being over-claimed; chat lacked creative briefing.

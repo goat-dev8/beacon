@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
@@ -27,10 +27,13 @@ import {
   shortAddress,
   mintMockUsdt0,
   executeSparkDexSwap,
+  tryRestoreWallet,
 } from "@/lib/wallet";
 import { NETWORK } from "@/lib/chain";
 import { cn } from "@/lib/utils";
 import type { Address, Hex } from "viem";
+
+const FLOW_STORAGE_KEY = "beacon.flow.v1";
 
 type AgentId =
   | "general"
@@ -90,9 +93,48 @@ export function FlowPage() {
     {
       id: "welcome",
       role: "system",
-      text: "Hi — I'm Beacon on Flare Coston2. Ask about prices, swap USDT0→FXRP, plan a bridge, pay with x402, or start a creative job. I'll ask what I need before anything on-chain.",
+      text: "Hi — I'm Beacon on Flare Coston2. Intent → Quote → Pay (if needed) → Execute → Receipt. Ask for FTSO, swap, bridge routes, a logo, or Bound Work.",
     },
   ]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  useEffect(() => {
+    void (async () => {
+      const restored = await tryRestoreWallet();
+      if (restored) setWallet(restored);
+      try {
+        const raw = localStorage.getItem(FLOW_STORAGE_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw) as {
+          wallet?: string;
+          messages?: ChatMsg[];
+          convState?: ConvState;
+          agentId?: AgentId;
+        };
+        if (parsed.messages?.length) setMessages(parsed.messages.slice(-40));
+        if (parsed.convState) setConvState(parsed.convState);
+        if (parsed.agentId) setAgentId(parsed.agentId);
+      } catch {
+        /* ignore corrupt storage */
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        FLOW_STORAGE_KEY,
+        JSON.stringify({
+          wallet,
+          messages: messages.slice(-40),
+          convState,
+          agentId,
+        }),
+      );
+    } catch {
+      /* quota */
+    }
+  }, [wallet, messages, convState, agentId]);
 
   const agentsQuery = useQuery({
     queryKey: ["agents"],
@@ -155,6 +197,11 @@ export function FlowPage() {
     const acct = await connectEvmWallet();
     setWallet(acct);
   }
+
+  const recentSwaps = messages.filter(
+    (m) => m.cards?.some((c) => c.type === "swap_prepare" || c.type === "swap_quote"),
+  ).length;
+  const recentPays = messages.filter((m) => m.cards?.some((c) => c.type === "x402_quote" || c.type === "media_result")).length;
 
   function send() {
     const text = input.trim();
@@ -256,6 +303,13 @@ export function FlowPage() {
                 <span>{bal.fxrp.formatted} FXRP</span>
               </div>
             )}
+            <button
+              type="button"
+              onClick={() => setHistoryOpen((v) => !v)}
+              className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/60 hover:border-signal/40"
+            >
+              History
+            </button>
             <Link
               to="/flow/security"
               className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/60 hover:border-signal/40 hover:text-signal"
@@ -277,6 +331,28 @@ export function FlowPage() {
             )}
           </div>
         </header>
+
+        {historyOpen && (
+          <div className="border-b border-white/10 bg-white/[0.03] px-5 py-3 text-xs text-white/55">
+            Session memory · swaps touched {recentSwaps} · payments/media {recentPays} · messages {messages.length}
+            <button
+              type="button"
+              className="ml-3 text-signal underline-offset-2 hover:underline"
+              onClick={() => {
+                setMessages([
+                  {
+                    id: "welcome",
+                    role: "system",
+                    text: "Session cleared. Intent → Quote → Pay → Execute → Receipt.",
+                  },
+                ]);
+                setConvState(null);
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 space-y-6 overflow-y-auto px-5 py-6">
           <AnimatePresence initial={false}>
@@ -651,6 +727,69 @@ function ActionCard({
     );
   }
 
+  if (card.type === "bridge_routes") {
+    const routes =
+      (card.routes as Array<{
+        chain: string;
+        eid: number;
+        asset: string;
+        status: string;
+        eta: string;
+        fees: string;
+      }>) ?? [];
+    const docs = (card.docs as Array<{ label: string; href: string }>) ?? [];
+    const unavailable = (card.unavailable as string[]) ?? [];
+    return (
+      <div className="rounded-2xl border border-[#c4b5fd]/30 bg-gradient-to-br from-[#1a1528] to-[#0a0c0b] p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-[#c4b5fd]">{card.title}</p>
+          <span className="rounded-full bg-[#c4b5fd]/15 px-2 py-0.5 font-mono text-[10px] text-[#c4b5fd]">
+            LayerZero OFT · FAssets
+          </span>
+        </div>
+        <p className="mt-2 text-xs text-white/50">Source · {String(card.source)}</p>
+        <div className="mt-3 space-y-2">
+          {routes.map((r) => (
+            <div key={r.eid} className="rounded-xl bg-black/30 px-3 py-2 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-medium text-white">{r.chain}</span>
+                <span className="font-mono text-[10px] text-signal">{r.status}</span>
+              </div>
+              <p className="mt-1 font-mono text-[11px] text-white/45">
+                {r.asset} · EID {r.eid} · ETA {r.eta}
+              </p>
+              <p className="text-[11px] text-white/35">{r.fees}</p>
+              <button
+                type="button"
+                onClick={() => onQuickReply(`bridge FXRP to ${r.chain}`)}
+                className="mt-2 rounded-full border border-white/15 px-3 py-1 text-[11px] text-white/70 hover:border-signal/40"
+              >
+                Plan this route
+              </button>
+            </div>
+          ))}
+        </div>
+        {unavailable.length > 0 && (
+          <p className="mt-3 text-xs text-amber-200/70">Unavailable: {unavailable.join(" · ")}</p>
+        )}
+        <p className="mt-2 text-xs text-white/40">{String(card.honesty)}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {docs.map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-white/20 px-3 py-1.5 text-xs text-white/70 hover:border-signal/40"
+            >
+              {l.label}
+            </a>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   if (card.type === "bridge_intent") {
     const links = (card.links as Array<{ label: string; href: string }>) ?? [];
     return (
@@ -677,11 +816,31 @@ function ActionCard({
 
   if (card.type === "x402_quote") {
     return (
-      <div className="rounded-2xl border border-signal/25 bg-gradient-to-br from-[#1a2430] to-[#0a0c0b] p-5 text-center">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-white/45">{card.title}</p>
+      <div className="rounded-2xl border border-signal/25 bg-gradient-to-br from-[#1a2430] to-[#0a0c0b] p-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-white/45">{card.title}</p>
+          <span className="rounded-full bg-signal/15 px-2 py-0.5 font-mono text-[10px] text-signal">
+            {String(card.flarePrimitive ?? "x402")}
+          </span>
+        </div>
         <p className="mt-3 font-display text-3xl font-semibold text-white">${String(card.priceUsdt0)}</p>
-        <p className="mt-1 text-sm text-white/55">USDT0 · x402 · chain {String(card.chainId)}</p>
-        <div className="mt-4 flex flex-wrap justify-center gap-2">
+        <dl className="mt-3 space-y-1.5 text-sm text-white/65">
+          <div>
+            <span className="text-white/40">Provider · </span>
+            {String(card.provider ?? "Beacon")}
+          </div>
+          <div>
+            <span className="text-white/40">Why · </span>
+            {String(card.reason ?? "Paid resource")}
+          </div>
+          <div>
+            <span className="text-white/40">ETA · </span>~{String(card.etaSeconds ?? 30)}s
+          </div>
+          <div className="font-mono text-[11px] text-white/35">
+            MockUSDT0 · EIP-3009 · chain {String(card.chainId)} · {String(card.resource)}
+          </div>
+        </dl>
+        <div className="mt-4 flex flex-wrap gap-2">
           <button type="button" onClick={onMint} className="rounded-full border border-white/20 px-4 py-2 text-sm text-white/80">
             Mint test USDT0
           </button>
@@ -708,12 +867,27 @@ function ActionCard({
                 }
               })();
             }}
-            className="rounded-full bg-[#2563eb] px-5 py-2 text-sm font-medium text-white disabled:opacity-40"
+            className="rounded-full bg-signal px-5 py-2 text-sm font-medium text-ink disabled:opacity-40"
           >
-            {busy ? "Signing…" : "Pay with x402"}
+            {busy ? "Signing…" : "Pay & run"}
           </button>
         </div>
         {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
+      </div>
+    );
+  }
+
+  if (card.type === "media_result") {
+    return (
+      <div className="rounded-2xl border border-signal/25 bg-white/[0.04] p-4">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
+        <p className="mt-2 text-sm text-white/75">{String(card.summary)}</p>
+        {typeof card.content === "string" && card.content.startsWith("data:image") && (
+          <img src={card.content} alt="Beacon result" className="mt-3 max-h-72 rounded-xl border border-white/10" />
+        )}
+        {typeof card.content === "string" && card.kind === "research" && (
+          <p className="mt-3 whitespace-pre-wrap text-sm text-white/80">{card.content}</p>
+        )}
       </div>
     );
   }

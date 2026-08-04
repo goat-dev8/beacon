@@ -80,7 +80,31 @@ export async function connectEvmWallet(): Promise<Address> {
   })) as string[];
   if (!accounts[0]) throw new Error("Wallet returned no account.");
   await ensureCoston2Network();
-  return getAddress(accounts[0]);
+  const addr = getAddress(accounts[0]);
+  try {
+    localStorage.setItem("beacon.wallet", addr);
+  } catch {
+    /* ignore */
+  }
+  return addr;
+}
+
+/** Soft restore — eth_accounts (no popup) if previously connected. */
+export async function tryRestoreWallet(): Promise<Address | null> {
+  if (!window.ethereum) return null;
+  try {
+    const accounts = (await window.ethereum.request({ method: "eth_accounts" })) as string[];
+    if (!accounts[0]) {
+      const cached = localStorage.getItem("beacon.wallet");
+      return cached && /^0x[a-fA-F0-9]{40}$/.test(cached) ? getAddress(cached) : null;
+    }
+    await ensureCoston2Network();
+    const addr = getAddress(accounts[0]);
+    localStorage.setItem("beacon.wallet", addr);
+    return addr;
+  } catch {
+    return null;
+  }
 }
 
 export function walletClient() {
