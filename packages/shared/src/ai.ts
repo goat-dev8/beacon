@@ -125,6 +125,7 @@ export async function chatCompletion(
         max_tokens: req.maxTokens ?? 2048,
         messages: req.messages,
       }),
+      signal: AbortSignal.timeout(45_000),
     });
     text = await response.text();
     if (response.ok) break;

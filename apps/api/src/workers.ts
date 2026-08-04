@@ -65,7 +65,7 @@ async function tickPipeline(db: pg.Pool, redis: Redis): Promise<void> {
 
 async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promise<void> {
   const lockKey = `lock:job:${job.id}`;
-  const locked = await redis.set(lockKey, "1", { nx: true, ex: 600 });
+  const locked = await redis.set(lockKey, "1", { nx: true, ex: 180 });
   if (!locked) return;
 
   try {
@@ -78,12 +78,17 @@ async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promi
     }
     if (status === JobStatus.GENERATING) {
       const outputDir = path.join(os.tmpdir(), "beacon", job.id);
-      const result = await runPipeline({
-        jobId: job.id,
-        serviceId: job.service_id,
-        briefText: job.brief_text ?? "",
-        outputDir,
-      });
+      const result = await Promise.race([
+        runPipeline({
+          jobId: job.id,
+          serviceId: job.service_id,
+          briefText: job.brief_text ?? "",
+          outputDir,
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("pipeline timeout after 150s")), 150_000),
+        ),
+      ]);
       console.log(
         "[workers] pipeline artifacts",
         job.id,

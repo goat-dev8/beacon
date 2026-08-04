@@ -1,6 +1,6 @@
 /**
- * Sync selected local .env keys onto Render Beacon API service.
- * Never prints secret values.
+ * Render free tier caps ~100 env vars. Drop duplicates / unused FCC-local
+ * vars and ensure media keys are present, then clear-cache deploy.
  */
 import fs from "fs";
 import path from "path";
@@ -9,39 +9,42 @@ import { fileURLToPath } from "url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SERVICE_ID = process.env.RENDER_SERVICE_ID || "srv-d9ojf9tbedkc73d1k6jg";
 
-const SKIP = new Set([
+const DROP = new Set([
+  "OPENAI_API_KEY",
+  "OPENAI_BASE_URL",
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_BASE_URL",
+  "DEPLOYMENT_PRIVATE_KEY",
+  "PROXY_PRIVATE_KEY",
+  "BEACON_CREDIT",
+  "WEB_PORT",
+  "ENABLE_WEB",
+  "COSTON2_INDEXER_DB_HOST",
+  "COSTON2_INDEXER_DB_PORT",
+  "COSTON2_INDEXER_DB_NAME",
+  "COSTON2_INDEXER_DB_USERNAME",
+  "COSTON2_INDEXER_DB_PASSWORD",
   "OPENMONTAGE_ROOT",
   "VIDEO_TOOLKIT_ROOT",
   "GITHUB_TOKEN",
   "RENDER_API_KEY",
   "vercal_token",
   "GITHUB_REPO_URL",
+  "APP_URL",
+  "API_URL",
+  "VITE_API_URL",
 ]);
 
-const UPSERT_KEYS = [
-  "HF_TOKEN",
-  "HF_IMAGE_MODEL",
-  "HUGGINGFACE_API_KEY",
-  "POLLINATIONS_API_KEY",
-  "POLLINATIONS_IMAGE_BASE",
-  "POLLINATIONS_MODEL",
-  "IMAGE_PROVIDER",
-  "VIDEO_PROVIDER",
-  "AI_BASE_URL",
-  "AI_API_KEY",
-  "AI_MODEL_GENERATOR",
-  "AI_MODEL_JUDGE",
-  "AI_MODEL_QUOTE",
-  "AI_MODEL_ACCEPTANCE",
-  "AI_MODEL_PROMPT_ENGINEER",
-  "AI_REQUIRE_REAL",
-  "OPENAI_BASE_URL",
-  "OPENAI_API_KEY",
-  "ANTHROPIC_BASE_URL",
-  "ANTHROPIC_API_KEY",
-  "COMFYUI_URL",
-  "COMFYUI_WORKFLOW_PATH",
-];
+const FORCE = {
+  HF_TOKEN: true,
+  HF_IMAGE_MODEL: true,
+  POLLINATIONS_API_KEY: true,
+  POLLINATIONS_IMAGE_BASE: true,
+  POLLINATIONS_MODEL: true,
+  IMAGE_PROVIDER: true,
+  VIDEO_PROVIDER: true,
+  AI_MODEL_PROMPT_ENGINEER: true,
+};
 
 const env = Object.fromEntries(
   fs
@@ -56,7 +59,6 @@ const env = Object.fromEntries(
 
 const API_KEY = env.RENDER_API_KEY;
 if (!API_KEY) throw new Error("RENDER_API_KEY missing");
-
 const headers = {
   Authorization: `Bearer ${API_KEY}`,
   Accept: "application/json",
@@ -80,46 +82,58 @@ async function render(pathname, { method = "GET", body } = {}) {
   return json;
 }
 
-const existing = [];
-let cursor = "";
-for (;;) {
-  const q = cursor ? `?limit=100&cursor=${encodeURIComponent(cursor)}` : "?limit=100";
-  const page = await render(`/services/${SERVICE_ID}/env-vars${q}`);
-  const rows = Array.isArray(page) ? page : page?.items || [];
-  for (const row of rows) {
-    const ev = row.envVar || row;
-    if (ev?.key) existing.push({ key: ev.key, value: ev.value });
-  }
-  cursor = page?.cursor || page?.nextCursor || "";
-  if (!cursor || rows.length === 0) break;
+const page = await render(`/services/${SERVICE_ID}/env-vars?limit=100`);
+const rows = Array.isArray(page) ? page : page?.items || [];
+const map = new Map();
+for (const row of rows) {
+  const ev = row.envVar || row;
+  if (ev?.key && !DROP.has(ev.key)) map.set(ev.key, ev.value);
 }
 
-const map = new Map(existing.map((e) => [e.key, e.value]));
-const changed = [];
-for (const key of UPSERT_KEYS) {
-  if (SKIP.has(key)) continue;
-  const val = env[key];
-  if (val === undefined || val === "") continue;
-  if (map.get(key) !== val) {
-    map.set(key, val);
-    changed.push(key);
-  }
+// Prefer fast Sol for prompt engineering on free Render.
+if (!env.AI_MODEL_PROMPT_ENGINEER) env.AI_MODEL_PROMPT_ENGINEER = "gpt-5.6-sol";
+env.AI_MODEL_PROMPT_ENGINEER = env.AI_MODEL_PROMPT_ENGINEER || "gpt-5.6-sol";
+
+for (const key of Object.keys(FORCE)) {
+  if (env[key]) map.set(key, env[key]);
+}
+map.set("AI_MODEL_PROMPT_ENGINEER", "gpt-5.6-sol");
+
+let payload = [...map.entries()].map(([key, value]) => ({ key, value }));
+if (payload.length > 100) {
+  // Drop lowest-priority XRPL/XUMM extras until <=100
+  const softDrop = [
+    "XRPL_WSS_FALLBACK",
+    "XRPL_FAUCET_URL",
+    "XRPL_EXPLORER_URL",
+    "XUMM_ORIGINS",
+    "XUMM_WEBHOOK_URL",
+    "XUMM_API_ORIGIN",
+    "EXPECTED_FIRST_VOTING_ROUND_START_TS",
+    "EXPECTED_VOTING_EPOCH_DURATION_SECONDS",
+    "EXT_PROXY_PORT",
+    "EXTENSION_PORT",
+  ];
+  const dropSet = new Set(softDrop);
+  payload = payload.filter((p) => !dropSet.has(p.key));
+  while (payload.length > 100) payload.pop();
 }
 
-const payload = [...map.entries()]
-  .filter(([k]) => !SKIP.has(k))
-  .map(([key, value]) => ({ key, value }));
+console.log(
+  "payload",
+  payload.length,
+  "has",
+  Object.fromEntries(
+    ["HF_TOKEN", "HF_IMAGE_MODEL", "POLLINATIONS_API_KEY", "AI_MODEL_PROMPT_ENGINEER"].map((k) => [
+      k,
+      payload.some((p) => p.key === k),
+    ]),
+  ),
+);
 
-console.log("existing", existing.length, "payload", payload.length, "changed", changed);
-
-const put = await render(`/services/${SERVICE_ID}/env-vars`, {
-  method: "PUT",
-  body: payload,
-});
-console.log("put ok", Array.isArray(put) ? put.length : typeof put);
-
+await render(`/services/${SERVICE_ID}/env-vars`, { method: "PUT", body: payload });
 const deploy = await render(`/services/${SERVICE_ID}/deploys`, {
   method: "POST",
   body: { clearCache: "clear" },
 });
-console.log("deploy", deploy?.id || deploy?.deploy?.id || deploy?.status || "queued");
+console.log("deploy", deploy?.id || deploy?.deploy?.id || deploy);

@@ -8,7 +8,7 @@ Living log of what was done. No secrets in this file.
 
 **Product:** Beacon — Finish AI work. Pay only when it passes.  
 **Production desk:** https://beacon-desk.vercel.app/  
-**Production API:** https://beacon-api-97gl.onrender.com/ (`pipeline` caps `2026-08-04-image-svg-v2`)  
+**Production API:** https://beacon-api-97gl.onrender.com/ (`pipeline` caps `2026-08-04-pro-media-v1`)  
 **Local desk:** `http://localhost:5173/` · API: `http://127.0.0.1:3001`  
 **Network:** Flare Testnet Coston2 (chain 114)  
 **Live contracts**
@@ -21,6 +21,12 @@ Living log of what was done. No secrets in this file.
 
 Deployer/payee: `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034`  
 Explorer: https://coston2-explorer.flare.network
+
+### Media providers (live)
+- **HF Inference** fine-grained token → fal-ai Flux.schnell via router (local JPEG proven)
+- **Pollinations** API key present; Paid/Quest Pollen was **0** at capture — fail-fast on 402
+- AgentRouter chat for prompt engineer / quote / judge (image models still 403 on AgentRouter)
+- SVG fallback only when Comfy + HF + Pollinations all fail
 
 ### Proven end-to-end (real wallet + escrow + settle)
 | Job | Path | Result | Escrow | Lock / notes |
@@ -37,8 +43,8 @@ Explorer: https://coston2-explorer.flare.network
 
 ### Production deploy notes (2026-08-04)
 - GitHub `main` → Render `beacon-api` + Vercel `beacon-desk` (clean domain `beacon-desk.vercel.app`)
-- **Pro media v1** (`2026-08-04-pro-media-v1`): Claude Opus / GPT-5.6 Sol **prompt engineer** → ComfyUI → Hugging Face FLUX.1-schnell → Pollinations → SVG
-- Pollinations anonymous Flux is **broken/paid** (402 insufficient Pollen) — not a quality path anymore
+- **Pro media v1** (`2026-08-04-pro-media-v1`): Claude Opus / GPT-5.6 Sol **prompt engineer** → ComfyUI → Hugging Face **fal Flux.schnell** → Pollinations → SVG
+- Commit `d65ba7f`: HF fal path + fail-fast Pollinations + video companion-only L1 fix- Pollinations anonymous Flux is **broken/paid** (402 insufficient Pollen) — not a quality path anymore
 - For “best ever” raster/video: set `COMFYUI_URL` (Flux.2/Wan/LTX) and/or `HF_TOKEN`; OpenMontage/Remotion via `OPENMONTAGE_ROOT` / `VIDEO_TOOLKIT_ROOT`; video MP4 via `ffmpeg-static` zoom+xfade
 - Skills/MCP: `MEDIA.md`; Pollinations + ComfyUI MCP in Cursor `mcp.json`; `/openmontage` `/agent-demo-video` `/remotion-create`
 - Vercel SPA: root `vercel.json` rewrites so `/app` hard-refresh works
