@@ -71,11 +71,26 @@ export const api = {
       validBefore: string;
       nonce: string;
       signature: string;
+      lockTxHash?: string;
     },
   ) =>
     request<{ jobId: string; status: string; offerId: string }>(`/v1/jobs/${jobId}/approve`, {
       method: "POST",
-      body: JSON.stringify({ offerId, authorization }),
+      body: JSON.stringify({
+        offerId,
+        authorization: authorization
+          ? {
+              payer: authorization.payer,
+              payee: authorization.payee,
+              amount: authorization.amount,
+              validAfter: authorization.validAfter,
+              validBefore: authorization.validBefore,
+              nonce: authorization.nonce,
+              signature: authorization.signature,
+            }
+          : undefined,
+        lockTxHash: authorization?.lockTxHash,
+      }),
     }),
   getJob: (jobId: string) =>
     request<{
