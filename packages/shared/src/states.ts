@@ -31,6 +31,7 @@ export type JobTransitionTrigger =
   | "orchestrator_prepare"
   | "stages_start"
   | "generation_done"
+  | "generation_failed"
   | "artifacts_ready"
   | "accept_report"
   | "user_look"
@@ -56,7 +57,10 @@ const TRANSITIONS: Record<
   },
   AUTHORIZED: { orchestrator_prepare: JobStatus.PREPARING },
   PREPARING: { stages_start: JobStatus.GENERATING },
-  GENERATING: { generation_done: JobStatus.COMPOSING },
+  GENERATING: {
+    generation_done: JobStatus.COMPOSING,
+    generation_failed: JobStatus.FAILED,
+  },
   COMPOSING: { artifacts_ready: JobStatus.ACCEPTING },
   ACCEPTING: { accept_report: JobStatus.PASSED },
   NEEDS_LOOK: {

@@ -26,7 +26,7 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return data as T;
 }
 
-async function waitStatus(jobId: string, want: string[], ms = 240_000): Promise<string> {
+async function waitStatus(jobId: string, want: string[], ms = 360_000): Promise<string> {
   const start = Date.now();
   while (Date.now() - start < ms) {
     const { job, acceptance } = await api<{

@@ -78,36 +78,45 @@ async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promi
     }
     if (status === JobStatus.GENERATING) {
       const outputDir = path.join(os.tmpdir(), "beacon", job.id);
-      const result = await Promise.race([
-        runPipeline({
-          jobId: job.id,
-          serviceId: job.service_id,
-          briefText: job.brief_text ?? "",
-          outputDir,
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("pipeline timeout after 150s")), 150_000),
-        ),
-      ]);
-      console.log(
-        "[workers] pipeline artifacts",
-        job.id,
-        job.service_id,
-        result.artifacts.map((a) => `${a.kind}:${a.mimeType}`).join(","),
-      );
-      for (const artifact of result.artifacts) {
-        await db.query(
-          `INSERT INTO artifacts (job_id, kind, uri, meta) VALUES ($1, $2, $3, $4::jsonb)`,
-          [
-            job.id,
-            artifact.kind,
-            artifact.uri,
-            JSON.stringify({ ...(artifact.meta ?? {}), mimeType: artifact.mimeType }),
-          ],
+      try {
+        const result = await Promise.race([
+          runPipeline({
+            jobId: job.id,
+            serviceId: job.service_id,
+            briefText: job.brief_text ?? "",
+            outputDir,
+          }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("pipeline timeout after 120s")), 120_000),
+          ),
+        ]);
+        console.log(
+          "[workers] pipeline artifacts",
+          job.id,
+          job.service_id,
+          result.artifacts.map((a) => `${a.kind}:${a.mimeType}`).join(","),
         );
+        for (const artifact of result.artifacts) {
+          await db.query(
+            `INSERT INTO artifacts (job_id, kind, uri, meta) VALUES ($1, $2, $3, $4::jsonb)`,
+            [
+              job.id,
+              artifact.kind,
+              artifact.uri,
+              JSON.stringify({ ...(artifact.meta ?? {}), mimeType: artifact.mimeType }),
+            ],
+          );
+        }
+        await publish(redis, job.id, "artifact", { count: result.artifacts.length });
+        status = await advance(db, redis, job.id, status, "generation_done");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("[workers] pipeline failed", job.id, message);
+        await publish(redis, job.id, "error", { stage: "generation", message: message.slice(0, 400) });
+        status = await advance(db, redis, job.id, status, "generation_failed");
+        await redis.lpush("q:settle", `refuse:${job.id}`);
+        return;
       }
-      await publish(redis, job.id, "artifact", { count: result.artifacts.length });
-      status = await advance(db, redis, job.id, status, "generation_done");
     }
     if (status === JobStatus.COMPOSING) {
       status = await advance(db, redis, job.id, status, "artifacts_ready");
