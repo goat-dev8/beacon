@@ -68,29 +68,38 @@ app.post("/v1/debug/pipeline-smoke", async (req) => {
   if (process.env.ALLOW_PIPELINE_SMOKE !== "true") {
     throw new AppError("UNAUTHORIZED", { message: "Pipeline smoke disabled." });
   }
-  const body = z
-    .object({
-      serviceId: z.string().default("image"),
-      briefText: z.string().default("Beacon mint mark smoke test"),
-    })
-    .parse(req.body ?? {});
-  const { runPipeline } = await import("@beacon/pipeline");
-  const { mkdtemp } = await import("node:fs/promises");
-  const { tmpdir } = await import("node:os");
-  const path = await import("node:path");
-  const outputDir = await mkdtemp(path.join(tmpdir(), "beacon-smoke-"));
-  const result = await runPipeline({
-    jobId: `smoke-${Date.now()}`,
-    serviceId: body.serviceId,
-    briefText: body.briefText,
-    outputDir,
-  });
-  return {
-    serviceId: body.serviceId,
-    stages: result.stages,
-    artifacts: result.artifacts.map((a) => ({ kind: a.kind, mimeType: a.mimeType })),
-    caps: PIPELINE_CAPS,
-  };
+  try {
+    const body = z
+      .object({
+        serviceId: z.string().default("image"),
+        briefText: z.string().default("Beacon mint mark smoke test"),
+      })
+      .parse((req.body as object) ?? {});
+    const { runPipeline } = await import("@beacon/pipeline");
+    const { mkdtemp } = await import("node:fs/promises");
+    const { tmpdir } = await import("node:os");
+    const path = await import("node:path");
+    const outputDir = await mkdtemp(path.join(tmpdir(), "beacon-smoke-"));
+    const result = await runPipeline({
+      jobId: `smoke-${Date.now()}`,
+      serviceId: body.serviceId,
+      briefText: body.briefText,
+      outputDir,
+    });
+    return {
+      serviceId: body.serviceId,
+      stages: result.stages,
+      artifacts: result.artifacts.map((a) => ({ kind: a.kind, mimeType: a.mimeType })),
+      caps: PIPELINE_CAPS,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack?.split("\n").slice(0, 8) : undefined,
+      caps: PIPELINE_CAPS,
+    };
+  }
 });
 
 app.get("/ready", async (_req, reply) => {

@@ -251,52 +251,39 @@ async function composeImageDeliverable(
   job: PipelineJob,
   inputs: StageArtifact[],
 ): Promise<StageArtifact[]> {
-  const title = job.briefText.slice(0, 72).replace(/[<>&]/g, "") || "Beacon creative";
-  const draftUri = inputs.find((a) => a.kind === "draft")?.uri;
-  let notes = "";
-  if (draftUri) {
-    try {
-      notes = (await readFile(draftUri, "utf8")).slice(0, 400);
-    } catch {
-      notes = "";
-    }
-  }
+  const title = (job.briefText.slice(0, 48) || "Beacon creative")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
-  // AgentRouter blocks /v1/images/generations (403). Ship a real SVG creative
-  // so Image jobs return a visible asset — not a markdown path list.
   const svgPath = path.join(job.outputDir, "creative.svg");
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="${title}">
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#f4f3f1"/>
-      <stop offset="100%" stop-color="#e8f8ef"/>
-    </linearGradient>
-  </defs>
-  <rect width="1024" height="1024" fill="url(#bg)"/>
-  <g fill="none" stroke="#2a2735" stroke-width="2" opacity="0.12">
-    ${Array.from({ length: 8 }, (_, i) => {
-      const x = 80 + i * 120;
-      return `<path d="M${x} 40 V984"/><path d="M40 ${x} H984"/>`;
-    }).join("")}
-  </g>
-  <circle cx="512" cy="420" r="120" fill="#39e08a" opacity="0.9"/>
-  <path d="M512 320 L560 460 L512 520 L464 460 Z" fill="#2a2735"/>
-  <text x="512" y="620" text-anchor="middle" font-family="Georgia, serif" font-size="42" fill="#2a2735">${title.slice(0, 40)}</text>
-  <text x="512" y="680" text-anchor="middle" font-family="ui-monospace, monospace" font-size="18" fill="#6b6575">Beacon · Image · Flare Coston2</text>
-  <text x="80" y="900" font-family="ui-monospace, monospace" font-size="14" fill="#6b6575">${notes.replace(/[<>&"']/g, " ").slice(0, 90)}</text>
-</svg>`;
+  const svg = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">',
+    '<rect width="1024" height="1024" fill="#f4f3f1"/>',
+    '<circle cx="512" cy="420" r="140" fill="#39e08a"/>',
+    '<path d="M512 300 L580 480 L512 560 L444 480 Z" fill="#2a2735"/>',
+    `<text x="512" y="680" text-anchor="middle" font-family="Georgia, serif" font-size="36" fill="#2a2735">${title}</text>`,
+    '<text x="512" y="740" text-anchor="middle" font-family="monospace" font-size="18" fill="#6b6575">Beacon · Image · Flare Coston2</text>',
+    "</svg>",
+  ].join("");
   await writeFile(svgPath, svg, "utf8");
 
   const briefPath = path.join(job.outputDir, "image-brief.md");
   await writeFile(
     briefPath,
-    `# Image creative\n\n${job.briefText}\n\n## Notes\n\n${notes || "_Generated visual pack (SVG). External PNG APIs were unavailable._"}\n`,
+    `# Image creative\n\n${job.briefText}\n\n_SVG pack (AgentRouter /images/generations returns 403)._\n`,
     "utf8",
   );
 
   return [
-    { kind: "image", uri: svgPath, mimeType: "image/svg+xml", meta: { generator: "beacon-svg", size: "1024x1024" } },
+    {
+      kind: "image",
+      uri: svgPath,
+      mimeType: "image/svg+xml",
+      meta: { generator: "beacon-svg", size: "1024x1024" },
+    },
     { kind: "document", uri: briefPath, mimeType: "text/markdown", meta: { companion: true } },
   ];
 }
