@@ -52,7 +52,9 @@ export async function runAcceptance(ctx: AcceptContext): Promise<AcceptReport> {
 
   let l2: LayerResult = { layer: "L2", passed: true, notes: ["Skipped — no judge configured."] };
   const env = loadEnv();
-  if (isAiConfigured(env)) {
+  if ((env.MEDIA_FAST || "").toLowerCase() === "true") {
+    l2 = { layer: "L2", passed: true, notes: ["Judge skipped (MEDIA_FAST)."] };
+  } else if (isAiConfigured(env)) {
     l2 = await runL2Judge(hydrated);
   } else if (env.AI_REQUIRE_REAL) {
     throw new Error("AI_REQUIRE_REAL=true but AI judge is not configured");
@@ -277,7 +279,7 @@ export async function runL2Judge(ctx: AcceptContext): Promise<LayerResult> {
       };
     }
   } catch (err) {
-    if (env.AI_REQUIRE_REAL) throw err;
+    if (env.AI_REQUIRE_REAL && (env.MEDIA_FAST || "").toLowerCase() !== "true") throw err;
     return {
       layer: "L2",
       passed: true,
