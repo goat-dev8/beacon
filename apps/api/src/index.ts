@@ -24,6 +24,7 @@ import {
 import { registryFromEnv, assertRegistryConfigured, encodeCreditDepositMemo } from "@beacon/smart-accounts";
 import { buildEip3009Domain, TRANSFER_WITH_AUTHORIZATION_TYPES, randomAuthNonce } from "@beacon/x402";
 import { startEmbeddedWorkers } from "./workers.js";
+import { PIPELINE_CAPS } from "@beacon/pipeline";
 
 const env = loadEnv();
 
@@ -60,6 +61,7 @@ app.get("/health", async () => ({
   honesty: honestyMessage(env.SIMULATED_TEE),
   service: "beacon-api",
   version: "0.1.0",
+  pipeline: PIPELINE_CAPS,
 }));
 
 app.get("/ready", async (_req, reply) => {

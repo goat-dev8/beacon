@@ -6,6 +6,13 @@ import { chatForRole, isAiConfigured, loadEnv } from "@beacon/shared";
 
 export type PipelineStage = "plan" | "generate" | "compose" | "normalize";
 
+/** Bumped when deliverable composers change — exposed via /health for deploy proof. */
+export const PIPELINE_CAPS = {
+  version: "2026-08-04-image-svg",
+  imageSvg: true,
+  videoStoryboard: true,
+} as const;
+
 export interface PipelineJob {
   jobId: string;
   serviceId: string;
