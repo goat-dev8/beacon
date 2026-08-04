@@ -75,6 +75,10 @@ export async function engineerMediaPrompt(
   briefText: string,
   env: BeaconEnv = loadEnv(),
 ): Promise<EngineeredPrompt> {
+  // Fast path for Render free tier / smoke: skip AgentRouter prompt eng.
+  if ((env.MEDIA_FAST || process.env.MEDIA_FAST || "").toLowerCase() === "true") {
+    return kind === "video" ? heuristicVideoShots(briefText) : heuristicImagePrompt(briefText);
+  }
   if (!isAiConfigured(env)) {
     return kind === "video" ? heuristicVideoShots(briefText) : heuristicImagePrompt(briefText);
   }

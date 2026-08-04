@@ -140,6 +140,8 @@ export const envSchema = z.object({
   HF_TOKEN: optionalString,
   HUGGINGFACE_API_KEY: optionalString,
   HF_IMAGE_MODEL: optionalString,
+  /** Skip AgentRouter prompt engineering (heuristic prompts) for faster media. */
+  MEDIA_FAST: optionalString,
 
   X402_TOKEN_ADDRESS: optionalString,
   X402_FACILITATOR_ADDRESS: optionalString,
