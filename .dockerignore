@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+**/dist
+.git
+.tmp*
+tmp
+apps/web
+packages/contracts
+packages/remotion-pack
+fce-beacon
+*.md
+!PRODUCT.md
+.env
+.env.*
