@@ -37,9 +37,11 @@ Explorer: https://coston2-explorer.flare.network
 
 ### Production deploy notes (2026-08-04)
 - GitHub `main` → Render `beacon-api` + Vercel `beacon-desk` (clean domain `beacon-desk.vercel.app`)
-- Render env synced from `beacon/.env` (99 keys; AI, Redis, DB, settler, contracts). `AI_REQUIRE_REAL=false` so jobs still finish if AgentRouter flakes; image SVG does not depend on `/images/generations` (that endpoint returns 403)
-- Vercel env: all `VITE_*` from `apps/web/.env` with `VITE_API_URL=https://beacon-api-97gl.onrender.com`
-- Image pipeline: hard-guarantee SVG creative (`composeImageDeliverable`) + acceptance allows `image/svg+xml`
+- Render env synced from `beacon/.env` (AI, Redis, DB, settler, contracts, **Pollinations**). `AI_REQUIRE_REAL=false` so jobs still finish if AgentRouter flakes
+- **Images:** free Pollinations Flux → real `image/jpeg` (AgentRouter image models 403 on this token; `gpt-5.6-sol` is chat-only). Proven job `63220ad1…` on Vercel shows raster IMAGE
+- **Video:** Remotion/OpenMontage when `OPENMONTAGE_ROOT` set; else Pollinations storyboard stills (+ ffmpeg slideshow if binary present). Render smoke shipped JPEG stills
+- Vercel env: all `VITE_*` with `VITE_API_URL=https://beacon-api-97gl.onrender.com`
+- Skills/MCP: see `MEDIA.md`; Pollinations MCP added to Cursor `mcp.json`; `/openmontage` + `/agent-demo-video` for local full video studio
 - Vercel SPA: root `vercel.json` rewrites so `/app` hard-refresh works
 
 ---
