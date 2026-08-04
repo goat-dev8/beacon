@@ -147,7 +147,11 @@ async function generateContent(job: PipelineJob): Promise<StageArtifact[]> {
         role: "generator",
       };
     } catch (err) {
-      if (env.AI_REQUIRE_REAL) throw err;
+      // Image/video drafts are companions — never block Flux/ffmpeg on AgentRouter outages.
+      const mediaSoft =
+        ["image", "video"].includes(String(job.serviceId).toLowerCase()) ||
+        (env.MEDIA_FAST || "").toLowerCase() === "true";
+      if (env.AI_REQUIRE_REAL && !mediaSoft) throw err;
       providerMeta = {
         provider: "local-fallback",
         error: err instanceof Error ? err.message : String(err),

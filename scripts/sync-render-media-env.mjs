@@ -44,6 +44,7 @@ const FORCE = {
   IMAGE_PROVIDER: true,
   VIDEO_PROVIDER: true,
   AI_MODEL_PROMPT_ENGINEER: true,
+  MEDIA_FAST: true,
 };
 
 const env = Object.fromEntries(
