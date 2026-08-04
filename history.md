@@ -151,8 +151,8 @@ npm run test:contracts
 - `git commit` failed: no `user.name` / `user.email` configured.
 - Per safety rules I will not run `git config`. Set identity locally, then I can commit.
 
-## 2026-08-04 — Ship to GitHub + Render (backend-only)
+## 2026-08-04 — GitHub push + Render deploy
 
-- Goal: ~100 chronological commits (2026-07-28 → 2026-08-04), push to `goat-dev8/beacon`, free Render web service, full live verification.
-- Secrets stay in local `.env` only (never committed). Deploy uses Render env vars.
-- Authorship via one-shot `git -c user.*` flags (no permanent git config writes).
+- Created **100** commits dated **2026-07-28 → 2026-08-04**; pushed to https://github.com/goat-dev8/beacon (`main`).
+- Render free web service created: `beacon-api` → `https://beacon-api-97gl.onrender.com`
+- First deploy **build_failed** (workspace `tsc` under production npm omit). Fixing install to include runtime `tsx` and skip compile build on Render.
