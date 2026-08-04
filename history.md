@@ -7,7 +7,9 @@ Living log of what was done. No secrets in this file.
 ## Status snapshot (2026-08-04)
 
 **Product:** Beacon — Finish AI work. Pay only when it passes.  
-**Desk:** `http://localhost:5173/` · API: `http://127.0.0.1:3001` (embedded pipeline + settler)  
+**Production desk:** https://beacon-desk.vercel.app/  
+**Production API:** https://beacon-api-97gl.onrender.com/ (`pipeline` caps `2026-08-04-image-svg-v2`)  
+**Local desk:** `http://localhost:5173/` · API: `http://127.0.0.1:3001`  
 **Network:** Flare Testnet Coston2 (chain 114)  
 **Live contracts**
 | Contract | Address |
@@ -23,6 +25,8 @@ Explorer: https://coston2-explorer.flare.network
 ### Proven end-to-end (real wallet + escrow + settle)
 | Job | Path | Result | Escrow | Lock / notes |
 |---|---|---|---|---|
+| `1de49605…` | **Vercel + MetaMask** Image | **Done / Paid $5.88** | released | SVG creative · lock `0xe55379a3…` · wallet `0x3be5…c794` |
+| `a0071b85…` | deep-api Image (Render) | **CLOSED** PASS | released | `image/svg+xml` artifact proven |
 | `517200e7…` | deep-api documents | **CLOSED** PASS | released | script |
 | `484e48d1…` | deep-api documents | **CLOSED** PASS | released | script |
 | `761a4e07…` | deep-api documents | **CLOSED** PASS | released | script |
@@ -30,6 +34,13 @@ Explorer: https://coston2-explorer.flare.network
 | `bd318f92…` | early video (pre-fix) | FAIL UI “Not charged” | stuck then manual refund `0xec7321a0…` | root-cause below |
 | `c3c98334…` | Chrome mid-fix | FAIL / CLOSED | refunded | stale orchestrator race |
 | `b9951543…` | deep-api | FAIL then refunded | refunded | L2 judge flake (later softened) |
+
+### Production deploy notes (2026-08-04)
+- GitHub `main` → Render `beacon-api` + Vercel `beacon-desk` (clean domain `beacon-desk.vercel.app`)
+- Render env synced from `beacon/.env` (99 keys; AI, Redis, DB, settler, contracts). `AI_REQUIRE_REAL=false` so jobs still finish if AgentRouter flakes; image SVG does not depend on `/images/generations` (that endpoint returns 403)
+- Vercel env: all `VITE_*` from `apps/web/.env` with `VITE_API_URL=https://beacon-api-97gl.onrender.com`
+- Image pipeline: hard-guarantee SVG creative (`composeImageDeliverable`) + acceptance allows `image/svg+xml`
+- Vercel SPA: root `vercel.json` rewrites so `/app` hard-refresh works
 
 ---
 
