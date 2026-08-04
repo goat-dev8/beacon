@@ -17,7 +17,7 @@ export type PipelineStage = "plan" | "generate" | "compose" | "normalize";
 
 /** Bumped when deliverable composers change — exposed via /health for deploy proof. */
 export const PIPELINE_CAPS = {
-  version: "2026-08-04-pro-media-v3-video-fast",
+  version: "2026-08-04-pro-media-v4-motion",
   imageSvg: true,
   imagePollinations: true,
   imageComfy: true,
@@ -27,7 +27,7 @@ export const PIPELINE_CAPS = {
   videoStoryboard: true,
   videoPollinationsStills: true,
   videoProFfmpeg: true,
-  videoFastHold: true,
+  videoMotionPan: true,
   flareRequired: true,
 } as const;
 
@@ -401,16 +401,17 @@ async function composeVideoDeliverable(
     artifacts[0]!.meta = { ...(artifacts[0]!.meta ?? {}), remotion: render };
   }
 
-  // 2) Pro stills → ffmpeg MP4. MEDIA_FAST: 1 CF frame + light encode (Render-safe).
+  // 2) 2 CF stills → pan + xfade MP4 (never a frozen single still).
   const mediaFastVideo = (env.MEDIA_FAST || "").toLowerCase() === "true";
   const shotsRaw =
     engineered.shotList?.length ?
       engineered.shotList
     : [
-        { beat: "Hook", seconds: 4, prompt: engineered.prompt },
-        { beat: "Action", seconds: 5, prompt: engineered.prompt },
+        { beat: "Hook", seconds: 3.2, prompt: engineered.prompt },
+        { beat: "Action", seconds: 3.2, prompt: engineered.prompt },
       ];
-  const shots = shotsRaw.slice(0, mediaFastVideo ? 1 : 2);
+  // Always ≥2 shots when possible so MP4 has scene change + pan motion.
+  const shots = shotsRaw.slice(0, 2);
   const frameW = mediaFastVideo ? 768 : 1080;
   const frameH = mediaFastVideo ? 1344 : 1920;
 
@@ -422,11 +423,10 @@ async function composeVideoDeliverable(
       const ext = img.mimeType.includes("png") ? "png" : "jpg";
       const framePath = path.join(job.outputDir, `frame-${i + 1}.${ext}`);
       await writeFile(framePath, img.bytes);
-      // Yield so /health can answer on Render free tier during multi-frame work.
       await new Promise((r) => setImmediate(r));
       framePaths.push({
         filePath: framePath,
-        seconds: mediaFastVideo ? 4 : shot.seconds,
+        seconds: mediaFastVideo ? 3.2 : shot.seconds,
         beat: shot.beat,
       });
       artifacts.push({
@@ -448,6 +448,10 @@ async function composeVideoDeliverable(
         err instanceof Error ? err.message : err,
       );
     }
+  }
+  // If second frame failed, duplicate first with different pan direction still beats freeze.
+  if (framePaths.length === 1) {
+    framePaths.push({ ...framePaths[0]!, beat: "Action-dup", seconds: 3.2 });
   }
 
   const videoOut = path.join(job.outputDir, "output.mp4");

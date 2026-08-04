@@ -67,13 +67,13 @@ function heuristicVideoShots(brief: string): EngineeredPrompt {
     shotList: [
       {
         beat: "Hook",
-        seconds: 4,
-        prompt: `${base}, cinematic opening hero frame, dramatic soft light, ultra sharp, vertical 9:16, photoreal`,
+        seconds: 3.2,
+        prompt: `${base}, wide establishing shot, subjects entering frame from left, cinematic golden hour, vertical 9:16, photoreal, motion blur hints`,
       },
       {
         beat: "Action",
-        seconds: 5,
-        prompt: `${base}, energetic mid-action still, motion freeze, premium commercial look, vertical 9:16`,
+        seconds: 3.2,
+        prompt: `${base}, tight tracking shot from opposite angle, subjects mid-sprint toward camera, dust and energy, vertical 9:16, photoreal`,
       },
     ],
     model: "heuristic",

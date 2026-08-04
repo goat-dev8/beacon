@@ -174,6 +174,7 @@ export function Workspace() {
         validBefore: auth.validBefore,
         nonce: auth.nonce,
         signature: auth.signature,
+        lockTxHash: auth.lockTxHash,
       });
     },
     onSuccess: () => {
@@ -733,8 +734,10 @@ function ResultPanel({
   const body = selectedQuery.data?.content ?? contentQuery.data?.content;
   const bodyKind = selectedQuery.data?.kind ?? primary?.kind ?? "result";
   const bodyMime = selectedQuery.data?.mimeType ?? "";
+  const isVideo = bodyKind === "video" || bodyMime.startsWith("video/");
   const isImage =
-    bodyKind === "image" || bodyMime.startsWith("image/") || bodyMime.includes("svg");
+    !isVideo &&
+    (bodyKind === "image" || bodyMime.startsWith("image/") || bodyMime.includes("svg"));
   const rawSrc =
     selectedId != null ? api.artifactRawUrl(jobId, selectedId) : null;
 
@@ -820,11 +823,14 @@ function ResultPanel({
                 className="mx-auto max-h-[min(70vh,640px)] w-full object-contain"
               />
             )}
-            {(bodyKind === "video" || bodyMime.startsWith("video/")) && rawSrc && (
+            {isVideo && rawSrc && (
               <video
                 src={rawSrc}
                 controls
                 playsInline
+                autoPlay
+                muted
+                loop
                 className="mx-auto max-h-[min(70vh,640px)] w-full bg-ink"
               />
             )}
@@ -835,12 +841,12 @@ function ResultPanel({
                 </a>
               </p>
             )}
-            {body && !isImage && !bodyMime.startsWith("video/") && bodyKind !== "video" && (
+            {body && !isImage && !isVideo && (
               <div className="prose-beacon whitespace-pre-wrap font-sans text-[15px] leading-7 text-ink">
                 {body}
               </div>
             )}
-            {!body && !isImage && bodyKind !== "video" && !bodyMime.startsWith("video/") && !selectedQuery.isLoading && !selectedQuery.isError && (
+            {!body && !isImage && !isVideo && !selectedQuery.isLoading && !selectedQuery.isError && (
               <p className="text-sm text-ink-muted">
                 No preview available for this artifact type.
               </p>

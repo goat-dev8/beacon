@@ -59,6 +59,24 @@ app.setErrorHandler((error, _req, reply) => {
 app.get("/health", async () => ({
   ok: true,
   chainId: env.CHAIN_ID,
+  network: env.NETWORK_NAME,
+  flareRequired: (env.FLARE_REQUIRED || "true").toLowerCase() !== "false",
+  flareRails: {
+    escrow: env.BEACON_ESCROW,
+    x402Token: env.X402_TOKEN_ADDRESS,
+    facilitator: env.X402_FACILITATOR_ADDRESS,
+    jobRegistry: env.BEACON_JOB_REGISTRY,
+    contractRegistry: env.FLARE_CONTRACT_REGISTRY,
+    rpc: env.COSTON2_RPC_URL,
+  },
+  flareSkills: [
+    "flare-general-skill",
+    "flare-ftso-skill",
+    "flare-fassets-skill",
+    "flare-fdc-skill",
+    "flare-smart-accounts-skill",
+    "flare-fcc-skill",
+  ],
   simulatedTee: env.SIMULATED_TEE,
   honesty: honestyMessage(env.SIMULATED_TEE),
   service: "beacon-api",
@@ -227,19 +245,21 @@ app.post("/v1/jobs/:id/quote", async (req) => {
   return { jobId, quote, offerId: offer.offerId };
 });
 
+const eip3009AuthSchema = z.object({
+  payer: z.string().min(1),
+  payee: z.string().optional(),
+  amount: z.string().min(1),
+  validAfter: z.string().optional(),
+  validBefore: z.string().min(1),
+  nonce: z.string().min(1),
+  signature: z.string().min(1),
+});
+
 const approveSchema = z.object({
   offerId: z.string().uuid(),
-  authorization: z
-    .object({
-      payer: z.string(),
-      payee: z.string().optional(),
-      amount: z.string(),
-      validAfter: z.string().optional(),
-      validBefore: z.string(),
-      nonce: z.string(),
-      signature: z.string(),
-    })
-    .optional(),
+  authorization: eip3009AuthSchema.optional(),
+  /** On-chain BeaconEscrow.lockWithAuthorization tx hash (Coston2). */
+  lockTxHash: z.string().optional(),
 });
 
 app.post("/v1/jobs/:id/approve", async (req) => {
@@ -249,6 +269,15 @@ app.post("/v1/jobs/:id/approve", async (req) => {
 
   if (job.status !== JobStatus.QUOTED) {
     throw new AppError("INVALID_TRANSITION");
+  }
+
+  // Flare rails are the product: paid jobs must carry EIP-3009 auth from Coston2 lock.
+  const flareRequired = (env.FLARE_REQUIRED || "true").toLowerCase() !== "false";
+  if (flareRequired && !body.authorization?.signature) {
+    throw new AppError("VALIDATION", {
+      message:
+        "Flare Coston2 EIP-3009 authorization required. Sign TransferWithAuthorization and lock via BeaconEscrow before approve.",
+    });
   }
 
   const offer = await pool.query(`SELECT id, expires_at FROM offers WHERE id = $1 AND job_id = $2`, [
@@ -268,7 +297,12 @@ app.post("/v1/jobs/:id/approve", async (req) => {
     [
       body.offerId,
       userId,
-      JSON.stringify(body.authorization ?? {}),
+      JSON.stringify({
+        ...(body.authorization ?? {}),
+        lockTxHash: body.lockTxHash ?? null,
+        chainId: env.CHAIN_ID,
+        network: env.NETWORK_NAME,
+      }),
       body.authorization?.validBefore ?? Math.floor(Date.now() / 1000) + 3600,
     ],
   );

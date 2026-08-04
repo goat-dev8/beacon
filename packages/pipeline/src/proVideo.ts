@@ -34,9 +34,10 @@ function mediaFast(): boolean {
 }
 
 /**
- * Build a vertical MP4 from stills.
- * MEDIA_FAST / Render free tier: lightweight scale+hold (no zoompan) so health checks stay alive.
- * Full quality: gentle zoom + crossfades.
+ * Build a vertical MP4 with visible motion from stills.
+ * - Each still gets a light pan (crop-on-t) — cheaper than zoompan, enough to feel like video.
+ * - 2+ stills get a crossfade so scenes change (cat → dog, hook → action).
+ * MEDIA_FAST uses 720×1280 + ultrafast so Render free-tier health stays alive.
  */
 export async function assembleProVideoFromStills(
   frames: ProVideoFrame[],
@@ -57,11 +58,18 @@ export async function assembleProVideoFromStills(
   const h = fast ? 1280 : 1920;
   const fps = fast ? 24 : 30;
   const preset = fast ? "ultrafast" : "veryfast";
-  const crf = fast ? "26" : "18";
+  const crf = fast ? "24" : "18";
 
-  if (fast || frames.length === 1) {
-    const frame = frames[0]!;
-    const dur = Math.min(6, Math.max(3, frame.seconds || 4));
+  const clipPaths: string[] = [];
+  for (let i = 0; i < frames.length; i++) {
+    const frame = frames[i]!;
+    const clip = path.join(work, `clip-${i}.mp4`);
+    const dur = Math.min(fast ? 3.2 : 5, Math.max(2.4, frame.seconds || 3));
+    // Oversample then pan crop over time — real motion without zoompan CPU blowup.
+    const scaleW = Math.round(w * 1.18);
+    const scaleH = Math.round(h * 1.18);
+    const panX = i % 2 === 0 ? `'min(${scaleW - w},t*${fast ? 14 : 18})'` : `'max(0,${scaleW - w}-t*${fast ? 14 : 18})'`;
+    const panY = i % 2 === 0 ? `'min(${scaleH - h},t*${fast ? 8 : 10})'` : `'max(0,${scaleH - h}-t*${fast ? 8 : 10})'`;
     const code = await run(ffmpeg, [
       "-y",
       "-loop",
@@ -71,7 +79,7 @@ export async function assembleProVideoFromStills(
       "-t",
       String(dur),
       "-vf",
-      `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},fps=${fps}`,
+      `scale=${scaleW}:${scaleH}:force_original_aspect_ratio=increase,crop=${w}:${h}:${panX}:${panY},fps=${fps}`,
       "-c:v",
       "libx264",
       "-preset",
@@ -83,62 +91,56 @@ export async function assembleProVideoFromStills(
       "-movflags",
       "+faststart",
       "-an",
+      clip,
+    ]);
+    if (code !== 0) {
+      return { ok: false, outputPath, message: `motion clip failed ${i}`, ffmpegPath: ffmpeg };
+    }
+    clipPaths.push(clip);
+    // Yield event loop between encodes (Render health).
+    await new Promise((r) => setImmediate(r));
+  }
+
+  if (clipPaths.length === 1) {
+    const code = await run(ffmpeg, [
+      "-y",
+      "-i",
+      clipPaths[0]!,
+      "-c",
+      "copy",
+      "-movflags",
+      "+faststart",
       outputPath,
     ]);
     return {
       ok: code === 0,
       outputPath,
-      message: code === 0 ? (fast ? "fast-hold ok" : "single-hold ok") : "encode failed",
+      message: code === 0 ? "single-pan ok" : "single-pan copy failed",
       ffmpegPath: ffmpeg,
     };
   }
 
-  // Full path: zoom clips + xfade (local / paid CPU only)
-  const clipPaths: string[] = [];
-  for (let i = 0; i < frames.length; i++) {
-    const frame = frames[i]!;
-    const clip = path.join(work, `clip-${i}.mp4`);
-    const dur = Math.max(2, frame.seconds);
-    const framesCount = Math.round(dur * fps);
-    const code = await run(ffmpeg, [
-      "-y",
-      "-loop",
-      "1",
-      "-i",
-      frame.filePath,
-      "-vf",
-      `scale=${w}:${h}:force_original_aspect_ratio=increase,crop=${w}:${h},zoompan=z='min(zoom+0.0008,1.08)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=${framesCount}:s=${w}x${h}:fps=${fps}`,
-      "-t",
-      String(dur),
-      "-pix_fmt",
-      "yuv420p",
-      "-c:v",
-      "libx264",
-      "-preset",
-      preset,
-      "-crf",
-      crf,
-      clip,
-    ]);
-    if (code !== 0) {
-      return { ok: false, outputPath, message: `clip encode failed ${i}`, ffmpegPath: ffmpeg };
-    }
-    clipPaths.push(clip);
-  }
-
+  const fade = fast ? 0.45 : 0.6;
   const inputs: string[] = [];
   for (const c of clipPaths) inputs.push("-i", c);
-  const fade = 0.6;
-  let filter = "";
-  let last = "[0:v]";
-  let offset = 0;
-  for (let i = 1; i < clipPaths.length; i++) {
-    offset += Math.max(1, frames[i - 1]!.seconds) - fade;
-    const out = i === clipPaths.length - 1 ? "[vout]" : `[v${i}]`;
-    filter += `${last}[${i}:v]xfade=transition=fade:duration=${fade}:offset=${offset.toFixed(2)}${out};`;
-    last = out;
+
+  let filter: string;
+  if (clipPaths.length === 2) {
+    // Clip duration ≈ 3.2s on fast path → crossfade near end of first clip.
+    const offset = fast ? 2.7 : Math.max(1.5, (frames[0]!.seconds || 4) - fade);
+    filter = `[0:v][1:v]xfade=transition=fade:duration=${fade}:offset=${offset.toFixed(2)}[vout]`;
+  } else {
+    let chain = "";
+    let last = "[0:v]";
+    let offset = 0;
+    for (let i = 1; i < clipPaths.length; i++) {
+      offset += Math.max(2, frames[i - 1]!.seconds || 3) - fade;
+      const out = i === clipPaths.length - 1 ? "[vout]" : `[v${i}]`;
+      chain += `${last}[${i}:v]xfade=transition=fade:duration=${fade}:offset=${offset.toFixed(2)}${out};`;
+      last = out;
+    }
+    filter = chain.replace(/;$/, "");
   }
-  filter = filter.replace(/;$/, "");
 
   const code = await run(ffmpeg, [
     "-y",
@@ -157,6 +159,7 @@ export async function assembleProVideoFromStills(
     crf,
     "-movflags",
     "+faststart",
+    "-an",
     outputPath,
   ]);
 
@@ -177,21 +180,24 @@ export async function assembleProVideoFromStills(
       listPath,
       "-c:v",
       "libx264",
+      "-preset",
+      preset,
       "-pix_fmt",
       "yuv420p",
       "-movflags",
       "+faststart",
+      "-an",
       outputPath,
     ]);
     return {
       ok: code2 === 0,
       outputPath,
-      message: code2 === 0 ? "concat fallback ok" : "assemble failed",
+      message: code2 === 0 ? "concat motion ok" : "assemble failed",
       ffmpegPath: ffmpeg,
     };
   }
 
-  return { ok: true, outputPath, message: "xfade ok", ffmpegPath: ffmpeg };
+  return { ok: true, outputPath, message: "pan+xfade ok", ffmpegPath: ffmpeg };
 }
 
 function run(bin: string, args: string[]): Promise<number> {

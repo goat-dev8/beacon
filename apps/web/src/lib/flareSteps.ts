@@ -30,13 +30,13 @@ export const FLARE_STEPS: FlareStep[] = [
   {
     id: "generate",
     label: "Generate + compose",
-    detail: "Bound Work pipeline writes draft + deliverable pack",
+    detail: "Off-chain media (Flux) · settlement stays on Flare Coston2",
     statusKey: "GENERATING",
   },
   {
     id: "accept",
     label: "Acceptance gates",
-    detail: "L1 objective · L2 judge · L3 brand — pay only on pass",
+    detail: "L1 objective · L2 judge · L3 brand — escrow pays only on pass",
     statusKey: "ACCEPTING",
   },
   {
