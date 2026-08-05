@@ -785,7 +785,7 @@ function ActionCard({
   if (card.type === "ftso_signals") {
     const feeds = (card.feeds as Array<{ symbol: string; value: number }>) ?? [];
     return (
-      <div className="overflow-hidden rounded-2xl border border-signal/25 bg-gradient-to-br from-[#12231a] to-[#0a0c0b] p-4">
+      <div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] shadow-[var(--p-shadow)] p-4">
         <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
         <p className="mt-2 text-sm text-[var(--p-fg)]/90">{String(card.summary)}</p>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -841,7 +841,7 @@ function ActionCard({
 
   if (card.type === "swap_quote") {
     return (
-      <div className="rounded-2xl border border-signal/20 bg-gradient-to-br from-[#14201a] to-[#0a0c0b] p-4">
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] shadow-[var(--p-shadow)] p-4">
         <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
         <div className="mt-3 flex flex-wrap items-end gap-6">
           <div>
@@ -1174,7 +1174,7 @@ function ActionCard({
     const docs = (card.docs as Array<{ label: string; href: string }>) ?? [];
     const unavailable = (card.unavailable as string[]) ?? [];
     return (
-      <div className="rounded-2xl border border-signal/30 bg-gradient-to-br from-[#1a1528] to-[#0a0c0b] p-4">
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] shadow-[var(--p-shadow)] p-4">
         <div className="flex flex-wrap items-center gap-2">
           <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
           <span className="rounded-full bg-signal/15 px-2 py-0.5 font-mono text-[10px] text-[var(--p-accent-text)]">
@@ -1204,7 +1204,7 @@ function ActionCard({
           ))}
         </div>
         {unavailable.length > 0 && (
-          <p className="mt-3 text-xs text-amber-200/70">Unavailable: {unavailable.join(" · ")}</p>
+          <p className="mt-3 text-xs text-[var(--p-warn)]">Unavailable: {unavailable.join(" · ")}</p>
         )}
         <p className="mt-2 text-xs text-[var(--p-muted)]">{String(card.honesty)}</p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -1230,7 +1230,7 @@ function ActionCard({
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
         <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
         <p className="mt-2 text-sm text-[var(--p-fg)]/90">{String(card.summary)}</p>
-        <p className="mt-2 text-xs text-amber-200/80">{String(card.honesty)}</p>
+        <p className="mt-2 text-xs text-[var(--p-warn)]">{String(card.honesty)}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {links.map((l) => (
             <a
@@ -1378,9 +1378,9 @@ function ActionCard({
 
   if (card.type === "insufficient") {
     return (
-      <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-4">
-        <p className="font-medium text-amber-100">{card.title}</p>
-        <p className="mt-1 text-sm text-amber-100/80">{String(card.summary)}</p>
+      <div className="rounded-2xl border border-[var(--p-warn)]/35 bg-[var(--p-warn)]/10 p-4">
+        <p className="font-medium text-[var(--p-fg)]">{card.title}</p>
+        <p className="mt-1 text-sm text-[var(--p-muted)]">{String(card.summary)}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" onClick={onConnect} className="rounded-full bg-signal px-4 py-2 text-sm text-[var(--p-fg)]">
             Connect
@@ -1390,7 +1390,7 @@ function ActionCard({
               href={card.faucetHref}
               target="_blank"
               rel="noreferrer"
-              className="rounded-full border border-amber-200/30 px-4 py-2 text-sm text-amber-100/80"
+              className="rounded-full border border-[var(--p-border-strong)] px-4 py-2 text-sm text-[var(--p-muted)]"
             >
               Faucet
             </a>
@@ -1416,7 +1416,7 @@ function StatusRow({
     status === "confirmed" || status === "skipped" ? (
       <CheckCircle2 className="size-3.5 text-[var(--p-accent-text)]" />
     ) : status === "pending" ? (
-      <Clock className="size-3.5 animate-pulse text-amber-300" />
+      <Clock className="size-3.5 animate-pulse text-[var(--p-warn)]" />
     ) : status === "failed" ? (
       <span className="size-3.5 rounded-full bg-red-400" />
     ) : (
