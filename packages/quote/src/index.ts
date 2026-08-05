@@ -214,7 +214,9 @@ export async function evaluateSealedFit(
       return await aiCapabilityCheck(input, options);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      const transient = /AI provider (405|429|502|503|504)/.test(message);
+      const transient =
+        /AI (?:provider |temporarily unavailable \()(405|429|502|503|504)/.test(message) ||
+        /AI provider (405|429|502|503|504)/.test(message);
       // Heuristic Sealed Fit remains authoritative when the live provider is capacity-limited.
       // Generation/judge still honor AI_REQUIRE_REAL separately.
       if (transient) {

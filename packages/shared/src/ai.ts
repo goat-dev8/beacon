@@ -254,7 +254,7 @@ export async function chatForRole(
     } catch (err) {
       lastErr = err;
       const message = err instanceof Error ? err.message : String(err);
-      if (!/temporarily unavailable \((429|502|503|504)\)|AI provider (405|429|502|503|504)/.test(message)) {
+      if (!/temporarily unavailable \((405|429|502|503|504)\)|AI provider (405|429|502|503|504)/.test(message)) {
         throw err;
       }
     }
