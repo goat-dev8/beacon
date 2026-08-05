@@ -82,22 +82,26 @@ export async function readFassetsDesk(env: BeaconEnv = loadEnv()): Promise<FAsse
   for (const am of managers) {
     const manager = new Contract(am, ASSET_MANAGER_ABI, provider);
     const fAsset = (await manager.fAsset()) as string;
-    const settings = await manager.getSettings();
-    const lotSizeAMG = settings.lotSizeAMG as bigint;
-    const assetDecimals = Number(settings.assetDecimals);
-    const agentOwnerRegistry = settings.agentOwnerRegistry as string;
-    const lotSizeUnderlying = Number(lotSizeAMG) / 10 ** assetDecimals;
+    const lotSizeUba = (await manager.lotSize()) as bigint;
 
     const token = new Contract(fAsset, ERC20_ABI, provider);
     let symbol = "FAsset";
     let name = "FAsset";
-    let decimals = assetDecimals;
+    let decimals = 6;
     try {
       symbol = String(await token.symbol());
       name = String(await token.name());
       decimals = Number(await token.decimals());
     } catch {
       /* tolerate */
+    }
+    const lotSizeUnderlying = Number(lotSizeUba) / 10 ** decimals;
+
+    let agentOwnerRegistry = "";
+    try {
+      agentOwnerRegistry = (await manager.getAgentOwnerRegistry()) as string;
+    } catch {
+      agentOwnerRegistry = "";
     }
 
     let agentCount = 0;
@@ -123,7 +127,7 @@ export async function readFassetsDesk(env: BeaconEnv = loadEnv()): Promise<FAsse
       symbol,
       name,
       decimals,
-      lotSizeAMG: lotSizeAMG.toString(),
+      lotSizeAMG: lotSizeUba.toString(),
       lotSizeUnderlying,
       agentOwnerRegistry,
       agentCount,
