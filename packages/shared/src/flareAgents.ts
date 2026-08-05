@@ -542,30 +542,29 @@ export async function fulfillPaidResource(opts: {
   }
 
   if (res.id === "research-brief") {
-    const narr = await narrate({
-      intent: "research",
-      userMessage: brief,
-      situation:
-        "User paid for a research brief. Deliver a concise structured brief with source checklist. No fake citations.",
-      fallback:
-        "Paid research brief unlocked. Scope received, delivering a structured outline with source checklist (no invented URLs).",
+    const { generateResearchBrief } = await import("./researchBrief.js");
+    const briefDoc = await generateResearchBrief({
+      topic: brief,
       env: opts.env,
+      settlementTxHash: txHint,
     });
     cards.push({
       type: "media_result",
       title: "Research brief",
       kind: "research",
-      summary: narr.text,
-      content: narr.text,
+      summary: briefDoc.summary,
+      content: briefDoc.content,
       paymentTxHint: txHint,
       serviceId: res.id,
     });
     return {
       agentId: "research",
-      text: narr.text,
+      text: txHint
+        ? `Payment settled (${txHint.slice(0, 10)}…). Your research brief is ready below.`
+        : "Payment settled. Your research brief is ready below.",
       cards,
-      model: narr.model,
-      displayModel: narr.displayModel,
+      model: briefDoc.model,
+      displayModel: briefDoc.displayModel,
       paid: true,
       state: idleState,
     };

@@ -4,6 +4,18 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-05 - Real x402 research brief (no stub receipt)
+
+**Bug:** Paying Research brief ($0.75) settled on-chain but UI showed the same stub three times: "Paid research brief unlocked…". Root cause: `fulfillPaidResource` used `narrate()` with a weak prompt; on model failure it returned the stub while still labeling Claude Opus 5. Summary + content + chat text were identical.
+
+**Fix**
+- New `generateResearchBrief`: real structured brief (topic, snapshot, key points, risks, source checklist). Uses Agent Router generator with model fallbacks. Rejects stub-shaped replies. Local Flare-grounded brief if AI is down.
+- `@pay` / empty scopes normalize to a Flare builder default topic.
+- Chat line is a short settlement note. Card renders the brief via `AgentText` once.
+- `chatForRole` now retries on `temporarily unavailable (429|502|503|504)` (regex was matching the wrong error string).
+
+---
+
 ## 2026-08-05 - Shared wallet session across Flow / Work / Policy
 
 **Bug:** Bound Work always showed Connect even when Flow already had a restored wallet. Tab changes remounted each page with its own `useState`, and Workspace never called `tryRestoreWallet`.

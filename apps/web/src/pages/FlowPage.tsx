@@ -1331,10 +1331,20 @@ function ActionCard({
   }
 
   if (card.type === "media_result") {
+    const summary = typeof card.summary === "string" ? card.summary : "";
+    const content = typeof card.content === "string" ? card.content : "";
+    const isImage = content.startsWith("data:image");
+    const isResearch = card.kind === "research";
+    // Avoid triple-paste: chat line + summary + content when they are the same stub.
+    const showSummary =
+      Boolean(summary) &&
+      (!content || summary.trim() !== content.trim()) &&
+      !/paid research brief unlocked/i.test(summary);
+
     return (
-      <div className="rounded-2xl border border-signal/25 bg-[var(--p-card)] p-4">
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] p-4 shadow-[var(--p-shadow)]">
         <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
-        <p className="mt-2 text-sm text-[var(--p-fg)]/80">{String(card.summary)}</p>
+        {showSummary && <p className="mt-2 text-sm text-[var(--p-muted)]">{summary}</p>}
         {typeof card.paymentTxHint === "string" && card.paymentTxHint && (
           <a
             href={explorerTx(card.paymentTxHint)}
@@ -1346,11 +1356,13 @@ function ActionCard({
             <ExternalLink className="size-3" />
           </a>
         )}
-        {typeof card.content === "string" && card.content.startsWith("data:image") && (
-          <img src={card.content} alt="Beacon result" className="mt-3 max-h-72 rounded-xl border border-[var(--p-border)]" />
+        {isImage && (
+          <img src={content} alt="Beacon result" className="mt-3 max-h-72 rounded-xl border border-[var(--p-border)]" />
         )}
-        {typeof card.content === "string" && card.kind === "research" && (
-          <p className="mt-3 whitespace-pre-wrap text-sm text-[var(--p-fg)]/90">{card.content}</p>
+        {isResearch && content && (
+          <div className="mt-3 border-t border-[var(--p-border)] pt-3">
+            <AgentText text={content} />
+          </div>
         )}
       </div>
     );
