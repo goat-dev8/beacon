@@ -429,3 +429,7 @@ Reopen a finished job: http://localhost:5173/app?job=<uuid>
 - Frontend Greptile light redesign after dark UI rejected  
 - Chrome MetaMask e2e: Documents → $10.63 → Approve → Done Paid
 
+
+### Hotfix � Security policy migration
+Stale Redis policies blocked `@fassets` / `@liquidity` etc. `loadPolicy` now unions OS agent rollout + chain 14 (drops legacy `video` agent id).
+
