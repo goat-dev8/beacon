@@ -93,8 +93,14 @@ app.setErrorHandler((error, _req, reply) => {
     return reply.status(error.statusCode).send(error.toJSON());
   }
   app.log.error(error);
+  const detail = error instanceof Error ? error.message : String(error);
   return reply.status(500).send({
-    error: { code: "INTERNAL", message: "Something went wrong on our side. Please try again." },
+    error: {
+      code: "INTERNAL",
+      message: "Something went wrong on our side. Please try again.",
+      // Surface detail so Coston2 demos can diagnose without Render log SSH.
+      detail: detail.slice(0, 240),
+    },
   });
 });
 
