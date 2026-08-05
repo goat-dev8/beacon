@@ -1100,7 +1100,7 @@ function ActionCard({
                 {m.symbol} · <span className="text-signal">{m.status}</span>
               </p>
               <p className="font-mono text-[10px] text-[var(--p-muted)]">
-                lot {m.lotSize} · agents {m.agentCount} · mint {m.mint} · redeem {m.redeem} · bridge {m.bridge}
+                lot {Number(m.lotSize).toFixed(4)} · agents {m.agentCount} · mint {m.mint} · redeem {m.redeem} · bridge {m.bridge}
               </p>
             </li>
           ))}
