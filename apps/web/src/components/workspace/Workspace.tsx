@@ -40,7 +40,6 @@ import { FLARE_STEPS, flareStepState } from "@/lib/flareSteps";
 const ICONS: Record<ServiceId, LucideIcon> = {
   video: Clapperboard,
   image: Image,
-  voice: Mic,
   presentations: Presentation,
   coding: Code2,
   research: Search,

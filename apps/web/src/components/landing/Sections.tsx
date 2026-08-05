@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Clapperboard,
   Image,
-  Mic,
   Presentation,
   Code2,
   Search,
@@ -27,7 +26,6 @@ import { CONTRACTS, NETWORK } from "@/lib/chain";
 const ICONS: Record<ServiceId, LucideIcon> = {
   video: Clapperboard,
   image: Image,
-  voice: Mic,
   presentations: Presentation,
   coding: Code2,
   research: Search,
