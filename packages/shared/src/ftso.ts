@@ -115,11 +115,16 @@ export async function readErc20Balance(
     ],
     provider,
   );
-  const [raw, decimals, symbol] = await Promise.all([
+  const [raw, decimals] = await Promise.all([
     erc.balanceOf(owner) as Promise<bigint>,
     erc.decimals() as Promise<number>,
-    erc.symbol() as Promise<string>,
   ]);
+  let symbol = "TOKEN";
+  try {
+    symbol = (await erc.symbol()) as string;
+  } catch {
+    // Some test tokens (or misconfigured addresses) revert on symbol().
+  }
   const d = Number(decimals);
   const formatted = (Number(raw) / 10 ** d).toFixed(Math.min(6, d));
   return { raw, formatted, decimals: d, symbol };

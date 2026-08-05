@@ -720,7 +720,7 @@ app.get("/v1/agents/balances", async (req) => {
     readErc20Balance(COSTON2_USDT0, wallet, env),
     readErc20Balance(fxrp, wallet, env),
     env.X402_TOKEN_ADDRESS
-      ? readErc20Balance(env.X402_TOKEN_ADDRESS, wallet, env)
+      ? readErc20Balance(env.X402_TOKEN_ADDRESS, wallet, env).catch(() => null)
       : Promise.resolve(null),
   ]);
   const serializeBal = (address: string, bal: { raw: bigint; formatted: string; decimals: number; symbol: string }) => ({
