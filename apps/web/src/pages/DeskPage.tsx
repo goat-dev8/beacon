@@ -7,7 +7,7 @@ export function DeskPage() {
       <div className="border-b border-[var(--p-border)] bg-[var(--p-surface)] px-5 py-3">
         <p className="font-display text-lg font-semibold tracking-tight">Bound Work</p>
         <p className="text-xs text-[var(--p-muted)]">
-          Escrow creative jobs on Coston2 — pay only when quality passes. Chat stays in Flow.
+          Escrow creative jobs on Coston2 - pay only when quality passes. Chat stays in Flow.
         </p>
       </div>
       <Workspace />
