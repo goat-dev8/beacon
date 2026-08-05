@@ -2,9 +2,13 @@ import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
 import { Briefcase, ExternalLink, Moon, Shield, Sparkles, Sun } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ProductThemeProvider, useProductTheme } from "@/lib/productTheme";
+import { ProductWalletProvider } from "@/lib/productWallet";
 import { BeaconMark } from "@/components/diagrams/BeaconDiagrams";
 import { NETWORK } from "@/lib/chain";
 import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { api } from "@/lib/api";
 
 const NAV = [
   { to: "/flow", end: true, label: "Flow", icon: Sparkles },
@@ -55,8 +59,17 @@ function ShellChrome() {
   const { theme, toggle } = useProductTheme();
   const location = useLocation();
   const reduce = useReducedMotion();
+  const qc = useQueryClient();
 
-  // Sub-routes of the desk share one surface, so transitions key on the top segment only.
+  // Warm Bound Work services while user is still on Flow so desk opens warm.
+  useEffect(() => {
+    void qc.prefetchQuery({
+      queryKey: ["services"],
+      queryFn: api.services,
+      staleTime: 60_000,
+    });
+  }, [qc]);
+
   const routeKey = location.pathname.startsWith("/flow/desk")
     ? "desk"
     : location.pathname.startsWith("/flow/security")
@@ -108,14 +121,14 @@ function ShellChrome() {
         </div>
       </aside>
 
-      <div className="relative min-w-0 flex-1">
-        <AnimatePresence mode="wait" initial={false}>
+      {/* Soft enter fade. Wallet lives above this so tab changes never flash Connect. */}
+      <div className="min-w-0 flex-1 overflow-hidden">
+        <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={routeKey}
-            initial={reduce ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={reduce ? undefined : { opacity: 0, y: -6 }}
-            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            initial={reduce ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
             className="h-full"
           >
             <Outlet />
@@ -130,7 +143,9 @@ function ShellChrome() {
 export function ProductShell() {
   return (
     <ProductThemeProvider>
-      <ShellChrome />
+      <ProductWalletProvider>
+        <ShellChrome />
+      </ProductWalletProvider>
     </ProductThemeProvider>
   );
 }

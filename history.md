@@ -4,6 +4,18 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-05 - Shared wallet session across Flow / Work / Policy
+
+**Bug:** Bound Work always showed Connect even when Flow already had a restored wallet. Tab changes remounted each page with its own `useState`, and Workspace never called `tryRestoreWallet`.
+
+**Fix**
+- `ProductWalletProvider` at the shell: restore once, listen for `accountsChanged`, expose `wallet` / `connect` / `connecting` / `ready`
+- Flow, Workspace (Bound Work), and Security all consume the shared session
+- Desk draft (`step` / `serviceId` / `jobId`) persisted in `sessionStorage` so Work survives tab switches like Flow conversations
+- Softer route fade (no blank `mode="wait"` flash), services prefetch + retry button when the API is cold
+
+---
+
 ## 2026-08-05 - Product theme system, readable dark/light, typeset agent output
 
 **Goal:** Kill the broken light/dark mix inside the product shell, make tab routing smooth, and give agent replies real typography.

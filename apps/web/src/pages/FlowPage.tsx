@@ -13,16 +13,15 @@ import {
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import {
-  connectEvmWallet,
   shortAddress,
   mintMockUsdt0,
   executeSparkDexSwap,
   executeOftBridge,
-  tryRestoreWallet,
 } from "@/lib/wallet";
 import { NETWORK } from "@/lib/chain";
 import { cn } from "@/lib/utils";
 import { formatNativeFeeDisplay, formatTokenAmount } from "@/lib/format";
+import { useProductWallet } from "@/lib/productWallet";
 import { ExecutionDrawer } from "@/components/ExecutionDrawer";
 import { AgentText } from "@/components/AgentText";
 import {
@@ -95,9 +94,9 @@ type FlowConv = {
 
 export function FlowPage() {
   const qc = useQueryClient();
+  const { wallet, connect, connecting } = useProductWallet();
   const [agentId, setAgentId] = useState<AgentId>("general");
   const [input, setInput] = useState("");
-  const [wallet, setWallet] = useState<string | null>(null);
   const [convState, setConvState] = useState<ConvState>(null);
   const [settledServiceIds, setSettledServiceIds] = useState<Set<string>>(() => new Set());
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -112,14 +111,7 @@ export function FlowPage() {
     setExecutionStates((prev) => ({ ...prev, [key]: { ...prev[key], ...state } }));
   }, []);
 
-  useEffect(() => {
-    void (async () => {
-      const restored = await tryRestoreWallet();
-      if (restored) setWallet(restored);
-    })();
-  }, []);
-
-  // Auto-resume most recent conversation when wallet reconnects
+  // Auto-resume most recent conversation when shell wallet is ready
   useEffect(() => {
     if (!wallet || conversationId) return;
     void (async () => {
@@ -258,8 +250,7 @@ export function FlowPage() {
   }, [conversationsQuery.data, convSearch]);
 
   async function onConnect() {
-    const acct = await connectEvmWallet();
-    setWallet(acct);
+    await connect();
   }
 
   function send() {
@@ -521,9 +512,10 @@ export function FlowPage() {
               <button
                 type="button"
                 onClick={() => void onConnect()}
-                className="rounded-full bg-signal px-4 py-1.5 text-sm font-medium text-ink"
+                disabled={connecting}
+                className="rounded-full bg-signal px-4 py-1.5 text-sm font-medium text-[var(--p-on-accent)] disabled:opacity-50"
               >
-                Connect
+                {connecting ? "Connecting…" : "Connect"}
               </button>
             )}
           </div>

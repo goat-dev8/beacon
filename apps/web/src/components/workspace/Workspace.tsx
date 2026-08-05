@@ -29,14 +29,13 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { BeaconMark } from "@/components/diagrams/BeaconDiagrams";
 import {
   approveJobOnChain,
-  connectEvmWallet,
   hasEvmProvider,
   mintMockUsdt0,
   shortAddress,
 } from "@/lib/wallet";
+import { useProductWallet } from "@/lib/productWallet";
 import { NETWORK, CONTRACTS } from "@/lib/chain";
 import { FLARE_STEPS, flareStepState } from "@/lib/flareSteps";
-import type { Address } from "viem";
 
 const ICONS: Record<ServiceId, LucideIcon> = {
   video: Clapperboard,
@@ -57,11 +56,35 @@ type Step = "choose" | "describe" | "quote" | "live" | "result";
 
 export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
   const qc = useQueryClient();
+  const { wallet: account, connect, connecting } = useProductWallet();
   const [step, setStep] = useState<Step>(() => {
     const q = new URLSearchParams(window.location.search).get("job");
-    return q ? "result" : "choose";
+    if (q) return "result";
+    try {
+      const draft = sessionStorage.getItem("beacon.desk.draft");
+      if (draft) {
+        const parsed = JSON.parse(draft) as { step?: Step };
+        if (parsed.step && ["choose", "describe", "quote", "live", "result"].includes(parsed.step)) {
+          return parsed.step;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    return "choose";
   });
-  const [serviceId, setServiceId] = useState<ServiceId | null>(null);
+  const [serviceId, setServiceId] = useState<ServiceId | null>(() => {
+    try {
+      const draft = sessionStorage.getItem("beacon.desk.draft");
+      if (draft) {
+        const parsed = JSON.parse(draft) as { serviceId?: ServiceId };
+        return parsed.serviceId ?? null;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
+  });
   const [jobId, setJobId] = useState<string | null>(() =>
     new URLSearchParams(window.location.search).get("job"),
   );
@@ -69,7 +92,6 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
   const [quote, setQuote] = useState<QuoteDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [streamNote, setStreamNote] = useState<string | null>(null);
-  const [account, setAccount] = useState<Address | null>(null);
   const [lockTx, setLockTx] = useState<string | null>(null);
 
   useEffect(() => {
@@ -79,9 +101,29 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     window.history.replaceState({}, "", url.toString());
   }, [jobId]);
 
+  // Keep Bound Work draft across tab switches (Flow <-> Work) so reload feels like Flow.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        "beacon.desk.draft",
+        JSON.stringify({ step, serviceId, jobId, offerId }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [step, serviceId, jobId, offerId]);
+
+  // If we restored "quote" without quote data, fall back to the brief step.
+  useEffect(() => {
+    if (step === "quote" && !quote) setStep(serviceId ? "describe" : "choose");
+  }, [step, quote, serviceId]);
+
   const servicesQuery = useQuery({
     queryKey: ["services"],
     queryFn: api.services,
+    staleTime: 60_000,
+    retry: 3,
+    retryDelay: (n) => Math.min(1000 * 2 ** n, 8000),
   });
 
   const jobQuery = useQuery({
@@ -123,20 +165,20 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     defaultValues: { briefText: "" },
   });
 
-  const connect = useMutation({
-    mutationFn: connectEvmWallet,
-    onSuccess: (addr) => {
-      setAccount(addr);
-      setError(null);
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : "Wallet connect failed."),
-  });
-
   const mint = useMutation({
     mutationFn: () => mintMockUsdt0(),
     onSuccess: () => setError(null),
     onError: (err) => setError(err instanceof Error ? err.message : "Mint failed."),
   });
+
+  async function onConnect() {
+    try {
+      await connect();
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Wallet connect failed.");
+    }
+  }
 
   const createAndQuote = useMutation({
     mutationFn: async (briefText: string) => {
@@ -233,6 +275,11 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     setStreamNote(null);
     setLockTx(null);
     form.reset();
+    try {
+      sessionStorage.removeItem("beacon.desk.draft");
+    } catch {
+      /* ignore */
+    }
     const url = new URL(window.location.href);
     url.searchParams.delete("job");
     window.history.replaceState({}, "", url.pathname);
@@ -269,11 +316,11 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 variant="ink"
                 size="sm"
                 className="clip-facet-nav-left"
-                onClick={() => connect.mutate()}
-                disabled={connect.isPending || !hasEvmProvider()}
+                onClick={() => void onConnect()}
+                disabled={connecting || !hasEvmProvider()}
               >
                 <Wallet className="size-3.5" />
-                {connect.isPending ? "Connecting…" : "Connect"}
+                {connecting ? "Connecting…" : "Connect"}
               </Button>
             )}
             {step !== "choose" && (
@@ -330,12 +377,24 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                     <Skeleton key={i} className="h-28 rounded-none border-b border-r border-line" />
                   ))}
                 {servicesQuery.isError && (
-                  <p className="col-span-full p-4 text-sm text-danger">
-                    Services unavailable. The API may be waking up, retry in a moment.
-                  </p>
+                  <div className="col-span-full space-y-3 p-4">
+                    <p className="text-sm text-danger">
+                      Services unavailable. The API may be waking up. Retry in a moment.
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void servicesQuery.refetch()}
+                      disabled={servicesQuery.isFetching}
+                    >
+                      {servicesQuery.isFetching ? "Retrying…" : "Retry"}
+                    </Button>
+                  </div>
                 )}
-                {servicesQuery.data?.services.map((s) => {
+                {servicesQuery.data?.services.map((s, i, all) => {
                   const Icon = ICONS[s.id] ?? FileText;
+                  // The last tile stretches so the grid never ends on an empty cell.
+                  const isLast = i === all.length - 1;
                   return (
                     <button
                       key={s.id}
@@ -345,8 +404,11 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                         setStep("describe");
                       }}
                       className={cn(
-                        "border-b border-r border-line bg-surface p-5 text-left transition-opacity hover:opacity-90",
+                        "border-b border-r border-line bg-surface p-5 text-left transition-colors hover:bg-paper-2",
                         serviceId === s.id && "bg-signal/15",
+                        isLast && all.length % 2 === 1 && "sm:col-span-2",
+                        isLast && all.length % 3 === 1 && "lg:col-span-3",
+                        isLast && all.length % 3 === 2 && "lg:col-span-2",
                       )}
                     >
                       <Icon className="size-5 text-ink" />
@@ -441,9 +503,9 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                   <p className="text-sm text-ink-muted">
                     Connect a wallet on {NETWORK.name} to approve and lock funds in escrow.
                   </p>
-                  <Button onClick={() => connect.mutate()} disabled={connect.isPending}>
+                  <Button onClick={() => void onConnect()} disabled={connecting}>
                     <Wallet className="size-4" />
-                    {connect.isPending ? "Connecting…" : "Connect wallet"}
+                    {connecting ? "Connecting…" : "Connect wallet"}
                   </Button>
                 </div>
               )}

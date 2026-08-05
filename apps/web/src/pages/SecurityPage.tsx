@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Shield, Loader2 } from "lucide-react";
 import { api, type SecurityPolicy } from "@/lib/api";
-import { connectEvmWallet, shortAddress, tryRestoreWallet } from "@/lib/wallet";
+import { shortAddress } from "@/lib/wallet";
+import { useProductWallet } from "@/lib/productWallet";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_POLICY: SecurityPolicy = {
@@ -42,15 +43,9 @@ const AGENT_OPTIONS = [
 
 export function SecurityPage() {
   const qc = useQueryClient();
-  const [wallet, setWallet] = useState<string | null>(null);
+  const { wallet, connect, connecting } = useProductWallet();
   const [policy, setPolicy] = useState<SecurityPolicy>(DEFAULT_POLICY);
   const [savedNote, setSavedNote] = useState<string | null>(null);
-
-  useEffect(() => {
-    void tryRestoreWallet().then((acct) => {
-      if (acct) setWallet(acct);
-    });
-  }, []);
 
   const policyQuery = useQuery({
     queryKey: ["security-policy", wallet],
@@ -79,8 +74,7 @@ export function SecurityPage() {
   });
 
   async function onConnect() {
-    const acct = await connectEvmWallet();
-    setWallet(acct);
+    await connect();
   }
 
   function toggleAgent(id: string) {
@@ -93,7 +87,7 @@ export function SecurityPage() {
   }
 
   return (
-    <div className="h-dvh max-h-dvh overflow-y-auto bg-[var(--p-bg)] text-[var(--p-fg)]">
+    <div className="h-full max-h-full overflow-y-auto bg-[var(--p-bg)] text-[var(--p-fg)]">
       <header className="mx-auto flex max-w-3xl items-center justify-between gap-3 border-b border-[var(--p-border)] px-5 py-4">
         <div>
           <p className="flex items-center gap-2 font-display text-xl font-semibold">
@@ -109,9 +103,10 @@ export function SecurityPage() {
             <button
               type="button"
               onClick={() => void onConnect()}
-              className="rounded-full bg-[var(--p-accent)] px-4 py-1.5 text-sm font-medium text-[var(--p-on-accent)] transition-transform active:scale-[0.98]"
+              disabled={connecting}
+              className="rounded-full bg-[var(--p-accent)] px-4 py-1.5 text-sm font-medium text-[var(--p-on-accent)] transition-transform active:scale-[0.98] disabled:opacity-50"
             >
-              Connect
+              {connecting ? "Connecting…" : "Connect"}
             </button>
           )}
         </div>
