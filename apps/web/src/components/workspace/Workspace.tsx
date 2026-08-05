@@ -55,7 +55,7 @@ const briefSchema = z.object({
 type BriefForm = z.infer<typeof briefSchema>;
 type Step = "choose" | "describe" | "quote" | "live" | "result";
 
-export function Workspace() {
+export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
   const qc = useQueryClient();
   const [step, setStep] = useState<Step>(() => {
     const q = new URLSearchParams(window.location.search).get("job");
@@ -239,20 +239,28 @@ export function Workspace() {
   }
 
   return (
-    <div className="min-h-dvh bg-paper crosshair-grid">
+    <div className={cn("bg-paper", embedded ? "min-h-full" : "min-h-dvh crosshair-grid")}>
       <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
-          <Link to="/" className="inline-flex items-center gap-2 text-ink" aria-label="Beacon home">
-            <BeaconMark className="size-7 text-ink" />
-            <span className="font-display text-lg font-bold">Beacon</span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/flow"
-              className="hidden rounded-full border border-line bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink hover:border-signal sm:inline-flex"
-            >
-              Flow
+          {embedded ? (
+            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
+              {labelForStep(step)}
+            </p>
+          ) : (
+            <Link to="/" className="inline-flex items-center gap-2 text-ink" aria-label="Beacon home">
+              <BeaconMark className="size-7 text-ink" />
+              <span className="font-display text-lg font-bold">Beacon</span>
             </Link>
+          )}
+          <div className="flex items-center gap-2">
+            {!embedded && (
+              <Link
+                to="/flow"
+                className="hidden rounded-full border border-line bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink hover:border-signal sm:inline-flex"
+              >
+                Flow
+              </Link>
+            )}
             <Badge tone="signal">Live desk</Badge>
             {account ? (
               <Badge>{shortAddress(account)}</Badge>
@@ -280,12 +288,14 @@ export function Workspace() {
       <main className="mx-auto max-w-5xl px-5 py-10">
         <StepRail step={step} />
 
-        <p className="mb-6 text-sm text-ink-muted">
-          Need Flare swap / FTSO signals / x402 agents?{" "}
-          <Link to="/flow" className="font-medium text-signal-deep underline">
-            Open Beacon Flow →
-          </Link>
-        </p>
+        {!embedded && (
+          <p className="mb-6 text-sm text-ink-muted">
+            Need Flare swap / FTSO signals / x402 agents?{" "}
+            <Link to="/flow" className="font-medium text-signal-deep underline">
+              Open Beacon Flow
+            </Link>
+          </p>
+        )}
 
         {!hasEvmProvider() && (
           <p className="mb-4 text-sm text-warn">
@@ -321,7 +331,7 @@ export function Workspace() {
                   ))}
                 {servicesQuery.isError && (
                   <p className="col-span-full p-4 text-sm text-danger">
-                    Services unavailable. The API may be waking up — retry in a moment.
+                    Services unavailable. The API may be waking up, retry in a moment.
                   </p>
                 )}
                 {servicesQuery.data?.services.map((s) => {
@@ -532,15 +542,21 @@ export function Workspace() {
   );
 }
 
+const STEP_LABELS: Record<Step, string> = {
+  choose: "Service",
+  describe: "Brief",
+  quote: "Quote",
+  live: "Progress",
+  result: "Result",
+};
+
+function labelForStep(step: Step) {
+  return `Bound Work · ${STEP_LABELS[step]}`;
+}
+
 function StepRail({ step }: { step: Step }) {
   const items: Step[] = ["choose", "describe", "quote", "live", "result"];
-  const labels: Record<Step, string> = {
-    choose: "Service",
-    describe: "Brief",
-    quote: "Quote",
-    live: "Progress",
-    result: "Result",
-  };
+  const labels = STEP_LABELS;
   const idx = items.indexOf(step);
   return (
     <ol className="mb-10 flex flex-wrap gap-2">
@@ -548,8 +564,10 @@ function StepRail({ step }: { step: Step }) {
         <li
           key={s}
           className={cn(
-            "px-3 py-1 font-mono text-[10px] uppercase tracking-wider",
-            i <= idx ? "bg-signal text-ink" : "bg-paper-2 text-ink-faint",
+            "rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors",
+            i <= idx
+              ? "bg-signal text-ink"
+              : "border border-line bg-transparent text-ink-faint",
           )}
         >
           {labels[s]}
@@ -784,7 +802,7 @@ function ResultPanel({
         {passed && !paidDisplay && "Quality checks passed"}
         {failed &&
           (acceptance?.summary ??
-            "This job did not pass. You were not charged — escrow is refunded.")}
+            "This job did not pass. You were not charged, escrow is refunded.")}
       </p>
 
       {/* Agent-style result transcript */}

@@ -4,6 +4,31 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-05 - Product theme system, readable dark/light, typeset agent output
+
+**Goal:** Kill the broken light/dark mix inside the product shell, make tab routing smooth, and give agent replies real typography.
+
+**Root cause found**
+- `Workspace`, `ExecutionDrawer`, `SecurityPage` and the shared UI primitives (`Button`, `Badge`, `Skeleton`) hardcoded the *landing* palette (`bg-paper`, `text-ink`, `white/10`, `bg-[#0d100e]`) while `ProductShell` drove the theme. Result: white headings on white cards in the desk, a dark receipt card on a light page, invisible policy inputs.
+
+**Fix**
+- `index.css`: full `--p-*` scale per theme (bg / rail / surface / surface-2 / fg / muted / faint / border / border-strong / hover / accent / accent-text / on-accent / danger / shadow). Inside `.product-shell` the landing tokens (`--color-paper`, `--color-ink`, `--color-line`, ...) are remapped, so every shared component inherits the product theme instead of fighting it.
+- `.product-shell .bg-signal` forces `--p-on-accent` text, so emerald buttons stay readable in both themes (placed in the utilities layer so it wins the cascade).
+- `--p-accent-text` (`#5cecab` dark, `#0c7a45` light) replaces raw `text-signal` for accent text, which failed WCAG on light backgrounds.
+- Themed focus rings, selection, scrollbars.
+
+**UI**
+- Rail redesigned: labelled Flow / Work / Policy, spring `layoutId` active pill, theme toggle and explorer pinned to the bottom.
+- Route changes animate through `AnimatePresence` keyed on the top segment, with `useReducedMotion` respected.
+- Bound Work no longer renders a second brand header inside the shell (`<Workspace embedded />`); step pills got a pill/outline treatment.
+- Security Center: labelled inputs on real surfaces, receipt card themed instead of a fixed dark gradient, danger actions use `--p-danger`.
+
+**Agent output**
+- New `AgentText` parses agent replies into typeset blocks (headings, bullets, bold, inline code, links) rendered through `.beacon-prose`. Replaces `whitespace-pre-wrap` plus the markdown-stripping hack.
+- Em-dashes removed from every user-visible string in Flow, the desk, execution phases and the shared agent narrations.
+
+---
+
 ## 2026-08-05 — Flow OS UX · Bound Work shell · x402 Paid fix · quote redesign
 
 **Goal:** Product shell that never abandons chat chrome; honest x402 Paid badges; premium bridge quotes (brand emerald, dark/light).

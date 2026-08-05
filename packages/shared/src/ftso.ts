@@ -4,7 +4,7 @@ import { loadEnv, type BeaconEnv } from "./env.js";
 export const FLARE_CONTRACT_REGISTRY_DEFAULT =
   "0xaD67FE66660Fb8dFE9d6b1b4240d8650e30F6019";
 
-/** Official Coston2 USDT0 (SparkDEX / faucet) — not Beacon MockUSDT0. */
+/** Official Coston2 USDT0 (SparkDEX / faucet), not Beacon MockUSDT0. */
 export const COSTON2_USDT0 = "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F";
 export const SPARKDEX_SWAP_ROUTER = "0x8a1E35F5c98C4E85B36B7B253222eE17773b2781";
 export const SPARKDEX_POOL_FEE = 500;
@@ -74,7 +74,7 @@ export function buildTradeSignal(feeds: FtsoQuote[]): {
   const xrp = feeds.find((f) => f.symbol === "XRP/USD")?.value ?? 0;
   const btc = feeds.find((f) => f.symbol === "BTC/USD")?.value ?? 0;
   const highlights = feeds.map((f) => `${f.symbol} ${f.value.toPrecision(6)}`);
-  // Simple transparent heuristic — not financial advice.
+  // Simple transparent heuristic, not financial advice.
   let bias: "risk-on" | "risk-off" | "neutral" = "neutral";
   if (btc > 60_000 && xrp > 1) bias = "risk-on";
   if (btc < 50_000 || flr < 0.005) bias = "risk-off";
@@ -83,7 +83,7 @@ export function buildTradeSignal(feeds: FtsoQuote[]): {
       ? "FTSO snapshot leans risk-on (BTC>60k, XRP>1). Consider sized USDT0→FXRP only after your own risk checks."
       : bias === "risk-off"
         ? "FTSO snapshot leans cautious. Prefer smaller size or wait; do not chase."
-        : "FTSO snapshot is mixed. No strong bias — wait for clearer structure.";
+        : "FTSO snapshot is mixed. No strong bias, wait for clearer structure.";
   return { bias, summary, highlights };
 }
 
@@ -144,7 +144,7 @@ export async function estimateUsdt0ToFxrp(
 
 /**
  * Prepare Uniswap V3 exactInputSingle calldata for SparkDEX USDT0 → FXRP.
- * User must approve router then send this tx from MetaMask — we never auto-broadcast.
+ * User must approve router then send this tx from MetaMask, we never auto-broadcast.
  */
 export async function prepareUsdt0ToFxrpSwap(
   params: { amountInUnits: string; recipient: string; amountOutMinUnits?: string },

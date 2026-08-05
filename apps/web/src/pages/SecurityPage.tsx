@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Shield, ArrowLeft, Loader2 } from "lucide-react";
+import { Shield, Loader2 } from "lucide-react";
 import { api, type SecurityPolicy } from "@/lib/api";
 import { connectEvmWallet, shortAddress, tryRestoreWallet } from "@/lib/wallet";
 import { cn } from "@/lib/utils";
@@ -98,19 +97,20 @@ export function SecurityPage() {
       <header className="mx-auto flex max-w-3xl items-center justify-between gap-3 border-b border-[var(--p-border)] px-5 py-4">
         <div>
           <p className="flex items-center gap-2 font-display text-xl font-semibold">
-            <Shield className="size-5 text-signal" />
+            <Shield className="size-5 text-[var(--p-accent-text)]" />
             Security Center
           </p>
           <p className="text-sm text-[var(--p-muted)]">Server-enforced spend policy for Beacon on Coston2</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link to="/flow" className="inline-flex items-center gap-1 text-sm text-[var(--p-muted)] hover:text-[var(--p-fg)]">
-            <ArrowLeft className="size-3.5" /> Flow
-          </Link>
           {wallet ? (
             <span className="rounded-full border border-[var(--p-border)] px-3 py-1.5 font-mono text-xs">{shortAddress(wallet)}</span>
           ) : (
-            <button type="button" onClick={() => void onConnect()} className="rounded-full bg-signal px-4 py-1.5 text-sm font-medium text-ink">
+            <button
+              type="button"
+              onClick={() => void onConnect()}
+              className="rounded-full bg-[var(--p-accent)] px-4 py-1.5 text-sm font-medium text-[var(--p-on-accent)] transition-transform active:scale-[0.98]"
+            >
               Connect
             </button>
           )}
@@ -125,25 +125,27 @@ export function SecurityPage() {
         )}
 
         {wallet && policyQuery.data?.receipt && (
-          <section className="rounded-2xl border border-signal/25 bg-gradient-to-br from-[#14201a] to-[#0a0c0b] p-5">
-            <p className="font-mono text-[11px] uppercase tracking-widest text-signal">
+          <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] p-5 shadow-[var(--p-shadow)]">
+            <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">
               {policyQuery.data.receipt.title}
             </p>
             <p className="mt-2 font-display text-2xl font-semibold text-[var(--p-fg)]">
-              Your agent gets a budget — not free rein
+              Your agent gets a budget, not free rein
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-[var(--p-bg)] px-3 py-2">
-                <p className="font-mono text-[10px] text-[var(--p-muted)]">Spent today</p>
-                <p className="font-display text-xl">{policyQuery.data.receipt.spentTodayUsdt0} USDT0</p>
+              <div className="rounded-xl border border-[var(--p-border)] bg-[var(--p-surface-2)] px-3 py-2.5">
+                <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--p-muted)]">Spent today</p>
+                <p className="mt-1 font-display text-xl">{policyQuery.data.receipt.spentTodayUsdt0} USDT0</p>
               </div>
-              <div className="rounded-xl bg-[var(--p-bg)] px-3 py-2">
-                <p className="font-mono text-[10px] text-[var(--p-muted)]">Remaining</p>
-                <p className="font-display text-xl text-signal">{policyQuery.data.receipt.remainingUsdt0} USDT0</p>
+              <div className="rounded-xl border border-[var(--p-accent)]/35 bg-[var(--p-accent-soft)] px-3 py-2.5">
+                <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--p-muted)]">Remaining</p>
+                <p className="mt-1 font-display text-xl text-[var(--p-accent-text)]">
+                  {policyQuery.data.receipt.remainingUsdt0} USDT0
+                </p>
               </div>
-              <div className="rounded-xl bg-[var(--p-bg)] px-3 py-2">
-                <p className="font-mono text-[10px] text-[var(--p-muted)]">Per job max</p>
-                <p className="font-display text-xl">{policyQuery.data.receipt.perJobLimitUsdt0} USDT0</p>
+              <div className="rounded-xl border border-[var(--p-border)] bg-[var(--p-surface-2)] px-3 py-2.5">
+                <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--p-muted)]">Per job max</p>
+                <p className="mt-1 font-display text-xl">{policyQuery.data.receipt.perJobLimitUsdt0} USDT0</p>
               </div>
             </div>
             <p className="mt-3 text-xs text-[var(--p-muted)]">{policyQuery.data.receipt.note}</p>
@@ -155,7 +157,7 @@ export function SecurityPage() {
 
         <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
           <h2 className="font-display text-lg font-semibold">Spend limits</h2>
-          <p className="mt-1 text-sm text-[var(--p-muted)]">Your agent gets a budget — not free rein.</p>
+          <p className="mt-1 text-sm text-[var(--p-muted)]">Limits are enforced by the Beacon API on every spend.</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field
               label="Daily spend (USDT0)"
@@ -197,7 +199,10 @@ export function SecurityPage() {
                   onClick={() => toggleAgent(id)}
                   className={cn(
                     "rounded-full border px-3 py-1.5 text-xs capitalize",
-                    on ? "border-signal/50 bg-signal/15 text-signal" : "border-white/15 text-[var(--p-muted)]",
+                    "transition-colors",
+                    on
+                      ? "border-[var(--p-accent)]/50 bg-[var(--p-accent-soft)] text-[var(--p-accent-text)]"
+                      : "border-[var(--p-border-strong)] text-[var(--p-muted)] hover:bg-[var(--p-hover)]",
                   )}
                 >
                   {id}
@@ -205,7 +210,7 @@ export function SecurityPage() {
               );
             })}
           </div>
-          <p className="mt-3 font-mono text-[11px] text-white/35">Allowed chains: Coston2 (114) only</p>
+          <p className="mt-3 font-mono text-[11px] text-[var(--p-faint)]">Allowed chains: Coston2 (114) only</p>
         </section>
 
         <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
@@ -217,7 +222,7 @@ export function SecurityPage() {
               onChange={(e) => setPolicy((p) => ({ ...p, emergencyPause: e.target.checked }))}
               className="size-4 accent-[#3ecf8e]"
             />
-            Emergency pause — block new agent spends
+            Emergency pause, block new agent spends
           </label>
           <p className="mt-3 text-xs text-[var(--p-muted)]">
             Revoke sets pause on and zeroes limits. Also revoke USDT0 allowance to the SparkDEX router in your wallet if you approved spending.
@@ -229,7 +234,7 @@ export function SecurityPage() {
             type="button"
             disabled={!wallet || save.isPending}
             onClick={() => save.mutate()}
-            className="inline-flex items-center gap-2 rounded-full bg-signal px-5 py-2.5 text-sm font-medium text-ink disabled:opacity-40"
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--p-accent)] px-5 py-2.5 text-sm font-medium text-[var(--p-on-accent)] transition-transform active:scale-[0.98] disabled:opacity-40"
           >
             {save.isPending && <Loader2 className="size-4 animate-spin" />}
             Save policy
@@ -240,12 +245,12 @@ export function SecurityPage() {
             onClick={() => {
               if (confirm("Pause Beacon and clear allowances for this wallet?")) revoke.mutate();
             }}
-            className="rounded-full border border-red-400/40 px-5 py-2.5 text-sm text-red-200 disabled:opacity-40"
+            className="rounded-full border border-[var(--p-danger)]/45 px-5 py-2.5 text-sm text-[var(--p-danger)] transition-colors hover:bg-[var(--p-danger)]/10 disabled:opacity-40"
           >
             Revoke all
           </button>
         </div>
-        {savedNote && <p className="text-sm text-signal">{savedNote}</p>}
+        {savedNote && <p className="text-sm text-[var(--p-accent-text)]">{savedNote}</p>}
       </main>
     </div>
   );
@@ -262,13 +267,13 @@ function Field({
 }) {
   return (
     <label className="block text-sm">
-      <span className="text-white/50">{label}</span>
+      <span className="font-medium text-[var(--p-muted)]">{label}</span>
       <input
         type="number"
         min={0}
         value={value}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
-        className="mt-1 w-full rounded-xl border border-white/15 bg-[var(--p-bg)] px-3 py-2 text-white outline-none focus:border-signal/50"
+        className="mt-1.5 w-full rounded-xl border border-[var(--p-border-strong)] bg-[var(--p-surface-2)] px-3 py-2 font-mono text-[var(--p-fg)] outline-none transition-colors focus:border-[var(--p-accent)]"
       />
     </label>
   );

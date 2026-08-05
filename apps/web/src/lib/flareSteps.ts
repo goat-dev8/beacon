@@ -36,7 +36,7 @@ export const FLARE_STEPS: FlareStep[] = [
   {
     id: "accept",
     label: "Acceptance gates",
-    detail: "L1 objective · L2 judge · L3 brand — escrow pays only on pass",
+    detail: "L1 objective · L2 judge · L3 brand, escrow pays only on pass",
     statusKey: "ACCEPTING",
   },
   {

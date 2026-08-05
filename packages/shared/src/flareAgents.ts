@@ -236,7 +236,7 @@ export interface AgentChatResult {
   state: ConversationState;
 }
 
-/** Human-facing model label — never expose provider brand; never invent GPT-3.5/4.0. */
+/** Human-facing model label, never expose provider brand; never invent GPT-3.5/4.0. */
 export function displayModelName(model: string): string {
   const m = (model || "").toLowerCase();
   if (m.includes("claude-opus-5") || m.includes("opus-5")) return "Claude Opus 5";
@@ -312,7 +312,7 @@ export function findPaidResource(id?: string): PaidResourceDef | undefined {
   return PAID_RESOURCES.find((r) => r.id === id);
 }
 
-/** When payment settled, force delivery for the quoted service — never re-show the pay catalog. */
+/** When payment settled, force delivery for the quoted service, never re-show the pay catalog. */
 export function resolvePaidResourceTurn(opts: {
   paidResource?: boolean;
   serviceId?: string;
@@ -377,7 +377,7 @@ function wantsConfirm(message: string): boolean {
 function sanitizeAssistantText(text: string): string {
   if (!text) return "Something went wrong on my side. Please try again.";
   if (/<!doctype|<html|<meta |AI provider|stack|ECONNREFUSED/i.test(text)) {
-    return "I hit a temporary issue talking to the model. Your Flare tools are fine — please send that again.";
+    return "I hit a temporary issue talking to the model. Your Flare tools are fine, please send that again.";
   }
   // Strip accidental hex dumps longer than a short address mention
   return text.replace(/0x[a-fA-F0-9]{64,}/g, "[tx]").trim();
@@ -387,7 +387,7 @@ async function narrate(opts: {
   intent: BeaconAgentId;
   userMessage: string;
   situation: string;
-  /** Shown if the model is unavailable — never dump internal situation. */
+  /** Shown if the model is unavailable, never dump internal situation. */
   fallback?: string;
   env: BeaconEnv;
 }): Promise<{ text: string; model: string; displayModel: string }> {
@@ -395,7 +395,7 @@ async function narrate(opts: {
   const displayModel = displayModelName(model);
   const safeFallback =
     opts.fallback ??
-    "Sure — I'm with you. Tell me the next detail you want, and I'll keep this conversational.";
+    "Sure, I'm with you. Tell me the next detail you want, and I'll keep this conversational.";
   if (!isAiConfigured(opts.env)) {
     return { text: safeFallback, model: "beacon-local", displayModel: "Beacon" };
   }
@@ -431,7 +431,7 @@ Situation for this turn:\n${opts.situation}`,
   }
 }
 
-/** Deliver a paid resource once — no x402 quote cards. */
+/** Deliver a paid resource once, no x402 quote cards. */
 export async function fulfillPaidResource(opts: {
   serviceId: string;
   message: string;
@@ -525,13 +525,13 @@ export async function fulfillPaidResource(opts: {
     } catch {
       cards.push({
         type: "desk_link",
-        title: "Generation busy — use Bound Work",
+        title: "Generation busy, use Bound Work",
         href: "/flow/desk",
         summary: "Payment recorded. Open Bound Work to retry with escrow if instant media is saturated.",
       });
       return {
         agentId: "image",
-        text: "Payment settled but generation is saturated — try Bound Work for a retry with escrow.",
+        text: "Payment settled but generation is saturated, try Bound Work for a retry with escrow.",
         cards,
         model: "beacon-media",
         displayModel: "Beacon",
@@ -548,7 +548,7 @@ export async function fulfillPaidResource(opts: {
       situation:
         "User paid for a research brief. Deliver a concise structured brief with source checklist. No fake citations.",
       fallback:
-        "Paid research brief unlocked. Scope received — delivering a structured outline with source checklist (no invented URLs).",
+        "Paid research brief unlocked. Scope received, delivering a structured outline with source checklist (no invented URLs).",
       env: opts.env,
     });
     cards.push({
@@ -610,7 +610,7 @@ export async function runBeaconAgentChat(opts: {
     ? { ...prev, intent }
     : { intent, phase: "idle" };
 
-  // ——— Signals ———
+  // --- Signals ---
   if (intent === "signals" || intent === "trade") {
     const snap = await readFtsoFeeds(env);
     const signal = buildTradeSignal(snap.feeds);
@@ -637,8 +637,8 @@ export async function runBeaconAgentChat(opts: {
         agentId: intent,
         text: `${narr.text}\n\n${
           shouldSwap
-            ? "FTSO bias leans constructive — I can prepare a USDT0 → FXRP swap if you want exposure. How much?"
-            : "FTSO bias does not scream urgency — holding cash (USDT0) may be fine. Say if you still want a swap quote."
+            ? "FTSO bias leans constructive, I can prepare a USDT0 → FXRP swap if you want exposure. How much?"
+            : "FTSO bias does not scream urgency, holding cash (USDT0) may be fine. Say if you still want a swap quote."
         }`,
         cards,
         model: narr.model,
@@ -660,7 +660,7 @@ export async function runBeaconAgentChat(opts: {
     }
   }
 
-  // ——— Swap multi-turn ———
+  // --- Swap multi-turn ---
   if (intent === "swap" || (intent === "trade" && (/swap|fxrp|usdt/i.test(opts.message) || state.phase !== "idle"))) {
     const wallet = opts.wallet;
     if (!wallet) {
@@ -674,7 +674,7 @@ export async function runBeaconAgentChat(opts: {
         intent: "swap",
         userMessage: opts.message,
         situation: "User wants to swap but wallet is not connected. Ask them to connect.",
-        fallback: "Sure — connect your wallet on Flare Coston2 and I’ll read your USDT0 balance before we swap.",
+        fallback: "Sure, connect your wallet on Flare Coston2 and I’ll read your USDT0 balance before we swap.",
         env,
       });
       return {
@@ -699,7 +699,7 @@ export async function runBeaconAgentChat(opts: {
       amount = usdtBal.formatted;
     }
 
-    // Clarify amount — never prepare calldata yet
+    // Clarify amount, never prepare calldata yet
     if (!amount) {
       cards.push({
         type: "swap_clarify",
@@ -807,7 +807,7 @@ export async function runBeaconAgentChat(opts: {
       intent: "swap",
       userMessage: opts.message,
       situation: `User confirmed swap of ${finalAmount} USDT0 (~${prep.estimatedFxrp} FXRP). Tell them to tap Confirm in wallet, then wait for Pending → Confirmed. Do not invent a hash.`,
-      fallback: `Confirmed. Tap **Approve + Swap** — I’ll wait for the on-chain receipt and show the explorer link when it confirms.`,
+      fallback: `Confirmed. Tap **Approve + Swap**, I’ll wait for the on-chain receipt and show the explorer link when it confirms.`,
       env,
     });
     return {
@@ -821,7 +821,7 @@ export async function runBeaconAgentChat(opts: {
     };
   }
 
-  // ——— Bridge: routes → quote (on-chain fee) → OFT send ———
+  // --- Bridge: routes → quote (on-chain fee) → OFT send ---
   if (intent === "bridge") {
     const wallet = opts.wallet;
     const m = opts.message.toLowerCase();
@@ -942,12 +942,12 @@ export async function runBeaconAgentChat(opts: {
           wallet,
           fxrpBalance: fxrpBal.formatted,
           network: "Flare Testnet Coston2",
-          note: `LayerZero messaging fee from quoteSend on OFT Adapter. Delivery to ${dest} is tracked separately on LayerZero Scan — we do not invent destination fills.`,
+          note: `LayerZero messaging fee from quoteSend on OFT Adapter. Delivery to ${dest} is tracked separately on LayerZero Scan, we do not invent destination fills.`,
         });
         const narr = await narrate({
           intent: "bridge",
           userMessage: opts.message,
-          situation: `Present bridge quote briefly. Amount ${amount} FXRP to ${dest}. Fee about ${quotePreview.nativeFeeDisplay}. Ask them to confirm — do not dump raw decimals or markdown walls.`,
+          situation: `Present bridge quote briefly. Amount ${amount} FXRP to ${dest}. Fee about ${quotePreview.nativeFeeDisplay}. Ask them to confirm, do not dump raw decimals or markdown walls.`,
           fallback: `Ready to bridge ${amount} FXRP to ${dest}. Messaging fee ≈ ${quotePreview.nativeFeeDisplay}. Confirm to open Approve + Send.`,
           env,
         });
@@ -1008,8 +1008,8 @@ export async function runBeaconAgentChat(opts: {
       const narr = await narrate({
         intent: "bridge",
         userMessage: opts.message,
-        situation: `User confirmed bridge of ${finalAmount} FXRP to ${dest}. Short confirm — point to Approve + Send card. Fee ${prep.nativeFeeDisplay}. Do not dump raw decimals.`,
-        fallback: `Confirmed. Use Approve + Send below — fee ≈ ${prep.nativeFeeDisplay}. Explorer and LayerZero Scan appear after the source tx confirms.`,
+        situation: `User confirmed bridge of ${finalAmount} FXRP to ${dest}. Short confirm, point to Approve + Send card. Fee ${prep.nativeFeeDisplay}. Do not dump raw decimals.`,
+        fallback: `Confirmed. Use Approve + Send below, fee ≈ ${prep.nativeFeeDisplay}. Explorer and LayerZero Scan appear after the source tx confirms.`,
         env,
       });
       return {
@@ -1028,7 +1028,7 @@ export async function runBeaconAgentChat(opts: {
         intent: "bridge",
         userMessage: opts.message,
         situation: `User picked ${dest}. Ask only how much FXRP to bridge. FXRP balance ${fxrpBal.formatted}. Do not re-list all clarifying questions.`,
-        fallback: `Got it — destination **${dest}**. How much **FXRP** should we bridge from Coston2? You have **${fxrpBal.formatted} FXRP**.`,
+        fallback: `Got it, destination **${dest}**. How much **FXRP** should we bridge from Coston2? You have **${fxrpBal.formatted} FXRP**.`,
         env,
       });
       return {
@@ -1062,7 +1062,7 @@ export async function runBeaconAgentChat(opts: {
     };
   }
 
-  // ——— Media: small → x402 quote; large → Bound Work ———
+  // --- Media: small → x402 quote; large → Bound Work ---
   if (intent === "image" || intent === "video" || intent === "research") {
     const m = opts.message.toLowerCase();
     const isSmallImage =
@@ -1098,7 +1098,7 @@ export async function runBeaconAgentChat(opts: {
           situation:
             "Small logo job. Clarify name, colors, style, transparency, reference BEFORE quoting price. Do not show payment yet.",
           fallback:
-            "Happy to make that logo.\n\nQuick brief: **name**, **colors**, **style**, **transparent?** — then I’ll quote provider, price, and ETA before x402.",
+            "Happy to make that logo.\n\nQuick brief: **name**, **colors**, **style**, **transparent?**, then I’ll quote provider, price, and ETA before x402.",
           env,
         });
         return {
@@ -1134,7 +1134,7 @@ export async function runBeaconAgentChat(opts: {
         intent: "image",
         userMessage: opts.message,
         situation: `Brief ready. Quote ${res.priceUsdt0} USDT0 via x402. Provider ${res.provider}. ETA ~${res.etaSeconds}s. After payment, generate immediately.`,
-        fallback: `Creative brief locked.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} MockUSDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay & run to generate — or Bound Work for a larger escrowed pack.`,
+        fallback: `Creative brief locked.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} MockUSDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay & run to generate, or Bound Work for a larger escrowed pack.`,
         env,
       });
       return {
@@ -1179,7 +1179,7 @@ export async function runBeaconAgentChat(opts: {
           userMessage: opts.message,
           situation: "Clarify research scope before quoting. Do not charge yet.",
           fallback:
-            "Let’s scope it first: **topic**, **depth**, **sources**, **PDF/slides?**, **competitors?** — then I’ll quote the research brief.",
+            "Let’s scope it first: **topic**, **depth**, **sources**, **PDF/slides?**, **competitors?**, then I’ll quote the research brief.",
           env,
         });
         return {
@@ -1214,7 +1214,7 @@ export async function runBeaconAgentChat(opts: {
         intent: "research",
         userMessage: opts.message,
         situation: `Scope ready. Quote $${res.priceUsdt0} research brief via x402. Deliver after payment.`,
-        fallback: `Scope locked.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} MockUSDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay & run for the brief — larger packs use Bound Work escrow.`,
+        fallback: `Scope locked.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} MockUSDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay & run for the brief, larger packs use Bound Work escrow.`,
         env,
       });
       return {
@@ -1239,7 +1239,7 @@ export async function runBeaconAgentChat(opts: {
       intent === "image"
         ? ["Style / mood?", "Aspect ratio (1:1, 9:16, 16:9)?", "Any reference?", "Quality bar?"]
         : intent === "video"
-          ? ["Duration — 15s, 30s, or 60s?", "Aspect ratio?", "Voice / language?", "Style?", "Audience?"]
+          ? ["Duration, 15s, 30s, or 60s?", "Aspect ratio?", "Voice / language?", "Style?", "Audience?"]
           : ["Scope?", "Sources?", "Depth?", "Output format?"];
     cards.push({
       type: "media_clarify",
@@ -1257,7 +1257,7 @@ export async function runBeaconAgentChat(opts: {
           : "Larger creative/research job. Invite Bound Work for Bound Offer + escrow acceptance.",
       fallback:
         intent === "video"
-          ? "Great — let’s define duration (**15 / 30 / 60s**), then we’ll seal a Bound Offer and lock escrow."
+          ? "Great, let’s define duration (**15 / 30 / 60s**), then we’ll seal a Bound Offer and lock escrow."
           : "This looks like a larger job. Open **Bound Work** for a sealed Bound Offer (price + acceptance) on Coston2.",
       env,
     });
@@ -1280,7 +1280,7 @@ export async function runBeaconAgentChat(opts: {
         situation:
           "Payment settled but no service was selected. Ask which resource: FTSO deep pack, logo still, or research brief. Do NOT re-list the full catalog.",
         fallback:
-          "Payment settled — which resource did you mean?\n• **FTSO deep pack** ($0.25)\n• **Logo still** ($0.50)\n• **Research brief** ($0.75)\n\nReply with the one you want and I’ll deliver it.",
+          "Payment settled, which resource did you mean?\n• **FTSO deep pack** ($0.25)\n• **Logo still** ($0.50)\n• **Research brief** ($0.75)\n\nReply with the one you want and I’ll deliver it.",
         env,
       });
       return {
@@ -1320,7 +1320,7 @@ export async function runBeaconAgentChat(opts: {
       situation:
         "Present the payable Beacon resources with provider, price, reason, ETA. No orphan $0.10 buttons. MockUSDT0 for x402.",
       fallback:
-        "Every payment buys a real resource:\n• FTSO deep pack · $0.25\n• Logo still · $0.50\n• Research brief · $0.75\n\nPick one — EIP-3009 x402 on Coston2 (MockUSDT0).",
+        "Every payment buys a real resource:\n• FTSO deep pack · $0.25\n• Logo still · $0.50\n• Research brief · $0.75\n\nPick one, EIP-3009 x402 on Coston2 (MockUSDT0).",
       env,
     });
     return {
@@ -1339,13 +1339,13 @@ export async function runBeaconAgentChat(opts: {
       type: "desk_link",
       title: "Bound Work desk",
       href: "/flow/desk",
-      summary: "Creative jobs with BeaconEscrow — pay only when quality passes.",
+      summary: "Creative jobs with BeaconEscrow, pay only when quality passes.",
     });
     const narr = await narrate({
       intent: "desk",
       userMessage: opts.message,
       situation: "Invite them to the Bound Work desk for escrowed image/video/docs jobs.",
-      fallback: "Bound Work is ready — open the desk to create a job, get a Bound Offer, and lock funds in escrow until quality passes.",
+      fallback: "Bound Work is ready, open the desk to create a job, get a Bound Offer, and lock funds in escrow until quality passes.",
       env,
     });
     return {

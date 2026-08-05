@@ -202,7 +202,7 @@ export function inferSettledServiceIds(
   for (const msg of messages) {
     if (msg.role !== "assistant" || !msg.cards) continue;
     for (const card of msg.cards) {
-      // Only mark Paid when the delivered artifact names the exact service —
+      // Only mark Paid when the delivered artifact names the exact service -
       // never blanket-settle every catalog quote after any media_result.
       if (card.type === "media_result") {
         const serviceId = typeof card.serviceId === "string" ? card.serviceId : "";

@@ -1,6 +1,6 @@
 import type { JobStatus } from "./types";
 
-/** Consumer-facing stage labels — never expose protocol jargon. */
+/** Consumer-facing stage labels, never expose protocol jargon. */
 export function statusLabel(status: JobStatus): string {
   const map: Record<JobStatus, string> = {
     DRAFT: "Draft",

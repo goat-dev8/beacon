@@ -24,6 +24,7 @@ import { NETWORK } from "@/lib/chain";
 import { cn } from "@/lib/utils";
 import { formatNativeFeeDisplay, formatTokenAmount } from "@/lib/format";
 import { ExecutionDrawer } from "@/components/ExecutionDrawer";
+import { AgentText } from "@/components/AgentText";
 import {
   cardKey,
   findActiveExecution,
@@ -72,14 +73,6 @@ type PaidResendMeta = {
   brief?: string;
 };
 
-function formatAssistantText(text: string) {
-  // Cards carry structured data — keep chat copy calm (no raw markdown walls).
-  return text
-    .replace(/\*\*([^*]+)\*\*/g, "$1")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 function explorerTx(hash: string) {
 
   return `${NETWORK.explorer}/tx/${hash}`;
@@ -88,7 +81,7 @@ function explorerTx(hash: string) {
 const WELCOME: ChatMsg = {
   id: "welcome",
   role: "system",
-  text: "Hi — I'm Beacon on Flare Coston2. Intent → Quote → Pay (if needed) → Execute → Receipt. Ask for FTSO, swap, bridge routes, a logo, or Bound Work.",
+  text: "Hi, I'm Beacon on Flare Coston2. Intent → Quote → Pay (if needed) → Execute → Receipt. Ask for FTSO, swap, bridge routes, a logo, or Bound Work.",
 };
 
 type FlowConv = {
@@ -286,26 +279,26 @@ export function FlowPage() {
   return (
     <div className="flex h-full max-h-dvh overflow-hidden bg-[var(--p-bg)] text-[var(--p-fg)]">
       {/* Conversations sidebar */}
-      <aside className="hidden w-72 shrink-0 flex-col border-r border-[var(--p-border)] bg-[var(--p-surface)] md:flex">
+      <aside className="hidden w-72 shrink-0 flex-col border-r border-[var(--p-border)] bg-[var(--p-rail)] md:flex">
         <div className="shrink-0 space-y-3 border-b border-[var(--p-border)] px-3 py-3">
           <div className="flex items-center justify-between px-1">
             <div>
               <p className="font-display text-lg font-semibold tracking-tight">beacon</p>
               <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--p-muted)]">AI OS · Coston2</p>
             </div>
-            <span className="rounded-full bg-signal/20 px-2 py-0.5 font-mono text-[10px] text-signal">LIVE</span>
+            <span className="rounded-full bg-signal/20 px-2 py-0.5 font-mono text-[10px] text-[var(--p-accent-text)]">LIVE</span>
           </div>
           <button
             type="button"
             onClick={() => void startNewChat()}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-signal/90 px-3 py-2 text-sm font-medium text-ink hover:bg-signal"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-signal px-3 py-2 text-sm font-medium text-[var(--p-on-accent)] transition-transform hover:brightness-105 active:scale-[0.99]"
           >
             New chat
           </button>
           <nav className="flex gap-1 rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] p-1">
             <Link
               to="/flow"
-              className="flex-1 rounded-md bg-signal/15 px-2 py-1.5 text-center text-[11px] font-medium text-signal"
+              className="flex-1 rounded-md bg-signal/15 px-2 py-1.5 text-center text-[11px] font-medium text-[var(--p-accent-text)]"
             >
               Flow
             </Link>
@@ -328,7 +321,7 @@ export function FlowPage() {
               value={convSearch}
               onChange={(e) => setConvSearch(e.target.value)}
               placeholder="Search chats…"
-              className="w-full rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] py-2 pl-8 pr-2 text-xs text-white outline-none placeholder:text-[var(--p-muted)] focus:border-signal/40"
+              className="w-full rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] py-2 pl-8 pr-2 text-xs text-[var(--p-fg)] outline-none placeholder:text-[var(--p-muted)] focus:border-signal/40"
             />
           </div>
         </div>
@@ -336,7 +329,7 @@ export function FlowPage() {
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
           {!wallet && (
             <p className="px-2 py-4 text-xs leading-relaxed text-[var(--p-muted)]">
-              Connect your wallet — chats, swaps, payments, and receipts persist by address across refresh and devices.
+              Connect your wallet, chats, swaps, payments, and receipts persist by address across refresh and devices.
             </p>
           )}
           {wallet && conversations.length === 0 && !conversationsQuery.isLoading && (
@@ -350,7 +343,7 @@ export function FlowPage() {
                   key={c.id}
                   className={cn(
                     "group flex items-center gap-1 rounded-lg px-2 py-2 text-left text-sm transition",
-                    on ? "bg-white/10" : "hover:bg-white/5",
+                    on ? "bg-[var(--p-hover)]" : "hover:bg-[var(--p-hover)]",
                   )}
                 >
                   <button
@@ -376,12 +369,12 @@ export function FlowPage() {
                           }
                           if (e.key === "Escape") setRenamingId(null);
                         }}
-                        className="w-full rounded bg-black/40 px-1.5 py-0.5 text-xs outline-none"
+                        className="w-full rounded bg-[var(--p-surface-2)] px-1.5 py-0.5 text-xs outline-none"
                       />
                     ) : (
                       <>
                         <span className="flex items-center gap-1.5">
-                          {c.pinned && <span className="text-[10px] text-signal">Pinned</span>}
+                          {c.pinned && <span className="text-[10px] text-[var(--p-accent-text)]">Pinned</span>}
                           <span className="truncate font-medium">{c.title}</span>
                         </span>
                         <span className="mt-0.5 block truncate font-mono text-[10px] text-[var(--p-muted)]">
@@ -395,7 +388,7 @@ export function FlowPage() {
                       <button
                         type="button"
                         title="Rename"
-                        className="rounded p-1 text-[var(--p-muted)] hover:bg-white/10 hover:text-white"
+                        className="rounded p-1 text-[var(--p-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-fg)]"
                         onClick={() => {
                           setRenamingId(c.id);
                           setRenameValue(c.title);
@@ -406,7 +399,7 @@ export function FlowPage() {
                       <button
                         type="button"
                         title={c.pinned ? "Unpin" : "Pin"}
-                        className="rounded p-1 text-[var(--p-muted)] hover:bg-white/10 hover:text-signal"
+                        className="rounded p-1 text-[var(--p-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-accent-text)]"
                         onClick={() =>
                           void api.patchFlowConversation(c.id, { wallet, pinned: !c.pinned }).then(() =>
                             qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] }),
@@ -418,7 +411,7 @@ export function FlowPage() {
                       <button
                         type="button"
                         title="Archive"
-                        className="rounded p-1 text-[var(--p-muted)] hover:bg-white/10 hover:text-red-300"
+                        className="rounded p-1 text-[var(--p-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-danger)]"
                         onClick={() =>
                           void api.patchFlowConversation(c.id, { wallet, archive: true }).then(() => {
                             if (conversationId === c.id) void startNewChat();
@@ -441,7 +434,7 @@ export function FlowPage() {
               <ul className="space-y-1.5">
                 {recentActivity.map((a) => (
                   <li key={a.id} className="truncate text-[11px] text-[var(--p-muted)]">
-                    <span className="text-signal">{a.kind}</span> · {a.title}
+                    <span className="text-[var(--p-accent-text)]">{a.kind}</span> · {a.title}
                   </li>
                 ))}
               </ul>
@@ -463,8 +456,8 @@ export function FlowPage() {
                 className={cn(
                   "rounded-full border px-2 py-0.5 text-[10px]",
                   a.id === agentId
-                    ? "border-signal/50 bg-signal/15 text-signal"
-                    : "border-[var(--p-border)] text-[var(--p-muted)] hover:border-white/25",
+                    ? "border-signal/50 bg-signal/15 text-[var(--p-accent-text)]"
+                    : "border-[var(--p-border)] text-[var(--p-muted)] hover:border-[var(--p-border-strong)]",
                 )}
               >
                 {a.name}
@@ -516,7 +509,7 @@ export function FlowPage() {
             </button>
             <Link
               to="/flow/security"
-              className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40 hover:text-signal"
+              className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40 hover:text-[var(--p-accent-text)]"
             >
               Security
             </Link>
@@ -564,9 +557,7 @@ export function FlowPage() {
                         </span>
                       )}
                     </div>
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--p-fg)]">
-                      {formatAssistantText(msg.text)}
-                    </div>
+                    <AgentText text={msg.text} />
                     {msg.cards?.map((card, i) => (
                       <ActionCard
                         key={`${msg.id}-${i}`}
@@ -638,25 +629,25 @@ export function FlowPage() {
           </AnimatePresence>
           {chat.isPending && (
             <div className="flex items-center gap-2 text-sm text-[var(--p-muted)]">
-              <Loader2 className="size-4 animate-spin text-signal" />
+              <Loader2 className="size-4 animate-spin text-[var(--p-accent-text)]" />
               <span className="font-display">Thinking…</span>
             </div>
           )}
         </div>
 
         {/* Fixed composer */}
-        <div className="shrink-0 border-t border-[var(--p-border)] bg-[#0a0c0b] px-5 py-3">
+        <div className="shrink-0 border-t border-[var(--p-border)] bg-[var(--p-rail)] px-5 py-3">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="rounded-full border border-signal/50 bg-signal/15 px-3 py-1 text-xs text-signal"
+              className="rounded-full border border-signal/50 bg-signal/15 px-3 py-1 text-xs text-[var(--p-accent-text)]"
             >
               {active.name}
             </button>
             <button
               type="button"
               onClick={() => setShowAllAgents((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-full border border-[var(--p-border)] px-3 py-1 text-xs text-[var(--p-muted)] hover:border-white/30"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--p-border)] px-3 py-1 text-xs text-[var(--p-muted)] hover:border-[var(--p-border-strong)]"
             >
               All agents
               <ChevronDown className={cn("size-3 transition", showAllAgents && "rotate-180")} />
@@ -681,7 +672,7 @@ export function FlowPage() {
                       className={cn(
                         "rounded-full border px-2.5 py-0.5 text-[11px]",
                         a.id === agentId
-                          ? "border-signal/50 bg-signal/15 text-signal"
+                          ? "border-signal/50 bg-signal/15 text-[var(--p-accent-text)]"
                           : "border-[var(--p-border)] text-[var(--p-muted)] hover:border-signal/30",
                       )}
                     >
@@ -703,8 +694,8 @@ export function FlowPage() {
                 }
               }}
               rows={2}
-              placeholder="Message Beacon… (intent auto-detects — or use @swap @bridge @image)"
-              className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-[var(--p-muted)]"
+              placeholder="Message Beacon… (intent auto-detects, or use @swap @bridge @image)"
+              className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent text-sm text-[var(--p-fg)] outline-none placeholder:text-[var(--p-muted)]"
             />
             <button
               type="button"
@@ -795,7 +786,7 @@ function ActionCard({
     const feeds = (card.feeds as Array<{ symbol: string; value: number }>) ?? [];
     return (
       <div className="overflow-hidden rounded-2xl border border-signal/25 bg-gradient-to-br from-[#12231a] to-[#0a0c0b] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
+        <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
         <p className="mt-2 text-sm text-[var(--p-fg)]/90">{String(card.summary)}</p>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {feeds.map((f) => (
@@ -815,13 +806,13 @@ function ActionCard({
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
         <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-muted)]">{card.title}</p>
         <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-          <div className="rounded-xl bg-black/25 px-3 py-2">
+          <div className="rounded-xl bg-[var(--p-surface-2)] px-3 py-2">
             <p className="font-mono text-[10px] text-[var(--p-muted)]">USDT0</p>
-            <p className="font-display text-lg">{String(card.usdt0Balance ?? "—")}</p>
+            <p className="font-display text-lg">{String(card.usdt0Balance ?? "-")}</p>
           </div>
-          <div className="rounded-xl bg-black/25 px-3 py-2">
+          <div className="rounded-xl bg-[var(--p-surface-2)] px-3 py-2">
             <p className="font-mono text-[10px] text-[var(--p-muted)]">FXRP</p>
-            <p className="font-display text-lg">{String(card.fxrpBalance ?? "—")}</p>
+            <p className="font-display text-lg">{String(card.fxrpBalance ?? "-")}</p>
           </div>
         </dl>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -851,7 +842,7 @@ function ActionCard({
   if (card.type === "swap_quote") {
     return (
       <div className="rounded-2xl border border-signal/20 bg-gradient-to-br from-[#14201a] to-[#0a0c0b] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
+        <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
         <div className="mt-3 flex flex-wrap items-end gap-6">
           <div>
             <p className="font-mono text-[10px] text-[var(--p-muted)]">You pay</p>
@@ -859,7 +850,7 @@ function ActionCard({
           </div>
           <div>
             <p className="font-mono text-[10px] text-[var(--p-muted)]">Est. receive</p>
-            <p className="font-display text-2xl text-signal">~{String(card.estimatedFxrp)} FXRP</p>
+            <p className="font-display text-2xl text-[var(--p-accent-text)]">~{String(card.estimatedFxrp)} FXRP</p>
           </div>
         </div>
         <p className="mt-2 text-xs text-[var(--p-muted)]">
@@ -880,11 +871,11 @@ function ActionCard({
   if (card.type === "swap_prepare") {
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
+        <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
         <p className="mt-2 text-sm text-[var(--p-fg)]/80">
-          Swap <span className="text-white">{String(card.amountInDisplay)} USDT0</span>
+          Swap <span className="text-[var(--p-fg)]">{String(card.amountInDisplay)} USDT0</span>
           {" → "}
-          <span className="text-signal">~{String(card.estimatedFxrp)} FXRP</span> on SparkDEX
+          <span className="text-[var(--p-accent-text)]">~{String(card.estimatedFxrp)} FXRP</span> on SparkDEX
         </p>
         <p className="mt-1 text-xs text-[var(--p-muted)]">{String(card.warning)}</p>
 
@@ -954,9 +945,9 @@ function ActionCard({
             Coston2 faucet
           </a>
         </div>
-        {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
+        {error && <p className="mt-2 text-xs text-[var(--p-danger)]">{error}</p>}
         {swapStatus === "confirmed" && swapHash && (
-          <p className="mt-3 text-sm text-signal">
+          <p className="mt-3 text-sm text-[var(--p-accent-text)]">
             Swap confirmed.{" "}
             <a href={explorerTx(swapHash)} target="_blank" rel="noreferrer" className="underline underline-offset-2">
               View on explorer
@@ -973,7 +964,7 @@ function ActionCard({
     return (
       <div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)]">
         <div className="border-b border-[var(--p-border)] bg-signal/10 px-4 py-3">
-          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-signal">Live quote · LayerZero</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-accent-text)]">Live quote · LayerZero</p>
           <p className="mt-1 font-display text-lg font-semibold tracking-tight">{String(card.title)}</p>
         </div>
         <div className="grid gap-0 sm:grid-cols-3">
@@ -988,7 +979,7 @@ function ActionCard({
           </div>
           <div className="px-4 py-4">
             <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--p-muted)]">Messaging fee</p>
-            <p className="mt-1 font-display text-2xl font-semibold tabular-nums text-signal">{fee}</p>
+            <p className="mt-1 font-display text-2xl font-semibold tabular-nums text-[var(--p-accent-text)]">{fee}</p>
             <p className="mt-0.5 font-mono text-[10px] text-[var(--p-muted)]">quoteSend · Coston2</p>
           </div>
         </div>
@@ -1015,7 +1006,7 @@ function ActionCard({
       <div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)]">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--p-border)] px-4 py-3">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-signal">Confirm in wallet</p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-accent-text)]">Confirm in wallet</p>
             <p className="mt-1 font-display text-base font-semibold">
               {formatTokenAmount(String(card.amountDisplay ?? ""), "FXRP")}
               <span className="mx-2 text-[var(--p-muted)]">→</span>
@@ -1024,7 +1015,7 @@ function ActionCard({
           </div>
           <div className="rounded-xl border border-signal/30 bg-signal/10 px-3 py-2 text-right">
             <p className="font-mono text-[10px] text-[var(--p-muted)]">Fee</p>
-            <p className="font-display text-lg font-semibold tabular-nums text-signal">{fee}</p>
+            <p className="font-display text-lg font-semibold tabular-nums text-[var(--p-accent-text)]">{fee}</p>
           </div>
         </div>
 
@@ -1083,10 +1074,10 @@ function ActionCard({
             </button>
           )}
         </div>
-        {error && <p className="px-4 pb-3 text-xs text-red-400">{error}</p>}
+        {error && <p className="px-4 pb-3 text-xs text-[var(--p-danger)]">{error}</p>}
         {sendStatus === "confirmed" && sendHash && (
           <div className="space-y-2 border-t border-[var(--p-border)] bg-signal/5 px-4 py-3 text-sm">
-            <p className="font-medium text-signal">Source tx confirmed on Coston2</p>
+            <p className="font-medium text-[var(--p-accent-text)]">Source tx confirmed on Coston2</p>
             <div className="flex flex-wrap gap-2">
               <a
                 href={explorerTx(sendHash)}
@@ -1100,7 +1091,7 @@ function ActionCard({
                 href={`${lzScanBase}${sendHash}`}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 rounded-full border border-signal/40 bg-signal/10 px-3 py-1 text-xs text-signal"
+                className="inline-flex items-center gap-1 rounded-full border border-signal/40 bg-signal/10 px-3 py-1 text-xs text-[var(--p-accent-text)]"
               >
                 LayerZero Scan <ExternalLink className="size-3" />
               </a>
@@ -1124,7 +1115,7 @@ function ActionCard({
         <ul className="mt-3 space-y-1.5 text-sm text-[var(--p-muted)]">
           {prompts.map((p) => (
             <li key={p} className="flex gap-2">
-              <span className="text-signal">·</span>
+              <span className="text-[var(--p-accent-text)]">·</span>
               {p}
             </li>
           ))}
@@ -1162,7 +1153,7 @@ function ActionCard({
           </div>
         )}
         {typeof card.deskHref === "string" && card.deskHref ? (
-          <Link to={card.deskHref} className="mt-3 inline-flex text-sm text-signal underline-offset-2 hover:underline">
+          <Link to={card.deskHref} className="mt-3 inline-flex text-sm text-[var(--p-accent-text)] underline-offset-2 hover:underline">
             Open Bound Work desk
           </Link>
         ) : null}
@@ -1185,8 +1176,8 @@ function ActionCard({
     return (
       <div className="rounded-2xl border border-signal/30 bg-gradient-to-br from-[#1a1528] to-[#0a0c0b] p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
-          <span className="rounded-full bg-signal/15 px-2 py-0.5 font-mono text-[10px] text-signal">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
+          <span className="rounded-full bg-signal/15 px-2 py-0.5 font-mono text-[10px] text-[var(--p-accent-text)]">
             LayerZero OFT · FAssets
           </span>
         </div>
@@ -1196,7 +1187,7 @@ function ActionCard({
             <div key={r.eid} className="rounded-xl bg-[var(--p-bg)] px-3 py-2 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-medium text-[var(--p-fg)]">{r.chain}</span>
-                <span className="font-mono text-[10px] text-signal">{r.status}</span>
+                <span className="font-mono text-[10px] text-[var(--p-accent-text)]">{r.status}</span>
               </div>
               <p className="mt-1 font-mono text-[11px] text-[var(--p-muted)]">
                 {r.asset} · EID {r.eid} · ETA {r.eta}
@@ -1237,7 +1228,7 @@ function ActionCard({
     const links = (card.links as Array<{ label: string; href: string }>) ?? [];
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
+        <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
         <p className="mt-2 text-sm text-[var(--p-fg)]/90">{String(card.summary)}</p>
         <p className="mt-2 text-xs text-amber-200/80">{String(card.honesty)}</p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -1265,12 +1256,12 @@ function ActionCard({
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--p-border)] px-4 py-3">
           <div className="flex flex-wrap items-center gap-2">
             <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-muted)]">{card.title}</p>
-            <span className="rounded-full bg-signal/15 px-2 py-0.5 font-mono text-[10px] text-signal">
+            <span className="rounded-full bg-signal/15 px-2 py-0.5 font-mono text-[10px] text-[var(--p-accent-text)]">
               {String(card.flarePrimitive ?? "x402")}
             </span>
           </div>
           {isSettled ? (
-            <span className="rounded-full bg-signal/20 px-2.5 py-0.5 font-mono text-[10px] text-signal">Settled</span>
+            <span className="rounded-full bg-signal/20 px-2.5 py-0.5 font-mono text-[10px] text-[var(--p-accent-text)]">Settled</span>
           ) : (
             <span className="rounded-full border border-[var(--p-border)] px-2.5 py-0.5 font-mono text-[10px] text-[var(--p-muted)]">
               Unpaid
@@ -1301,7 +1292,7 @@ function ActionCard({
             Mint test USDT0
           </button>
           {isSettled ? (
-            <span className="inline-flex items-center rounded-full bg-signal/15 px-5 py-2 text-sm font-medium text-signal">
+            <span className="inline-flex items-center rounded-full bg-signal/15 px-5 py-2 text-sm font-medium text-[var(--p-accent-text)]">
               Settled for this service
             </span>
           ) : (
@@ -1342,7 +1333,7 @@ function ActionCard({
           </button>
           )}
         </div>
-        {error && <p className="px-4 pb-3 text-xs text-red-400">{error}</p>}
+        {error && <p className="px-4 pb-3 text-xs text-[var(--p-danger)]">{error}</p>}
       </div>
     );
   }
@@ -1350,14 +1341,14 @@ function ActionCard({
   if (card.type === "media_result") {
     return (
       <div className="rounded-2xl border border-signal/25 bg-[var(--p-card)] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
+        <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
         <p className="mt-2 text-sm text-[var(--p-fg)]/80">{String(card.summary)}</p>
         {typeof card.paymentTxHint === "string" && card.paymentTxHint && (
           <a
             href={explorerTx(card.paymentTxHint)}
             target="_blank"
             rel="noreferrer"
-            className="mt-2 inline-flex items-center gap-1 font-mono text-[11px] text-signal hover:underline"
+            className="mt-2 inline-flex items-center gap-1 font-mono text-[11px] text-[var(--p-accent-text)] hover:underline"
           >
             Settlement tx · {card.paymentTxHint.slice(0, 10)}…
             <ExternalLink className="size-3" />
@@ -1423,7 +1414,7 @@ function StatusRow({
 }) {
   const icon =
     status === "confirmed" || status === "skipped" ? (
-      <CheckCircle2 className="size-3.5 text-signal" />
+      <CheckCircle2 className="size-3.5 text-[var(--p-accent-text)]" />
     ) : status === "pending" ? (
       <Clock className="size-3.5 animate-pulse text-amber-300" />
     ) : status === "failed" ? (
@@ -1432,14 +1423,14 @@ function StatusRow({
       <span className="size-3.5 rounded-full border border-[var(--p-border)]" />
     );
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl bg-black/25 px-3 py-2 text-xs">
+    <div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--p-surface-2)] px-3 py-2 text-xs">
       <span className="flex items-center gap-2 text-[var(--p-muted)]">
         {icon}
         {label}
         <span className="font-mono text-[var(--p-muted)]">{status === "idle" ? "ready" : status}</span>
       </span>
       {hash && (
-        <a href={explorerTx(hash)} target="_blank" rel="noreferrer" className="font-mono text-signal hover:underline">
+        <a href={explorerTx(hash)} target="_blank" rel="noreferrer" className="font-mono text-[var(--p-accent-text)] hover:underline">
           {hash.slice(0, 10)}…
         </a>
       )}

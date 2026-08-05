@@ -14,7 +14,7 @@ export const COSTON2_FXRP_OFT_ROUTES = [
     asset: "FXRP",
     status: "supported" as const,
     eta: "minutes (LayerZero)",
-    fees: "LayerZero messaging fee in native gas — quote on send",
+    fees: "LayerZero messaging fee in native gas, quote on send",
   },
   {
     chain: "Sepolia",
@@ -23,7 +23,7 @@ export const COSTON2_FXRP_OFT_ROUTES = [
     asset: "FXRP",
     status: "supported" as const,
     eta: "minutes (LayerZero)",
-    fees: "LayerZero messaging fee in native gas — quote on send",
+    fees: "LayerZero messaging fee in native gas, quote on send",
   },
   {
     chain: "Hyperliquid EVM Testnet",
@@ -32,7 +32,7 @@ export const COSTON2_FXRP_OFT_ROUTES = [
     asset: "FXRP",
     status: "supported" as const,
     eta: "minutes (LayerZero)",
-    fees: "HYPE gas + LZ fee — quote on send",
+    fees: "HYPE gas + LZ fee, quote on send",
   },
 ] as const;
 
@@ -73,7 +73,7 @@ function addressToBytes32(recipient: string): string {
   return `0x${addr.padStart(64, "0")}`;
 }
 
-/** Executor gas for destination lzReceive — matches flare-viem-starter default. */
+/** Executor gas for destination lzReceive, matches flare-viem-starter default. */
 export const OFT_EXECUTOR_GAS = 400_000;
 
 /** Build LayerZero V2 OFT SendParam with executor lzReceive options (required for delivery). */
@@ -101,7 +101,7 @@ export function buildFxrpOftSendParam(params: {
 
 /**
  * Prepare LayerZero OFT Adapter approve + send calldata for Coston2 → peer.
- * Messaging fee comes from on-chain quoteSend — never invented.
+ * Messaging fee comes from on-chain quoteSend, never invented.
  */
 export async function prepareFxrpOftBridge(
   params: { amountFxrpUnits: string; recipient: string; dstEid: number },
