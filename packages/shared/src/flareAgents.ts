@@ -10,8 +10,9 @@ import {
 } from "./ftso.js";
 import {
   COSTON2_FXRP_OFT_ADAPTER,
-  COSTON2_FXRP_OFT_ROUTES,
+  discoverFxrpOftRoutes,
   prepareFxrpOftBridge,
+  resolveOftRouteByChain,
 } from "./oftBridge.js";
 
 export { COSTON2_FXRP_OFT_ROUTES } from "./oftBridge.js";
@@ -162,6 +163,8 @@ export type AgentCard =
         eta: string;
         fees: string;
       }>;
+      routesSource?: "onchain" | "fallback";
+      discoveredAt?: number;
       unavailable: string[];
       docs: Array<{ label: string; href: string }>;
       honesty: string;
@@ -841,6 +844,8 @@ export async function runBeaconAgentChat(opts: {
   if (intent === "bridge") {
     const wallet = opts.wallet;
     const m = opts.message.toLowerCase();
+    const discovered = await discoverFxrpOftRoutes(env);
+    const oftRoutes = discovered.routes;
     const dest =
       /sepolia/.test(m) ? "Sepolia"
       : /hyperliquid|hyperevm/.test(m) ? "Hyperliquid EVM Testnet"
@@ -853,7 +858,9 @@ export async function runBeaconAgentChat(opts: {
       title: "FXRP OFT routes · Coston2",
       source: "Flare Testnet Coston2",
       oftAdapter: COSTON2_FXRP_OFT_ADAPTER,
-      routes: [...COSTON2_FXRP_OFT_ROUTES],
+      routes: oftRoutes,
+      routesSource: discovered.source,
+      discoveredAt: discovered.discoveredAt,
       unavailable: ["Arbitrary EVM chains without OFT peer", "Fake fee quotes without quoteSend"],
       docs: [
         { label: "OFT peers discovery", href: "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes" },
@@ -861,7 +868,7 @@ export async function runBeaconAgentChat(opts: {
         { label: "FXRP automint + bridge", href: "https://dev.flare.network/fxrp/oft/fxrp-automint" },
       ],
       honesty:
-        "Supported peers from official getOftPeers. Beacon will not claim a bridge filled without an OFT send receipt. Fees require an on-chain quote at send time.",
+        "Peers discovered live via OFT Adapter peers() on Coston2 (DevHub getOftPeers pattern). Beacon will not claim a bridge filled without an OFT send receipt. Fees require an on-chain quoteSend.",
     });
 
     if (!wallet) {
@@ -897,13 +904,14 @@ export async function runBeaconAgentChat(opts: {
     }
 
     if (dest && amount) {
-      const route = COSTON2_FXRP_OFT_ROUTES.find((r) => r.chain === dest);
+      const route = resolveOftRouteByChain(dest, oftRoutes);
       if (!route) {
+        const names = oftRoutes.map((r) => r.chain).join(", ");
         const narr = await narrate({
           intent: "bridge",
           userMessage: opts.message,
-          situation: `Unknown destination ${dest}. Only BSC Testnet, Sepolia, and Hyperliquid EVM Testnet are supported.`,
-          fallback: "That destination isn’t a documented FXRP OFT peer. Pick **Sepolia**, **BSC Testnet**, or **Hyperliquid EVM Testnet**.",
+          situation: `Unknown destination ${dest}. Live peers: ${names}.`,
+          fallback: `That destination is not a configured FXRP OFT peer. Pick one of: ${names}.`,
           env,
         });
         return {

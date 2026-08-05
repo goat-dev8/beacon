@@ -111,6 +111,19 @@ export function FlowPage() {
     setExecutionStates((prev) => ({ ...prev, [key]: { ...prev[key], ...state } }));
   }, []);
 
+  // Survive refresh for in-flight approve/swap/send within this browser session
+  useEffect(() => {
+    if (!conversationId) return;
+    try {
+      sessionStorage.setItem(
+        `beacon.exec.${conversationId}`,
+        JSON.stringify(executionStates),
+      );
+    } catch {
+      /* ignore quota */
+    }
+  }, [conversationId, executionStates]);
+
   // Auto-resume most recent conversation when shell wallet is ready
   useEffect(() => {
     if (!wallet || conversationId) return;
@@ -130,6 +143,12 @@ export function FlowPage() {
   const agentsQuery = useQuery({
     queryKey: ["agents"],
     queryFn: () => api.agents(),
+  });
+
+  const ftsoQuery = useQuery({
+    queryKey: ["ftso-signals"],
+    queryFn: () => api.agentSignals(),
+    refetchInterval: 30_000,
   });
 
   const balancesQuery = useQuery({
@@ -170,7 +189,12 @@ export function FlowPage() {
           }))
         : [WELCOME];
     setSettledServiceIds(inferSettledServiceIds(loaded));
-    setExecutionStates({});
+    try {
+      const raw = sessionStorage.getItem(`beacon.exec.${id}`);
+      setExecutionStates(raw ? (JSON.parse(raw) as Record<string, CardExecutionState>) : {});
+    } catch {
+      setExecutionStates({});
+    }
     setMessages(loaded);
   }
 
@@ -179,6 +203,7 @@ export function FlowPage() {
       setConversationId(null);
       setConvState(null);
       setSettledServiceIds(new Set());
+      setExecutionStates({});
       setAgentId("general");
       setMessages([WELCOME]);
       return;
@@ -187,6 +212,7 @@ export function FlowPage() {
     setConversationId(conversation.id);
     setConvState(null);
     setSettledServiceIds(new Set());
+    setExecutionStates({});
     setMessages([WELCOME]);
     void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
   }
@@ -425,7 +451,19 @@ export function FlowPage() {
               <ul className="space-y-1.5">
                 {recentActivity.map((a) => (
                   <li key={a.id} className="truncate text-[11px] text-[var(--p-muted)]">
-                    <span className="text-[var(--p-accent-text)]">{a.kind}</span> · {a.title}
+                    <span className="text-[var(--p-accent-text)]">{a.kind}</span> ·{" "}
+                    {a.explorer_url ? (
+                      <a
+                        href={a.explorer_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="underline-offset-2 hover:underline"
+                      >
+                        {a.title}
+                      </a>
+                    ) : (
+                      a.title
+                    )}
                   </li>
                 ))}
               </ul>
@@ -461,11 +499,12 @@ export function FlowPage() {
       <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:flex-row">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Fixed header */}
-        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--p-border)] px-5 py-3">
+        <header className="flex shrink-0 flex-col gap-2 border-b border-[var(--p-border)] px-5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="font-display text-xl font-semibold">{active.name}</h1>
             <p className="mt-0.5 max-w-xl truncate text-sm text-[var(--p-muted)]">
-              {(active as { blurb?: string }).blurb || "Intent → Quote → Pay → Execute → Receipt"}
+              {(active as { blurb?: string }).blurb || "Intent → Quote → Policy → Pay → Execute → Receipt"}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -519,6 +558,19 @@ export function FlowPage() {
               </button>
             )}
           </div>
+          </div>
+          {ftsoQuery.data?.feeds && ftsoQuery.data.feeds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-[var(--p-border)] bg-[var(--p-surface)] px-3 py-2 font-mono text-[10px] text-[var(--p-muted)]">
+              <span className="rounded-full bg-signal/15 px-2 py-0.5 text-[var(--p-accent-text)]">FTSO live</span>
+              {ftsoQuery.data.feeds.slice(0, 4).map((f) => (
+                <span key={f.symbol}>
+                  <span className="text-[var(--p-faint)]">{f.symbol}</span>{" "}
+                  <span className="tabular-nums text-[var(--p-fg)]">{f.value}</span>
+                </span>
+              ))}
+              <span className="text-[var(--p-faint)]">· refresh 30s · Flare Coston2</span>
+            </div>
+          )}
         </header>
 
         {/* Only messages scroll */}
@@ -558,11 +610,28 @@ export function FlowPage() {
                         wallet={wallet}
                         convState={convState}
                         settledServiceIds={settledServiceIds}
+                        savedExec={executionStates[cardKey(msg.id, i)]}
                         onExecutionStateChange={onExecutionStateChange}
                         onConnect={() => void onConnect()}
                         onMint={() => void mintMockUsdt0()}
                         onBalancesRefresh={() => {
                           if (wallet) void qc.invalidateQueries({ queryKey: ["balances", wallet] });
+                        }}
+                        onTxConfirmed={(info) => {
+                          if (!wallet) return;
+                          void api
+                            .recordFlowActivity({
+                              wallet,
+                              kind: info.kind,
+                              title: info.title,
+                              explorerUrl: info.explorerUrl,
+                              refId: info.hash,
+                              meta: info.meta,
+                            })
+                            .then(() =>
+                              qc.invalidateQueries({ queryKey: ["flow-activity", wallet] }),
+                            )
+                            .catch(() => undefined);
                         }}
                         onQuickReply={(text) => {
                           setInput("");
@@ -747,11 +816,13 @@ function ActionCard({
   wallet,
   convState,
   settledServiceIds,
+  savedExec,
   onExecutionStateChange,
   onConnect,
   onMint,
   onPaidResend,
   onBalancesRefresh,
+  onTxConfirmed,
   onQuickReply,
 }: {
   card: AgentCard;
@@ -759,21 +830,35 @@ function ActionCard({
   wallet: string | null;
   convState: ConvState;
   settledServiceIds: Set<string>;
+  savedExec?: CardExecutionState;
   onExecutionStateChange: (key: string, state: CardExecutionState) => void;
   onConnect: () => void;
   onMint: () => void;
   onPaidResend: (payment: Record<string, unknown>, meta: PaidResendMeta) => void;
   onBalancesRefresh: () => void;
+  onTxConfirmed?: (info: {
+    kind: "swap" | "bridge";
+    title: string;
+    hash: string;
+    explorerUrl: string;
+    meta?: Record<string, unknown>;
+  }) => void;
   onQuickReply: (text: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [approveStatus, setApproveStatus] = useState<"idle" | "pending" | "confirmed" | "skipped">("idle");
-  const [swapStatus, setSwapStatus] = useState<"idle" | "pending" | "confirmed" | "failed">("idle");
-  const [sendStatus, setSendStatus] = useState<"idle" | "pending" | "confirmed" | "failed">("idle");
-  const [approveHash, setApproveHash] = useState<string | null>(null);
-  const [swapHash, setSwapHash] = useState<string | null>(null);
-  const [sendHash, setSendHash] = useState<string | null>(null);
+  const [approveStatus, setApproveStatus] = useState<"idle" | "pending" | "confirmed" | "skipped">(
+    () => savedExec?.approveStatus ?? "idle",
+  );
+  const [swapStatus, setSwapStatus] = useState<"idle" | "pending" | "confirmed" | "failed">(
+    () => savedExec?.swapStatus ?? "idle",
+  );
+  const [sendStatus, setSendStatus] = useState<"idle" | "pending" | "confirmed" | "failed">(
+    () => savedExec?.sendStatus ?? "idle",
+  );
+  const [approveHash, setApproveHash] = useState<string | null>(() => savedExec?.approveHash ?? null);
+  const [swapHash, setSwapHash] = useState<string | null>(() => savedExec?.swapHash ?? null);
+  const [sendHash, setSendHash] = useState<string | null>(() => savedExec?.sendHash ?? null);
 
   useEffect(() => {
     if (
@@ -946,6 +1031,13 @@ function ActionCard({
                     setSwapHash(result.swapHash);
                     setSwapStatus("confirmed");
                     onBalancesRefresh();
+                    onTxConfirmed?.({
+                      kind: "swap",
+                      title: `SparkDEX USDT0→FXRP · ${String(card.amountIn ?? "")}`,
+                      hash: result.swapHash,
+                      explorerUrl: explorerTx(result.swapHash),
+                      meta: { flarePrimitive: "SparkDEX · FTSO estimate" },
+                    });
                   } catch (e) {
                     setError(e instanceof Error ? e.message : "Swap failed");
                     setSwapStatus((prev) => (prev === "pending" ? "failed" : prev));
@@ -1083,6 +1175,17 @@ function ActionCard({
                     setSendHash(result.sendHash);
                     setSendStatus("confirmed");
                     onBalancesRefresh();
+                    onTxConfirmed?.({
+                      kind: "bridge",
+                      title: `FXRP OFT → ${String(card.destination ?? "peer")}`,
+                      hash: result.sendHash,
+                      explorerUrl: explorerTx(result.sendHash),
+                      meta: {
+                        flarePrimitive: "LayerZero OFT · FAssets FXRP",
+                        layerZeroScan: `${lzScanBase}${result.sendHash}`,
+                        destination: card.destination,
+                      },
+                    });
                   } catch (e) {
                     setError(e instanceof Error ? e.message : "Bridge send failed");
                     setSendStatus((prev) => (prev === "pending" ? "failed" : prev));
@@ -1230,6 +1333,12 @@ function ActionCard({
           <p className="mt-3 text-xs text-[var(--p-warn)]">Unavailable: {unavailable.join(" · ")}</p>
         )}
         <p className="mt-2 text-xs text-[var(--p-muted)]">{String(card.honesty)}</p>
+        {card.routesSource && (
+          <p className="mt-1 font-mono text-[10px] text-[var(--p-accent-text)]">
+            Peers · {String(card.routesSource)}
+            {card.discoveredAt ? ` · synced ${new Date(Number(card.discoveredAt)).toLocaleTimeString()}` : ""}
+          </p>
+        )}
         <div className="mt-3 flex flex-wrap gap-2">
           {docs.map((l) => (
             <a

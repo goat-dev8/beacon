@@ -4,6 +4,21 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-05 - Dynamic OFT peers · FTSO strip · refresh-safe execution · win research refresh
+
+**Research:** DevHub getOftPeers pattern + Polymarket Gamma overview. Decision: **no Polymarket betting UI** for Bounty 1; keep Flare asset rails as the hero. Documented in `WIN_RESEARCH_2026-08-05.md`.
+
+**Shipped**
+- `discoverFxrpOftRoutes`: on-chain `peers(eid)` scan on Coston2 FXRP OFT Adapter with DevHub snapshot fallback; 10m cache
+- `GET /v1/agents/bridge/routes` (+ bridge agent uses live routes)
+- Flow header **FTSO live** strip (30s poll)
+- Swap/bridge confirm → `POST /v1/flow/activity` with explorer URL; activity list links to explorer
+- `executionStates` restored from `sessionStorage` per conversation (approve/swap/send survive refresh)
+
+**Honesty:** Destination fill still only via LayerZero Scan. Peer list can grow when Flare configures new EIDs.
+
+---
+
 ## 2026-08-05 - x402 Settled is not a lock · Pay again · win research
 
 **User question:** After FTSO / Research settle, UI showed "Settled for this service". Does that mean another pay is impossible?

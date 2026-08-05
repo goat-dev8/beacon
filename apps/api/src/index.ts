@@ -21,6 +21,7 @@ import {
   prepareFxrpOftBridge,
   readErc20Balance,
   resolveFxrpAddress,
+  discoverFxrpOftRoutes,
   COSTON2_USDT0,
   chatCompletionStream,
   resolveModelForRole,
@@ -689,6 +690,23 @@ app.get("/v1/agents/signals", async () => {
   return { ok: true, ...snap };
 });
 
+app.get("/v1/agents/bridge/routes", async (req) => {
+  const force = String((req.query as { force?: string }).force ?? "") === "1";
+  const discovered = await discoverFxrpOftRoutes(env, { force });
+  return {
+    ok: true,
+    network: "coston2",
+    chainId: 114,
+    ...discovered,
+    docs: [
+      "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes",
+      "https://docs.layerzero.network/v2/deployments/chains/flare-testnet",
+    ],
+    honesty:
+      "Peers are read on-chain from the FXRP OFT Adapter. Destination fill is only proven on LayerZero Scan.",
+  };
+});
+
 app.get("/v1/agents/balances", async (req) => {
   const wallet = z.string().regex(/^0x[a-fA-F0-9]{40}$/).parse((req.query as { wallet?: string }).wallet);
   const fxrp = await resolveFxrpAddress(env);
@@ -1007,6 +1025,29 @@ app.get("/v1/flow/activity", async (req) => {
     .parse((req.query as { wallet?: string }).wallet);
   const activity = await listActivity(pool, wallet);
   return { ok: true, activity };
+});
+
+app.post("/v1/flow/activity", async (req) => {
+  const body = z
+    .object({
+      wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
+      kind: z.enum(["swap", "bridge", "payment", "media", "execution"]),
+      title: z.string().min(1).max(160),
+      explorerUrl: z.string().url().optional(),
+      refId: z.string().max(120).optional(),
+      meta: z.record(z.string(), z.unknown()).optional(),
+    })
+    .parse(req.body ?? {});
+  await recordActivity(
+    pool,
+    body.wallet,
+    body.kind,
+    body.title,
+    body.meta ?? {},
+    body.explorerUrl,
+    body.refId,
+  );
+  return { ok: true };
 });
 
 /** Security Center policies — persisted in Redis when available. */

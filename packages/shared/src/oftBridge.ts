@@ -5,14 +5,24 @@ import { resolveFxrpAddress } from "./ftso.js";
 /** Official Coston2 FXRP OFT Adapter (LayerZero V2). */
 export const COSTON2_FXRP_OFT_ADAPTER = "0xCd3d2127935Ae82Af54Fc31cCD9D3440dbF46639";
 
-/** Official Coston2 FXRP OFT peers from Flare DevHub getOftPeers. */
-export const COSTON2_FXRP_OFT_ROUTES = [
+export type FxrpOftRoute = {
+  chain: string;
+  eid: number;
+  peer: string;
+  asset: string;
+  status: "supported";
+  eta: string;
+  fees: string;
+};
+
+/** Fallback peers (DevHub getOftPeers snapshot). Prefer discoverFxrpOftRoutes at runtime. */
+export const COSTON2_FXRP_OFT_ROUTES_FALLBACK: FxrpOftRoute[] = [
   {
     chain: "BSC Testnet",
     eid: 40102,
     peer: "0xac7c4a07670589cf83b134a843bfe86c45a4bf4e",
     asset: "FXRP",
-    status: "supported" as const,
+    status: "supported",
     eta: "minutes (LayerZero)",
     fees: "LayerZero messaging fee in native gas, quote on send",
   },
@@ -21,7 +31,7 @@ export const COSTON2_FXRP_OFT_ROUTES = [
     eid: 40161,
     peer: "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
     asset: "FXRP",
-    status: "supported" as const,
+    status: "supported",
     eta: "minutes (LayerZero)",
     fees: "LayerZero messaging fee in native gas, quote on send",
   },
@@ -30,27 +40,156 @@ export const COSTON2_FXRP_OFT_ROUTES = [
     eid: 40362,
     peer: "0x14bfb521e318fc3d5e92a8462c65079bc7d4284c",
     asset: "FXRP",
-    status: "supported" as const,
+    status: "supported",
     eta: "minutes (LayerZero)",
     fees: "HYPE gas + LZ fee, quote on send",
   },
+];
+
+/** @deprecated alias — use discoverFxrpOftRoutes or COSTON2_FXRP_OFT_ROUTES_FALLBACK */
+export const COSTON2_FXRP_OFT_ROUTES = COSTON2_FXRP_OFT_ROUTES_FALLBACK;
+
+export type Coston2FxrpOftRoute = FxrpOftRoute;
+
+const ZERO_BYTES32 =
+  "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+/**
+ * Candidate LayerZero V2 testnet EIDs scanned for FXRP OFT peers.
+ * Matches DevHub getOftPeers pattern: call peers(eid) on the Coston2 adapter.
+ * Names for known EIDs; unknown configured peers still surface as EID labels.
+ */
+const LZ_V2_TESTNET_CANDIDATES: { name: string; eid: number }[] = [
+  { name: "BSC Testnet", eid: 40102 },
+  { name: "Sepolia", eid: 40161 },
+  { name: "Hyperliquid EVM Testnet", eid: 40362 },
+  { name: "Amoy", eid: 40267 },
+  { name: "Base Sepolia", eid: 40245 },
+  { name: "Arbitrum Sepolia", eid: 40231 },
+  { name: "Optimism Sepolia", eid: 40232 },
+  { name: "Avalanche Fuji", eid: 40106 },
+  { name: "Mantle Sepolia", eid: 40246 },
+  { name: "Scroll Sepolia", eid: 40170 },
+  { name: "Linea Sepolia", eid: 40283 },
+  { name: "Mode Testnet", eid: 40298 },
+  { name: "Sonic Testnet", eid: 40349 },
+  { name: "Unichain Sepolia", eid: 40333 },
+];
+
+const PEERS_ABI = [
+  "function peers(uint32 eid) view returns (bytes32)",
 ] as const;
 
-export type Coston2FxrpOftRoute = (typeof COSTON2_FXRP_OFT_ROUTES)[number];
+let routesCache: { at: number; routes: FxrpOftRoute[]; source: "onchain" | "fallback" } | null =
+  null;
+const ROUTES_TTL_MS = 10 * 60 * 1000;
 
-export function resolveOftRouteByEid(dstEid: number): Coston2FxrpOftRoute {
-  const route = COSTON2_FXRP_OFT_ROUTES.find((r) => r.eid === dstEid);
+function routeFromPeer(name: string, eid: number, peer: string): FxrpOftRoute {
+  const known = COSTON2_FXRP_OFT_ROUTES_FALLBACK.find((r) => r.eid === eid);
+  return {
+    chain: known?.chain ?? name,
+    eid,
+    peer,
+    asset: "FXRP",
+    status: "supported",
+    eta: known?.eta ?? "minutes (LayerZero)",
+    fees: known?.fees ?? "LayerZero messaging fee in native gas, quote on send",
+  };
+}
+
+/**
+ * Discover FXRP OFT destinations by reading peers() on the Coston2 adapter.
+ * Falls back to the DevHub snapshot if RPC fails or returns empty.
+ */
+export async function discoverFxrpOftRoutes(
+  env: BeaconEnv = loadEnv(),
+  opts?: { force?: boolean },
+): Promise<{
+  routes: FxrpOftRoute[];
+  discoveredAt: number;
+  source: "onchain" | "fallback";
+  oftAdapter: string;
+}> {
+  const now = Date.now();
+  if (!opts?.force && routesCache && now - routesCache.at < ROUTES_TTL_MS) {
+    return {
+      routes: routesCache.routes,
+      discoveredAt: routesCache.at,
+      source: routesCache.source,
+      oftAdapter: COSTON2_FXRP_OFT_ADAPTER,
+    };
+  }
+
+  try {
+    const { Contract, JsonRpcProvider } = await import("ethers");
+    const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
+    const oft = new Contract(COSTON2_FXRP_OFT_ADAPTER, PEERS_ABI, provider);
+    const found: FxrpOftRoute[] = [];
+    const seen = new Set<number>();
+
+    for (const candidate of LZ_V2_TESTNET_CANDIDATES) {
+      if (seen.has(candidate.eid)) continue;
+      seen.add(candidate.eid);
+      try {
+        const peerBytes = (await oft.peers(candidate.eid)) as string;
+        if (!peerBytes || peerBytes.toLowerCase() === ZERO_BYTES32) continue;
+        const peer = `0x${peerBytes.slice(-40)}`;
+        if (peer === "0x0000000000000000000000000000000000000000") continue;
+        found.push(routeFromPeer(candidate.name, candidate.eid, peer.toLowerCase()));
+      } catch {
+        // endpoint may not exist on this adapter
+      }
+    }
+
+    if (found.length === 0) {
+      routesCache = {
+        at: now,
+        routes: [...COSTON2_FXRP_OFT_ROUTES_FALLBACK],
+        source: "fallback",
+      };
+    } else {
+      routesCache = { at: now, routes: found, source: "onchain" };
+    }
+  } catch {
+    routesCache = {
+      at: now,
+      routes: [...COSTON2_FXRP_OFT_ROUTES_FALLBACK],
+      source: "fallback",
+    };
+  }
+
+  return {
+    routes: routesCache.routes,
+    discoveredAt: routesCache.at,
+    source: routesCache.source,
+    oftAdapter: COSTON2_FXRP_OFT_ADAPTER,
+  };
+}
+
+export function resolveOftRouteByEid(
+  dstEid: number,
+  routes: FxrpOftRoute[] = COSTON2_FXRP_OFT_ROUTES_FALLBACK,
+): FxrpOftRoute {
+  const route = routes.find((r) => r.eid === dstEid);
   if (!route) {
+    const known = COSTON2_FXRP_OFT_ROUTES_FALLBACK.find((r) => r.eid === dstEid);
+    if (known) return known;
     throw new Error(
-      `Unsupported dstEid ${dstEid}. Known peers: BSC 40102, Sepolia 40161, Hyperliquid 40362.`,
+      `Unsupported dstEid ${dstEid}. Discover peers via GET /v1/agents/bridge/routes or DevHub getOftPeers.`,
     );
   }
   return route;
 }
 
-export function resolveOftRouteByChain(chain: string): Coston2FxrpOftRoute | undefined {
+export function resolveOftRouteByChain(
+  chain: string,
+  routes: FxrpOftRoute[] = COSTON2_FXRP_OFT_ROUTES_FALLBACK,
+): FxrpOftRoute | undefined {
   const norm = chain.trim().toLowerCase();
-  return COSTON2_FXRP_OFT_ROUTES.find((r) => r.chain.toLowerCase() === norm);
+  return (
+    routes.find((r) => r.chain.toLowerCase() === norm) ??
+    COSTON2_FXRP_OFT_ROUTES_FALLBACK.find((r) => r.chain.toLowerCase() === norm)
+  );
 }
 
 const OFT_ADAPTER_ABI = [
@@ -136,7 +275,8 @@ export async function prepareFxrpOftBridge(
   explorerBase: string;
 }> {
   const { Contract, Interface, JsonRpcProvider, parseUnits, formatUnits } = await import("ethers");
-  const route = resolveOftRouteByEid(params.dstEid);
+  const discovered = await discoverFxrpOftRoutes(env);
+  const route = resolveOftRouteByEid(params.dstEid, discovered.routes);
   const fxrp = await resolveFxrpAddress(env);
   const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
 

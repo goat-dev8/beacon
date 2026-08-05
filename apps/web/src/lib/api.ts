@@ -265,6 +265,18 @@ export const api = {
         created_at: string;
       }>;
     }>(`/v1/flow/activity?wallet=${encodeURIComponent(wallet)}`),
+  recordFlowActivity: (body: {
+    wallet: string;
+    kind: "swap" | "bridge" | "payment" | "media" | "execution";
+    title: string;
+    explorerUrl?: string;
+    refId?: string;
+    meta?: Record<string, unknown>;
+  }) =>
+    request<{ ok: boolean }>("/v1/flow/activity", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   agentSignals: () =>
     request<{
       ok: boolean;
@@ -272,6 +284,22 @@ export const api = {
       timestamp: number;
       feeds: Array<{ symbol: string; value: number }>;
     }>("/v1/agents/signals"),
+  agentBridgeRoutes: (force?: boolean) =>
+    request<{
+      ok: boolean;
+      routes: Array<{
+        chain: string;
+        eid: number;
+        peer: string;
+        asset: string;
+        status: string;
+        eta: string;
+        fees: string;
+      }>;
+      source: "onchain" | "fallback";
+      discoveredAt: number;
+      oftAdapter: string;
+    }>(`/v1/agents/bridge/routes${force ? "?force=1" : ""}`),
   agentBalances: (wallet: string) =>
     request<{
       ok: boolean;

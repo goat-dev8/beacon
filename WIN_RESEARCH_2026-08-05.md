@@ -69,9 +69,15 @@ What wins demos (from discord / telegram / social notes):
 
 ---
 
-## Prediction markets?
+## Prediction markets / Polymarket?
 
-**No.** Saturated category; dilutes Bounty 1 asset + agent execution story. Prefer FTSO analytics inside Research / Signals, not a betting UI.
+**No betting UI. No Polymarket clone.**
+
+Researched [Polymarket Predictions APIs](https://docs.polymarket.com/api-reference/predictions/overview) (Gamma / CLOB / Data). For Bounty 1 (Interoperable Asset Products) an external prediction venue dilutes the Flare hero story (FXRP · SparkDEX · LZ OFT · x402 · FTSO).
+
+If market odds are ever useful later: only as **labeled external evidence** beside FTSO in Research, never as a trading venue and never presented as guarantees.
+
+**This ship:** live FTSO strip in Flow + dynamic on-chain OFT peer discovery instead.
 
 ---
 
