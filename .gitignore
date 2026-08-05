@@ -30,3 +30,5 @@ tmp/
 tmp-job.json
 data/*.json
 !data/.gitkeep
+
+tmp-*
