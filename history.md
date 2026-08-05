@@ -4,6 +4,26 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-05 — Flow OS UX · Bound Work shell · x402 Paid fix · quote redesign
+
+**Goal:** Product shell that never abandons chat chrome; honest x402 Paid badges; premium bridge quotes (brand emerald, dark/light).
+
+**Bugs fixed**
+- Bound Work / Security left Flow for `/app` or standalone pages → nested under `ProductShell` at `/flow/desk` and `/flow/security`; `/app` redirects to `/flow/desk`
+- x402 catalog showed every item Paid after any `media_result` → `inferSettledServiceIds` only settles when `media_result.serviceId` matches; catalog shows Unpaid vs Settled per service
+- Bridge quote prose dumped 18-decimal fees + markdown walls → `nativeFeeDisplay` rounded to 4dp; `formatNativeFeeDisplay` / structured quote cards; assistant text strips `**`
+
+**UI**
+- `ProductShell` rail + dark/light theme (`productTheme`, `--p-*` tokens aligned to landing signal emerald)
+- Bridge quote/prepare cards: amount | destination | fee grid; LayerZero Scan + Coston2 explorer after source confirm
+- Flow / Security / Desk consume product tokens (no purple OFT accents)
+
+**Honesty:** Destination fill still only via LayerZero Scan Delivered - Beacon does not invent fills.
+
+**Next:** Deploy + Chrome verify Bound Work stays in shell; Pay catalog Unpaid until that service settles.
+
+---
+
 ## 2026-08-05 — Productization refactor · Gates 0–4 in progress
 
 **Goal:** Universal execution engine; Bounty 1 Interoperable Asset Products; remove pay-loop and bridge-plan-only bugs.

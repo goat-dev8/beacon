@@ -176,7 +176,7 @@ export async function prepareFxrpOftBridge(
     sendData,
     nativeFee: nativeFee.toString(),
     lzTokenFee: lzTokenFee.toString(),
-    nativeFeeDisplay: `${formatUnits(nativeFee, 18)} C2FLR`,
+    nativeFeeDisplay: `${Number(formatUnits(nativeFee, 18)).toFixed(4)} C2FLR`,
     dstEid: params.dstEid,
     amountLD: amountLD.toString(),
     amountDisplay: params.amountFxrpUnits,

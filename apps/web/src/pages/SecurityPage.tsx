@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Hexagon, Shield, ArrowLeft, Loader2 } from "lucide-react";
+import { Shield, ArrowLeft, Loader2 } from "lucide-react";
 import { api, type SecurityPolicy } from "@/lib/api";
 import { connectEvmWallet, shortAddress, tryRestoreWallet } from "@/lib/wallet";
 import { cn } from "@/lib/utils";
@@ -94,26 +94,21 @@ export function SecurityPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-[#0a0c0b] text-[#f0f2ef]">
-      <header className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 py-6">
-        <div className="flex items-center gap-3">
-          <Link to="/flow" className="grid size-9 place-items-center rounded-xl bg-signal text-ink">
-            <Hexagon className="size-5" />
-          </Link>
-          <div>
-            <p className="flex items-center gap-2 font-display text-xl font-semibold">
-              <Shield className="size-5 text-signal" />
-              Security Center
-            </p>
-            <p className="text-sm text-white/45">Server-enforced spend policy for Beacon on Coston2</p>
-          </div>
+    <div className="h-dvh max-h-dvh overflow-y-auto bg-[var(--p-bg)] text-[var(--p-fg)]">
+      <header className="mx-auto flex max-w-3xl items-center justify-between gap-3 border-b border-[var(--p-border)] px-5 py-4">
+        <div>
+          <p className="flex items-center gap-2 font-display text-xl font-semibold">
+            <Shield className="size-5 text-signal" />
+            Security Center
+          </p>
+          <p className="text-sm text-[var(--p-muted)]">Server-enforced spend policy for Beacon on Coston2</p>
         </div>
         <div className="flex items-center gap-2">
-          <Link to="/flow" className="inline-flex items-center gap-1 text-sm text-white/55 hover:text-white">
+          <Link to="/flow" className="inline-flex items-center gap-1 text-sm text-[var(--p-muted)] hover:text-[var(--p-fg)]">
             <ArrowLeft className="size-3.5" /> Flow
           </Link>
           {wallet ? (
-            <span className="rounded-full border border-white/15 px-3 py-1.5 font-mono text-xs">{shortAddress(wallet)}</span>
+            <span className="rounded-full border border-[var(--p-border)] px-3 py-1.5 font-mono text-xs">{shortAddress(wallet)}</span>
           ) : (
             <button type="button" onClick={() => void onConnect()} className="rounded-full bg-signal px-4 py-1.5 text-sm font-medium text-ink">
               Connect
@@ -122,10 +117,10 @@ export function SecurityPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-6 px-5 pb-16">
+      <main className="mx-auto max-w-3xl space-y-6 px-5 py-6 pb-16">
         {!wallet && (
-          <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-white/65">
-            Connect your wallet to load and save spend policies. Limits are server-enforced on Bound Work approve, agent micropays, and execution risk checks when Redis is configured. Flare FCC attestation is simulated — not on-chain enforcement yet.
+          <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-6 text-sm text-[var(--p-muted)]">
+            Connect your wallet to load and save spend policies. Limits are server-enforced on Bound Work approve, agent micropays, and execution risk checks when Redis is configured. Flare FCC attestation is simulated - not on-chain enforcement yet.
           </div>
         )}
 
@@ -134,33 +129,33 @@ export function SecurityPage() {
             <p className="font-mono text-[11px] uppercase tracking-widest text-signal">
               {policyQuery.data.receipt.title}
             </p>
-            <p className="mt-2 font-display text-2xl font-semibold text-white">
+            <p className="mt-2 font-display text-2xl font-semibold text-[var(--p-fg)]">
               Your agent gets a budget — not free rein
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-black/30 px-3 py-2">
-                <p className="font-mono text-[10px] text-white/40">Spent today</p>
+              <div className="rounded-xl bg-[var(--p-bg)] px-3 py-2">
+                <p className="font-mono text-[10px] text-[var(--p-muted)]">Spent today</p>
                 <p className="font-display text-xl">{policyQuery.data.receipt.spentTodayUsdt0} USDT0</p>
               </div>
-              <div className="rounded-xl bg-black/30 px-3 py-2">
-                <p className="font-mono text-[10px] text-white/40">Remaining</p>
+              <div className="rounded-xl bg-[var(--p-bg)] px-3 py-2">
+                <p className="font-mono text-[10px] text-[var(--p-muted)]">Remaining</p>
                 <p className="font-display text-xl text-signal">{policyQuery.data.receipt.remainingUsdt0} USDT0</p>
               </div>
-              <div className="rounded-xl bg-black/30 px-3 py-2">
-                <p className="font-mono text-[10px] text-white/40">Per job max</p>
+              <div className="rounded-xl bg-[var(--p-bg)] px-3 py-2">
+                <p className="font-mono text-[10px] text-[var(--p-muted)]">Per job max</p>
                 <p className="font-display text-xl">{policyQuery.data.receipt.perJobLimitUsdt0} USDT0</p>
               </div>
             </div>
-            <p className="mt-3 text-xs text-white/45">{policyQuery.data.receipt.note}</p>
-            <p className="mt-1 font-mono text-[10px] text-white/30">
+            <p className="mt-3 text-xs text-[var(--p-muted)]">{policyQuery.data.receipt.note}</p>
+            <p className="mt-1 font-mono text-[10px] text-[var(--p-muted)]">
               Server-enforced policy · Coston2 · x402 + Escrow · FCC simulated · pause anytime
             </p>
           </section>
         )}
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
           <h2 className="font-display text-lg font-semibold">Spend limits</h2>
-          <p className="mt-1 text-sm text-white/45">Your agent gets a budget — not free rein.</p>
+          <p className="mt-1 text-sm text-[var(--p-muted)]">Your agent gets a budget — not free rein.</p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Field
               label="Daily spend (USDT0)"
@@ -190,7 +185,7 @@ export function SecurityPage() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
           <h2 className="font-display text-lg font-semibold">Allowed agents</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {AGENT_OPTIONS.map((id) => {
@@ -202,7 +197,7 @@ export function SecurityPage() {
                   onClick={() => toggleAgent(id)}
                   className={cn(
                     "rounded-full border px-3 py-1.5 text-xs capitalize",
-                    on ? "border-signal/50 bg-signal/15 text-signal" : "border-white/15 text-white/45",
+                    on ? "border-signal/50 bg-signal/15 text-signal" : "border-white/15 text-[var(--p-muted)]",
                   )}
                 >
                   {id}
@@ -213,7 +208,7 @@ export function SecurityPage() {
           <p className="mt-3 font-mono text-[11px] text-white/35">Allowed chains: Coston2 (114) only</p>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-5">
           <h2 className="font-display text-lg font-semibold">Emergency</h2>
           <label className="mt-3 flex items-center gap-3 text-sm">
             <input
@@ -224,7 +219,7 @@ export function SecurityPage() {
             />
             Emergency pause — block new agent spends
           </label>
-          <p className="mt-3 text-xs text-white/40">
+          <p className="mt-3 text-xs text-[var(--p-muted)]">
             Revoke sets pause on and zeroes limits. Also revoke USDT0 allowance to the SparkDEX router in your wallet if you approved spending.
           </p>
         </section>
@@ -273,7 +268,7 @@ function Field({
         min={0}
         value={value}
         onChange={(e) => onChange(Number(e.target.value) || 0)}
-        className="mt-1 w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-white outline-none focus:border-signal/50"
+        className="mt-1 w-full rounded-xl border border-white/15 bg-[var(--p-bg)] px-3 py-2 text-white outline-none focus:border-signal/50"
       />
     </label>
   );

@@ -199,17 +199,15 @@ export function inferSettledServiceIds(
   messages: Array<{ role: string; cards?: AgentCard[] }>,
 ): Set<string> {
   const settled = new Set<string>();
-  for (let i = 0; i < messages.length; i++) {
-    const msg = messages[i];
+  for (const msg of messages) {
     if (msg.role !== "assistant" || !msg.cards) continue;
     for (const card of msg.cards) {
-      if (card.type !== "x402_quote") continue;
-      const serviceId = typeof card.serviceId === "string" ? card.serviceId : "";
-      if (!serviceId) continue;
-      const hasLaterResult = messages.slice(i + 1).some(
-        (m) => m.role === "assistant" && m.cards?.some((c) => c.type === "media_result"),
-      );
-      if (hasLaterResult) settled.add(serviceId);
+      // Only mark Paid when the delivered artifact names the exact service —
+      // never blanket-settle every catalog quote after any media_result.
+      if (card.type === "media_result") {
+        const serviceId = typeof card.serviceId === "string" ? card.serviceId : "";
+        if (serviceId) settled.add(serviceId);
+      }
     }
   }
   return settled;

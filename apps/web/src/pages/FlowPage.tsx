@@ -3,8 +3,6 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
 import {
-  Hexagon,
-  Briefcase,
   Send,
   Loader2,
   ExternalLink,
@@ -26,6 +24,7 @@ import {
 } from "@/lib/wallet";
 import { NETWORK } from "@/lib/chain";
 import { cn } from "@/lib/utils";
+import { formatNativeFeeDisplay, formatTokenAmount } from "@/lib/format";
 import { ExecutionDrawer } from "@/components/ExecutionDrawer";
 import {
   cardKey,
@@ -75,7 +74,16 @@ type PaidResendMeta = {
   brief?: string;
 };
 
+function formatAssistantText(text: string) {
+  // Cards carry structured data — keep chat copy calm (no raw markdown walls).
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function explorerTx(hash: string) {
+
   return `${NETWORK.explorer}/tx/${hash}`;
 }
 
@@ -278,43 +286,14 @@ export function FlowPage() {
   );
 
   return (
-    <div className="flex h-dvh max-h-dvh overflow-hidden bg-[#0a0c0b] text-[#f0f2ef]">
-      {/* Icon rail — fixed */}
-      <aside className="flex w-14 shrink-0 flex-col items-center gap-3 border-r border-white/10 py-4">
-        <Link to="/" className="grid size-9 place-items-center rounded-xl bg-signal text-ink" title="Beacon">
-          <Hexagon className="size-5" />
-        </Link>
-        <Link to="/flow" className="grid size-9 place-items-center rounded-xl bg-white/10 text-signal" title="Flow">
-          <Sparkles className="size-4" />
-        </Link>
-        <Link to="/app" className="grid size-9 place-items-center rounded-xl text-white/50 hover:bg-white/10" title="Desk">
-          <Briefcase className="size-4" />
-        </Link>
-        <Link
-          to="/flow/security"
-          className="grid size-9 place-items-center rounded-xl text-white/50 hover:bg-white/10"
-          title="Security"
-        >
-          <Shield className="size-4" />
-        </Link>
-        <a
-          href={NETWORK.explorer}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-auto grid size-9 place-items-center rounded-xl text-white/40 hover:bg-white/10"
-          title="Explorer"
-        >
-          <ExternalLink className="size-4" />
-        </a>
-      </aside>
-
-      {/* Conversations sidebar — ChatGPT-style */}
-      <aside className="hidden w-72 shrink-0 flex-col border-r border-white/10 bg-[#101412] md:flex">
-        <div className="shrink-0 space-y-3 border-b border-white/10 px-3 py-3">
+    <div className="flex h-full max-h-dvh overflow-hidden bg-[var(--p-bg)] text-[var(--p-fg)]">
+      {/* Conversations sidebar */}
+      <aside className="hidden w-72 shrink-0 flex-col border-r border-[var(--p-border)] bg-[var(--p-surface)] md:flex">
+        <div className="shrink-0 space-y-3 border-b border-[var(--p-border)] px-3 py-3">
           <div className="flex items-center justify-between px-1">
             <div>
               <p className="font-display text-lg font-semibold tracking-tight">beacon</p>
-              <p className="font-mono text-[10px] uppercase tracking-widest text-white/40">AI OS · Coston2</p>
+              <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--p-muted)]">AI OS · Coston2</p>
             </div>
             <span className="rounded-full bg-signal/20 px-2 py-0.5 font-mono text-[10px] text-signal">LIVE</span>
           </div>
@@ -325,45 +304,45 @@ export function FlowPage() {
           >
             New chat
           </button>
-          <nav className="flex gap-1 rounded-lg border border-white/10 bg-black/20 p-1">
+          <nav className="flex gap-1 rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] p-1">
             <Link
               to="/flow"
-              className="flex-1 rounded-md bg-white/10 px-2 py-1.5 text-center text-[11px] font-medium text-signal"
+              className="flex-1 rounded-md bg-signal/15 px-2 py-1.5 text-center text-[11px] font-medium text-signal"
             >
               Flow
             </Link>
             <Link
-              to="/app"
-              className="flex-1 rounded-md px-2 py-1.5 text-center text-[11px] text-white/50 hover:bg-white/5 hover:text-white/80"
+              to="/flow/desk"
+              className="flex-1 rounded-md px-2 py-1.5 text-center text-[11px] text-[var(--p-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-fg)]"
             >
               Bound Work
             </Link>
             <Link
               to="/flow/security"
-              className="flex-1 rounded-md px-2 py-1.5 text-center text-[11px] text-white/50 hover:bg-white/5 hover:text-white/80"
+              className="flex-1 rounded-md px-2 py-1.5 text-center text-[11px] text-[var(--p-muted)] hover:bg-[var(--p-hover)] hover:text-[var(--p-fg)]"
             >
               Security
             </Link>
           </nav>
           <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-white/35" />
+            <Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-[var(--p-muted)]" />
             <input
               value={convSearch}
               onChange={(e) => setConvSearch(e.target.value)}
               placeholder="Search chats…"
-              className="w-full rounded-lg border border-white/10 bg-black/20 py-2 pl-8 pr-2 text-xs text-white outline-none placeholder:text-white/30 focus:border-signal/40"
+              className="w-full rounded-lg border border-[var(--p-border)] bg-[var(--p-bg)] py-2 pl-8 pr-2 text-xs text-white outline-none placeholder:text-[var(--p-muted)] focus:border-signal/40"
             />
           </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
           {!wallet && (
-            <p className="px-2 py-4 text-xs leading-relaxed text-white/40">
+            <p className="px-2 py-4 text-xs leading-relaxed text-[var(--p-muted)]">
               Connect your wallet — chats, swaps, payments, and receipts persist by address across refresh and devices.
             </p>
           )}
           {wallet && conversations.length === 0 && !conversationsQuery.isLoading && (
-            <p className="px-2 py-4 text-xs text-white/40">No conversations yet. Send a message to start.</p>
+            <p className="px-2 py-4 text-xs text-[var(--p-muted)]">No conversations yet. Send a message to start.</p>
           )}
           <div className="space-y-0.5">
             {conversations.map((c) => {
@@ -407,7 +386,7 @@ export function FlowPage() {
                           {c.pinned && <span className="text-[10px] text-signal">Pinned</span>}
                           <span className="truncate font-medium">{c.title}</span>
                         </span>
-                        <span className="mt-0.5 block truncate font-mono text-[10px] text-white/35">
+                        <span className="mt-0.5 block truncate font-mono text-[10px] text-[var(--p-muted)]">
                           {new Date(c.updated_at).toLocaleString()} · {c.agent_id}
                         </span>
                       </>
@@ -418,7 +397,7 @@ export function FlowPage() {
                       <button
                         type="button"
                         title="Rename"
-                        className="rounded p-1 text-white/40 hover:bg-white/10 hover:text-white"
+                        className="rounded p-1 text-[var(--p-muted)] hover:bg-white/10 hover:text-white"
                         onClick={() => {
                           setRenamingId(c.id);
                           setRenameValue(c.title);
@@ -429,7 +408,7 @@ export function FlowPage() {
                       <button
                         type="button"
                         title={c.pinned ? "Unpin" : "Pin"}
-                        className="rounded p-1 text-white/40 hover:bg-white/10 hover:text-signal"
+                        className="rounded p-1 text-[var(--p-muted)] hover:bg-white/10 hover:text-signal"
                         onClick={() =>
                           void api.patchFlowConversation(c.id, { wallet, pinned: !c.pinned }).then(() =>
                             qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] }),
@@ -441,7 +420,7 @@ export function FlowPage() {
                       <button
                         type="button"
                         title="Archive"
-                        className="rounded p-1 text-white/40 hover:bg-white/10 hover:text-red-300"
+                        className="rounded p-1 text-[var(--p-muted)] hover:bg-white/10 hover:text-red-300"
                         onClick={() =>
                           void api.patchFlowConversation(c.id, { wallet, archive: true }).then(() => {
                             if (conversationId === c.id) void startNewChat();
@@ -459,11 +438,11 @@ export function FlowPage() {
           </div>
 
           {recentActivity.length > 0 && (
-            <div className="mt-4 border-t border-white/10 px-1 pt-3">
-              <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-white/35">Recent activity</p>
+            <div className="mt-4 border-t border-[var(--p-border)] px-1 pt-3">
+              <p className="mb-2 font-mono text-[10px] uppercase tracking-widest text-[var(--p-muted)]">Recent activity</p>
               <ul className="space-y-1.5">
                 {recentActivity.map((a) => (
-                  <li key={a.id} className="truncate text-[11px] text-white/45">
+                  <li key={a.id} className="truncate text-[11px] text-[var(--p-muted)]">
                     <span className="text-signal">{a.kind}</span> · {a.title}
                   </li>
                 ))}
@@ -472,8 +451,8 @@ export function FlowPage() {
           )}
         </div>
 
-        <div className="shrink-0 border-t border-white/10 px-3 py-3">
-          <p className="font-mono text-[10px] uppercase tracking-widest text-white/35">Agents (shortcut)</p>
+        <div className="shrink-0 border-t border-[var(--p-border)] px-3 py-3">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-[var(--p-muted)]">Agents (shortcut)</p>
           <div className="mt-2 flex max-h-28 flex-wrap gap-1 overflow-y-auto">
             {agents.map((a) => (
               <button
@@ -487,7 +466,7 @@ export function FlowPage() {
                   "rounded-full border px-2 py-0.5 text-[10px]",
                   a.id === agentId
                     ? "border-signal/50 bg-signal/15 text-signal"
-                    : "border-white/10 text-white/50 hover:border-white/25",
+                    : "border-[var(--p-border)] text-[var(--p-muted)] hover:border-white/25",
                 )}
               >
                 {a.name}
@@ -500,51 +479,51 @@ export function FlowPage() {
       <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:flex-row">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Fixed header */}
-        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-[var(--p-border)] px-5 py-3">
           <div className="min-w-0">
             <h1 className="font-display text-xl font-semibold">{active.name}</h1>
-            <p className="mt-0.5 max-w-xl truncate text-sm text-white/50">
+            <p className="mt-0.5 max-w-xl truncate text-sm text-[var(--p-muted)]">
               {(active as { blurb?: string }).blurb || "Intent → Quote → Pay → Execute → Receipt"}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <span className="hidden rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-white/45 sm:inline">
+            <span className="hidden rounded-full border border-[var(--p-border)] bg-[var(--p-card)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-[var(--p-muted)] sm:inline">
               Coston2
             </span>
             {wallet && bal && (
-              <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-[10px] text-white/65 lg:flex">
+              <div className="hidden items-center gap-2 rounded-full border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-1.5 font-mono text-[10px] text-[var(--p-muted)] lg:flex">
                 <span title="SparkDEX / faucet USDT0">
-                  <span className="text-white/35">USDT0</span> {bal.usdt0.formatted}
+                  <span className="text-[var(--p-muted)]">USDT0</span> {bal.usdt0.formatted}
                 </span>
                 {bal.mockUsdt0 && (
                   <>
-                    <span className="text-white/20">·</span>
+                    <span className="text-[var(--p-muted)]">·</span>
                     <span title="Beacon x402 / desk token">
-                      <span className="text-white/35">Mock</span> {bal.mockUsdt0.formatted}
+                      <span className="text-[var(--p-muted)]">Mock</span> {bal.mockUsdt0.formatted}
                     </span>
                   </>
                 )}
-                <span className="text-white/20">·</span>
+                <span className="text-[var(--p-muted)]">·</span>
                 <span>
-                  <span className="text-white/35">FXRP</span> {bal.fxrp.formatted}
+                  <span className="text-[var(--p-muted)]">FXRP</span> {bal.fxrp.formatted}
                 </span>
               </div>
             )}
             <button
               type="button"
               onClick={() => void startNewChat()}
-              className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/60 hover:border-signal/40 md:hidden"
+              className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40 md:hidden"
             >
               New
             </button>
             <Link
               to="/flow/security"
-              className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/60 hover:border-signal/40 hover:text-signal"
+              className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40 hover:text-signal"
             >
               Security
             </Link>
             {wallet ? (
-              <span className="rounded-full border border-white/15 px-3 py-1.5 font-mono text-xs text-white/70">
+              <span className="rounded-full border border-[var(--p-border)] px-3 py-1.5 font-mono text-xs text-[var(--p-muted)]">
                 {shortAddress(wallet)}
               </span>
             ) : (
@@ -570,24 +549,26 @@ export function FlowPage() {
                 className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
               >
                 {msg.role === "user" ? (
-                  <div className="max-w-[85%] rounded-2xl bg-[#1e4d3a] px-4 py-2.5 text-sm text-white">
+                  <div className="max-w-[85%] rounded-2xl bg-[var(--p-user-bubble)] px-4 py-2.5 text-sm text-[var(--p-fg)]">
                     {msg.text}
                   </div>
                 ) : msg.role === "system" ? (
-                  <div className="max-w-[90%] rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm leading-relaxed text-white/70">
+                  <div className="max-w-[90%] rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] px-4 py-3 text-sm leading-relaxed text-[var(--p-muted)]">
                     {msg.text}
                   </div>
                 ) : (
                   <div className="max-w-[90%] space-y-3">
                     <div className="flex items-center gap-2">
-                      <span className="font-display text-sm font-semibold tracking-tight text-white">Beacon</span>
+                      <span className="font-display text-sm font-semibold tracking-tight text-[var(--p-fg)]">Beacon</span>
                       {msg.displayModel && (
-                        <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 font-mono text-[10px] text-white/45">
+                        <span className="rounded-full border border-[var(--p-border)] bg-[var(--p-card)] px-2 py-0.5 font-mono text-[10px] text-[var(--p-muted)]">
                           Powered by {msg.displayModel}
                         </span>
                       )}
                     </div>
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-white/90">{msg.text}</div>
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--p-fg)]">
+                      {formatAssistantText(msg.text)}
+                    </div>
                     {msg.cards?.map((card, i) => (
                       <ActionCard
                         key={`${msg.id}-${i}`}
@@ -658,7 +639,7 @@ export function FlowPage() {
             ))}
           </AnimatePresence>
           {chat.isPending && (
-            <div className="flex items-center gap-2 text-sm text-white/50">
+            <div className="flex items-center gap-2 text-sm text-[var(--p-muted)]">
               <Loader2 className="size-4 animate-spin text-signal" />
               <span className="font-display">Thinking…</span>
             </div>
@@ -666,7 +647,7 @@ export function FlowPage() {
         </div>
 
         {/* Fixed composer */}
-        <div className="shrink-0 border-t border-white/10 bg-[#0a0c0b] px-5 py-3">
+        <div className="shrink-0 border-t border-[var(--p-border)] bg-[#0a0c0b] px-5 py-3">
           <div className="mb-2 flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -677,7 +658,7 @@ export function FlowPage() {
             <button
               type="button"
               onClick={() => setShowAllAgents((v) => !v)}
-              className="inline-flex items-center gap-1 rounded-full border border-white/15 px-3 py-1 text-xs text-white/60 hover:border-white/30"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--p-border)] px-3 py-1 text-xs text-[var(--p-muted)] hover:border-white/30"
             >
               All agents
               <ChevronDown className={cn("size-3 transition", showAllAgents && "rotate-180")} />
@@ -703,7 +684,7 @@ export function FlowPage() {
                         "rounded-full border px-2.5 py-0.5 text-[11px]",
                         a.id === agentId
                           ? "border-signal/50 bg-signal/15 text-signal"
-                          : "border-white/15 text-white/55 hover:border-white/30",
+                          : "border-[var(--p-border)] text-[var(--p-muted)] hover:border-signal/30",
                       )}
                     >
                       {a.name}
@@ -713,7 +694,7 @@ export function FlowPage() {
               )}
             </AnimatePresence>
           </div>
-          <div className="flex items-end gap-2 rounded-2xl border border-white/15 bg-white/[0.04] px-3 py-2">
+          <div className="flex items-end gap-2 rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -725,7 +706,7 @@ export function FlowPage() {
               }}
               rows={2}
               placeholder="Message Beacon… (intent auto-detects — or use @swap @bridge @image)"
-              className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/35"
+              className="max-h-32 min-h-[44px] flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-[var(--p-muted)]"
             />
             <button
               type="button"
@@ -736,7 +717,7 @@ export function FlowPage() {
               <Send className="size-4" />
             </button>
           </div>
-          <p className="mt-2 text-center text-[11px] text-white/30">
+          <p className="mt-2 text-center text-[11px] text-[var(--p-muted)]">
             Flare Coston2 · FTSO · SparkDEX · LayerZero OFT · x402 · EIP-3009 · verify every tx on explorer
           </p>
         </div>
@@ -817,31 +798,31 @@ function ActionCard({
     return (
       <div className="overflow-hidden rounded-2xl border border-signal/25 bg-gradient-to-br from-[#12231a] to-[#0a0c0b] p-4">
         <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
-        <p className="mt-2 text-sm text-white/80">{String(card.summary)}</p>
+        <p className="mt-2 text-sm text-[var(--p-fg)]/90">{String(card.summary)}</p>
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {feeds.map((f) => (
-            <div key={f.symbol} className="rounded-xl bg-black/30 px-3 py-2">
-              <p className="font-mono text-[10px] text-white/45">{f.symbol}</p>
-              <p className="font-display text-lg text-white">{f.value.toPrecision(5)}</p>
+            <div key={f.symbol} className="rounded-xl bg-[var(--p-bg)] px-3 py-2">
+              <p className="font-mono text-[10px] text-[var(--p-muted)]">{f.symbol}</p>
+              <p className="font-display text-lg text-[var(--p-fg)]">{f.value.toPrecision(5)}</p>
             </div>
           ))}
         </div>
-        <p className="mt-3 font-mono text-[10px] text-white/40">bias · {String(card.bias)}</p>
+        <p className="mt-3 font-mono text-[10px] text-[var(--p-muted)]">bias · {String(card.bias)}</p>
       </div>
     );
   }
 
   if (card.type === "swap_clarify") {
     return (
-      <div className="rounded-2xl border border-white/12 bg-white/[0.04] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-white/45">{card.title}</p>
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-muted)]">{card.title}</p>
         <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
           <div className="rounded-xl bg-black/25 px-3 py-2">
-            <p className="font-mono text-[10px] text-white/40">USDT0</p>
+            <p className="font-mono text-[10px] text-[var(--p-muted)]">USDT0</p>
             <p className="font-display text-lg">{String(card.usdt0Balance ?? "—")}</p>
           </div>
           <div className="rounded-xl bg-black/25 px-3 py-2">
-            <p className="font-mono text-[10px] text-white/40">FXRP</p>
+            <p className="font-mono text-[10px] text-[var(--p-muted)]">FXRP</p>
             <p className="font-display text-lg">{String(card.fxrpBalance ?? "—")}</p>
           </div>
         </dl>
@@ -851,7 +832,7 @@ function ActionCard({
               key={a}
               type="button"
               onClick={() => onQuickReply(a === "all" ? "swap all" : `swap ${a}`)}
-              className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/70 hover:border-signal/40"
+              className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40"
             >
               {a === "all" ? "Swap all" : `${a} USDT0`}
             </button>
@@ -860,7 +841,7 @@ function ActionCard({
             href={String(card.faucetHref)}
             target="_blank"
             rel="noreferrer"
-            className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/50"
+            className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)]"
           >
             Faucet
           </a>
@@ -875,18 +856,18 @@ function ActionCard({
         <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
         <div className="mt-3 flex flex-wrap items-end gap-6">
           <div>
-            <p className="font-mono text-[10px] text-white/40">You pay</p>
-            <p className="font-display text-2xl text-white">{String(card.amountInDisplay)} USDT0</p>
+            <p className="font-mono text-[10px] text-[var(--p-muted)]">You pay</p>
+            <p className="font-display text-2xl text-[var(--p-fg)]">{String(card.amountInDisplay)} USDT0</p>
           </div>
           <div>
-            <p className="font-mono text-[10px] text-white/40">Est. receive</p>
+            <p className="font-mono text-[10px] text-[var(--p-muted)]">Est. receive</p>
             <p className="font-display text-2xl text-signal">~{String(card.estimatedFxrp)} FXRP</p>
           </div>
         </div>
-        <p className="mt-2 text-xs text-white/45">
+        <p className="mt-2 text-xs text-[var(--p-muted)]">
           XRP/USD ~${Number(card.xrpUsd).toFixed(4)} · balance {String(card.usdt0Balance)} USDT0 · {String(card.network)}
         </p>
-        <p className="mt-1 text-xs text-white/35">{String(card.note)}</p>
+        <p className="mt-1 text-xs text-[var(--p-muted)]">{String(card.note)}</p>
         <button
           type="button"
           onClick={() => onQuickReply("confirm")}
@@ -900,14 +881,14 @@ function ActionCard({
 
   if (card.type === "swap_prepare") {
     return (
-      <div className="rounded-2xl border border-white/12 bg-white/[0.04] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-[#93c5fd]">{card.title}</p>
-        <p className="mt-2 text-sm text-white/75">
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
+        <p className="mt-2 text-sm text-[var(--p-fg)]/80">
           Swap <span className="text-white">{String(card.amountInDisplay)} USDT0</span>
           {" → "}
           <span className="text-signal">~{String(card.estimatedFxrp)} FXRP</span> on SparkDEX
         </p>
-        <p className="mt-1 text-xs text-white/40">{String(card.warning)}</p>
+        <p className="mt-1 text-xs text-[var(--p-muted)]">{String(card.warning)}</p>
 
         <div className="mt-4 space-y-2">
           <StatusRow
@@ -920,7 +901,7 @@ function ActionCard({
 
         <div className="mt-4 flex flex-wrap gap-2">
           {!wallet && (
-            <button type="button" onClick={onConnect} className="rounded-full bg-[#2563eb] px-4 py-2 text-sm text-white">
+            <button type="button" onClick={onConnect} className="rounded-full bg-signal px-4 py-2 text-sm text-[var(--p-fg)]">
               Connect wallet
             </button>
           )}
@@ -970,7 +951,7 @@ function ActionCard({
             href={NETWORK.faucet}
             target="_blank"
             rel="noreferrer"
-            className="rounded-full border border-white/20 px-4 py-2 text-sm text-white/70"
+            className="rounded-full border border-[var(--p-border)] px-4 py-2 text-sm text-[var(--p-muted)]"
           >
             Coston2 faucet
           </a>
@@ -989,60 +970,74 @@ function ActionCard({
   }
 
   if (card.type === "bridge_quote") {
+    const fee = formatNativeFeeDisplay(String(card.nativeFeeDisplay ?? ""));
+    const amount = formatTokenAmount(String(card.amountDisplay ?? ""), "FXRP");
     return (
-      <div className="rounded-2xl border border-[#c4b5fd]/30 bg-gradient-to-br from-[#1a1528] to-[#0a0c0b] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-[#c4b5fd]">{card.title}</p>
-        <div className="mt-3 flex flex-wrap items-end gap-6">
-          <div>
-            <p className="font-mono text-[10px] text-white/40">You bridge</p>
-            <p className="font-display text-2xl text-white">{String(card.amountDisplay)} FXRP</p>
+      <div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)]">
+        <div className="border-b border-[var(--p-border)] bg-signal/10 px-4 py-3">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-signal">Live quote · LayerZero</p>
+          <p className="mt-1 font-display text-lg font-semibold tracking-tight">{String(card.title)}</p>
+        </div>
+        <div className="grid gap-0 sm:grid-cols-3">
+          <div className="border-b border-[var(--p-border)] px-4 py-4 sm:border-b-0 sm:border-r">
+            <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--p-muted)]">Amount</p>
+            <p className="mt-1 font-display text-2xl font-semibold tabular-nums">{amount}</p>
           </div>
-          <div>
-            <p className="font-mono text-[10px] text-white/40">To</p>
-            <p className="font-display text-2xl text-[#c4b5fd]">{String(card.destination)}</p>
+          <div className="border-b border-[var(--p-border)] px-4 py-4 sm:border-b-0 sm:border-r">
+            <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--p-muted)]">Destination</p>
+            <p className="mt-1 font-display text-2xl font-semibold">{String(card.destination)}</p>
+            <p className="mt-0.5 font-mono text-[10px] text-[var(--p-muted)]">EID {String(card.dstEid)}</p>
           </div>
-          <div>
-            <p className="font-mono text-[10px] text-white/40">Messaging fee</p>
-            <p className="font-display text-2xl text-signal">{String(card.nativeFeeDisplay)}</p>
+          <div className="px-4 py-4">
+            <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--p-muted)]">Messaging fee</p>
+            <p className="mt-1 font-display text-2xl font-semibold tabular-nums text-signal">{fee}</p>
+            <p className="mt-0.5 font-mono text-[10px] text-[var(--p-muted)]">quoteSend · Coston2</p>
           </div>
         </div>
-        <p className="mt-2 text-xs text-white/45">
-          EID {String(card.dstEid)} · balance {String(card.fxrpBalance)} FXRP · {String(card.network)}
-        </p>
-        <p className="mt-1 text-xs text-white/35">{String(card.note)}</p>
-        <button
-          type="button"
-          onClick={() => onQuickReply("confirm")}
-          className="mt-4 rounded-full bg-[#c4b5fd] px-5 py-2 text-sm font-medium text-ink"
-        >
-          Confirm bridge
-        </button>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--p-border)] px-4 py-3">
+          <p className="text-xs text-[var(--p-muted)]">
+            Balance {formatTokenAmount(String(card.fxrpBalance ?? ""), "FXRP")} · {String(card.network)}
+          </p>
+          <button
+            type="button"
+            onClick={() => onQuickReply("confirm")}
+            className="rounded-full bg-signal px-5 py-2 text-sm font-medium text-ink transition active:scale-[0.98]"
+          >
+            Confirm bridge
+          </button>
+        </div>
       </div>
     );
   }
 
   if (card.type === "bridge_prepare") {
     const lzScanBase = String(card.layerZeroScanBase ?? "https://testnet.layerzeroscan.com/tx/");
+    const fee = formatNativeFeeDisplay(String(card.nativeFeeDisplay ?? ""));
     return (
-      <div className="rounded-2xl border border-white/12 bg-white/[0.04] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-[#c4b5fd]">{card.title}</p>
-        <p className="mt-2 text-sm text-white/75">
-          Bridge <span className="text-white">{String(card.amountDisplay)} FXRP</span>
-          {" → "}
-          <span className="text-[#c4b5fd]">{String(card.destination)}</span>
-          {" · fee "}
-          <span className="text-signal">{String(card.nativeFeeDisplay)}</span>
-        </p>
-        <p className="mt-1 text-xs text-white/40">{String(card.warning)}</p>
+      <div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)]">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--p-border)] px-4 py-3">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-signal">Confirm in wallet</p>
+            <p className="mt-1 font-display text-base font-semibold">
+              {formatTokenAmount(String(card.amountDisplay ?? ""), "FXRP")}
+              <span className="mx-2 text-[var(--p-muted)]">→</span>
+              {String(card.destination)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-signal/30 bg-signal/10 px-3 py-2 text-right">
+            <p className="font-mono text-[10px] text-[var(--p-muted)]">Fee</p>
+            <p className="font-display text-lg font-semibold tabular-nums text-signal">{fee}</p>
+          </div>
+        </div>
 
-        <div className="mt-4 space-y-2">
+        <div className="space-y-2 px-4 py-4">
           <StatusRow label="Approve FXRP" status={approveStatus} hash={approveHash} />
           <StatusRow label="OFT send" status={sendStatus} hash={sendHash} />
         </div>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 border-t border-[var(--p-border)] px-4 py-3">
           {!wallet && (
-            <button type="button" onClick={onConnect} className="rounded-full bg-[#2563eb] px-4 py-2 text-sm text-white">
+            <button type="button" onClick={onConnect} className="rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink">
               Connect wallet
             </button>
           )}
@@ -1084,27 +1079,36 @@ function ActionCard({
                   }
                 })();
               }}
-              className="rounded-full bg-[#c4b5fd] px-4 py-2 text-sm font-medium text-ink disabled:opacity-50"
+              className="rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink disabled:opacity-50"
             >
               {busy ? "Confirm in wallet…" : "Approve + Send"}
             </button>
           )}
         </div>
-        {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
+        {error && <p className="px-4 pb-3 text-xs text-red-400">{error}</p>}
         {sendStatus === "confirmed" && sendHash && (
-          <div className="mt-3 space-y-1 text-sm text-signal">
-            <p>
-              Source tx confirmed on Coston2.{" "}
-              <a href={explorerTx(sendHash)} target="_blank" rel="noreferrer" className="underline underline-offset-2">
-                View on explorer
+          <div className="space-y-2 border-t border-[var(--p-border)] bg-signal/5 px-4 py-3 text-sm">
+            <p className="font-medium text-signal">Source tx confirmed on Coston2</p>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={explorerTx(sendHash)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--p-border)] px-3 py-1 text-xs hover:border-signal/40"
+              >
+                Coston2 explorer <ExternalLink className="size-3" />
               </a>
-            </p>
-            <p className="text-xs text-white/50">
-              Cross-chain delivery is tracked separately on{" "}
-              <a href={`${lzScanBase}${sendHash}`} target="_blank" rel="noreferrer" className="text-[#c4b5fd] underline underline-offset-2">
-                LayerZero Scan
+              <a
+                href={`${lzScanBase}${sendHash}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 rounded-full border border-signal/40 bg-signal/10 px-3 py-1 text-xs text-signal"
+              >
+                LayerZero Scan <ExternalLink className="size-3" />
               </a>
-              — destination fill is not shown here until LayerZero confirms delivery.
+            </div>
+            <p className="text-xs text-[var(--p-muted)]">
+              When LayerZero shows Delivered, open the destination tx on Sepolia from Scan. Beacon never invents fills.
             </p>
           </div>
         )}
@@ -1117,9 +1121,9 @@ function ActionCard({
     const isVideo = card.kind === "video";
     const isImage = card.kind === "image" || card.type === "media_clarify";
     return (
-      <div className="rounded-2xl border border-white/12 bg-white/[0.04] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-white/45">{card.title}</p>
-        <ul className="mt-3 space-y-1.5 text-sm text-white/70">
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-muted)]">{card.title}</p>
+        <ul className="mt-3 space-y-1.5 text-sm text-[var(--p-muted)]">
           {prompts.map((p) => (
             <li key={p} className="flex gap-2">
               <span className="text-signal">·</span>
@@ -1134,7 +1138,7 @@ function ActionCard({
                 key={d}
                 type="button"
                 onClick={() => onQuickReply(`${d} sec, 9:16, cinematic`)}
-                className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/70 hover:border-signal/40"
+                className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40"
               >
                 {d}s
               </button>
@@ -1152,7 +1156,7 @@ function ActionCard({
                 key={c.label}
                 type="button"
                 onClick={() => onQuickReply(c.text)}
-                className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-white/70 hover:border-signal/40"
+                className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40"
               >
                 {c.label}
               </button>
@@ -1181,29 +1185,29 @@ function ActionCard({
     const docs = (card.docs as Array<{ label: string; href: string }>) ?? [];
     const unavailable = (card.unavailable as string[]) ?? [];
     return (
-      <div className="rounded-2xl border border-[#c4b5fd]/30 bg-gradient-to-br from-[#1a1528] to-[#0a0c0b] p-4">
+      <div className="rounded-2xl border border-signal/30 bg-gradient-to-br from-[#1a1528] to-[#0a0c0b] p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-mono text-[11px] uppercase tracking-widest text-[#c4b5fd]">{card.title}</p>
-          <span className="rounded-full bg-[#c4b5fd]/15 px-2 py-0.5 font-mono text-[10px] text-[#c4b5fd]">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
+          <span className="rounded-full bg-signal/15 px-2 py-0.5 font-mono text-[10px] text-signal">
             LayerZero OFT · FAssets
           </span>
         </div>
-        <p className="mt-2 text-xs text-white/50">Source · {String(card.source)}</p>
+        <p className="mt-2 text-xs text-[var(--p-muted)]">Source · {String(card.source)}</p>
         <div className="mt-3 space-y-2">
           {routes.map((r) => (
-            <div key={r.eid} className="rounded-xl bg-black/30 px-3 py-2 text-sm">
+            <div key={r.eid} className="rounded-xl bg-[var(--p-bg)] px-3 py-2 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-medium text-white">{r.chain}</span>
+                <span className="font-medium text-[var(--p-fg)]">{r.chain}</span>
                 <span className="font-mono text-[10px] text-signal">{r.status}</span>
               </div>
-              <p className="mt-1 font-mono text-[11px] text-white/45">
+              <p className="mt-1 font-mono text-[11px] text-[var(--p-muted)]">
                 {r.asset} · EID {r.eid} · ETA {r.eta}
               </p>
-              <p className="text-[11px] text-white/35">{r.fees}</p>
+              <p className="text-[11px] text-[var(--p-muted)]">{r.fees}</p>
               <button
                 type="button"
                 onClick={() => onQuickReply(`bridge FXRP to ${r.chain}`)}
-                className="mt-2 rounded-full border border-white/15 px-3 py-1 text-[11px] text-white/70 hover:border-signal/40"
+                className="mt-2 rounded-full border border-[var(--p-border)] px-3 py-1 text-[11px] text-[var(--p-muted)] hover:border-signal/40"
               >
                 Plan this route
               </button>
@@ -1213,7 +1217,7 @@ function ActionCard({
         {unavailable.length > 0 && (
           <p className="mt-3 text-xs text-amber-200/70">Unavailable: {unavailable.join(" · ")}</p>
         )}
-        <p className="mt-2 text-xs text-white/40">{String(card.honesty)}</p>
+        <p className="mt-2 text-xs text-[var(--p-muted)]">{String(card.honesty)}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {docs.map((l) => (
             <a
@@ -1221,7 +1225,7 @@ function ActionCard({
               href={l.href}
               target="_blank"
               rel="noreferrer"
-              className="rounded-full border border-white/20 px-3 py-1.5 text-xs text-white/70 hover:border-signal/40"
+              className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40"
             >
               {l.label}
             </a>
@@ -1234,9 +1238,9 @@ function ActionCard({
   if (card.type === "bridge_intent") {
     const links = (card.links as Array<{ label: string; href: string }>) ?? [];
     return (
-      <div className="rounded-2xl border border-white/12 bg-white/[0.04] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-[#c4b5fd]">{card.title}</p>
-        <p className="mt-2 text-sm text-white/80">{String(card.summary)}</p>
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
+        <p className="mt-2 text-sm text-[var(--p-fg)]/90">{String(card.summary)}</p>
         <p className="mt-2 text-xs text-amber-200/80">{String(card.honesty)}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {links.map((l) => (
@@ -1245,7 +1249,7 @@ function ActionCard({
               href={l.href}
               target="_blank"
               rel="noreferrer"
-              className="rounded-full border border-white/20 px-3 py-1.5 text-xs text-white/70 hover:border-signal/40"
+              className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40"
             >
               {l.label}
             </a>
@@ -1259,37 +1263,48 @@ function ActionCard({
     const serviceId = typeof card.serviceId === "string" ? card.serviceId : "";
     const isSettled = serviceId ? settledServiceIds.has(serviceId) : false;
     return (
-      <div className="rounded-2xl border border-signal/25 bg-gradient-to-br from-[#1a2430] to-[#0a0c0b] p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-mono text-[11px] uppercase tracking-widest text-white/45">{card.title}</p>
-          <span className="rounded-full bg-signal/15 px-2 py-0.5 font-mono text-[10px] text-signal">
-            {String(card.flarePrimitive ?? "x402")}
-          </span>
+      <div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--p-border)] px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-muted)]">{card.title}</p>
+            <span className="rounded-full bg-signal/15 px-2 py-0.5 font-mono text-[10px] text-signal">
+              {String(card.flarePrimitive ?? "x402")}
+            </span>
+          </div>
+          {isSettled ? (
+            <span className="rounded-full bg-signal/20 px-2.5 py-0.5 font-mono text-[10px] text-signal">Settled</span>
+          ) : (
+            <span className="rounded-full border border-[var(--p-border)] px-2.5 py-0.5 font-mono text-[10px] text-[var(--p-muted)]">
+              Unpaid
+            </span>
+          )}
         </div>
-        <p className="mt-3 font-display text-3xl font-semibold text-white">${String(card.priceUsdt0)}</p>
-        <dl className="mt-3 space-y-1.5 text-sm text-white/65">
+        <div className="px-4 py-4">
+        <p className="font-display text-3xl font-semibold tabular-nums text-[var(--p-fg)]">${String(card.priceUsdt0)}</p>
+        <dl className="mt-3 space-y-1.5 text-sm text-[var(--p-muted)]">
           <div>
-            <span className="text-white/40">Provider · </span>
+            <span className="text-[var(--p-muted)]">Provider · </span>
             {String(card.provider ?? "Beacon")}
           </div>
           <div>
-            <span className="text-white/40">Why · </span>
+            <span className="text-[var(--p-muted)]">Why · </span>
             {String(card.reason ?? "Paid resource")}
           </div>
           <div>
-            <span className="text-white/40">ETA · </span>~{String(card.etaSeconds ?? 30)}s
+            <span className="text-[var(--p-muted)]">ETA · </span>~{String(card.etaSeconds ?? 30)}s
           </div>
-          <div className="font-mono text-[11px] text-white/35">
+          <div className="font-mono text-[11px] text-[var(--p-muted)]">
             MockUSDT0 · EIP-3009 · chain {String(card.chainId)} · {String(card.resource)}
           </div>
         </dl>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <button type="button" onClick={onMint} className="rounded-full border border-white/20 px-4 py-2 text-sm text-white/80">
+        </div>
+        <div className="flex flex-wrap gap-2 border-t border-[var(--p-border)] px-4 py-3">
+          <button type="button" onClick={onMint} className="rounded-full border border-[var(--p-border)] px-4 py-2 text-sm text-[var(--p-muted)] hover:border-signal/40">
             Mint test USDT0
           </button>
           {isSettled ? (
             <span className="inline-flex items-center rounded-full bg-signal/15 px-5 py-2 text-sm font-medium text-signal">
-              Paid
+              Settled for this service
             </span>
           ) : (
           <button
@@ -1329,16 +1344,16 @@ function ActionCard({
           </button>
           )}
         </div>
-        {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
+        {error && <p className="px-4 pb-3 text-xs text-red-400">{error}</p>}
       </div>
     );
   }
 
   if (card.type === "media_result") {
     return (
-      <div className="rounded-2xl border border-signal/25 bg-white/[0.04] p-4">
+      <div className="rounded-2xl border border-signal/25 bg-[var(--p-card)] p-4">
         <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
-        <p className="mt-2 text-sm text-white/75">{String(card.summary)}</p>
+        <p className="mt-2 text-sm text-[var(--p-fg)]/80">{String(card.summary)}</p>
         {typeof card.paymentTxHint === "string" && card.paymentTxHint && (
           <a
             href={explorerTx(card.paymentTxHint)}
@@ -1351,10 +1366,10 @@ function ActionCard({
           </a>
         )}
         {typeof card.content === "string" && card.content.startsWith("data:image") && (
-          <img src={card.content} alt="Beacon result" className="mt-3 max-h-72 rounded-xl border border-white/10" />
+          <img src={card.content} alt="Beacon result" className="mt-3 max-h-72 rounded-xl border border-[var(--p-border)]" />
         )}
         {typeof card.content === "string" && card.kind === "research" && (
-          <p className="mt-3 whitespace-pre-wrap text-sm text-white/80">{card.content}</p>
+          <p className="mt-3 whitespace-pre-wrap text-sm text-[var(--p-fg)]/90">{card.content}</p>
         )}
       </div>
     );
@@ -1362,9 +1377,9 @@ function ActionCard({
 
   if (card.type === "desk_link") {
     return (
-      <div className="rounded-2xl border border-white/12 p-4">
-        <p className="font-medium text-white">{card.title}</p>
-        <p className="mt-1 text-sm text-white/60">{String(card.summary)}</p>
+      <div className="rounded-2xl border border-[var(--p-border)] p-4">
+        <p className="font-medium text-[var(--p-fg)]">{card.title}</p>
+        <p className="mt-1 text-sm text-[var(--p-muted)]">{String(card.summary)}</p>
         <Link to={String(card.href)} className="mt-3 inline-flex rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink">
           Open desk
         </Link>
@@ -1378,7 +1393,7 @@ function ActionCard({
         <p className="font-medium text-amber-100">{card.title}</p>
         <p className="mt-1 text-sm text-amber-100/80">{String(card.summary)}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={onConnect} className="rounded-full bg-[#2563eb] px-4 py-2 text-sm text-white">
+          <button type="button" onClick={onConnect} className="rounded-full bg-signal px-4 py-2 text-sm text-[var(--p-fg)]">
             Connect
           </button>
           {typeof card.faucetHref === "string" && card.faucetHref ? (
@@ -1416,14 +1431,14 @@ function StatusRow({
     ) : status === "failed" ? (
       <span className="size-3.5 rounded-full bg-red-400" />
     ) : (
-      <span className="size-3.5 rounded-full border border-white/20" />
+      <span className="size-3.5 rounded-full border border-[var(--p-border)]" />
     );
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl bg-black/25 px-3 py-2 text-xs">
-      <span className="flex items-center gap-2 text-white/70">
+      <span className="flex items-center gap-2 text-[var(--p-muted)]">
         {icon}
         {label}
-        <span className="font-mono text-white/35">{status === "idle" ? "ready" : status}</span>
+        <span className="font-mono text-[var(--p-muted)]">{status === "idle" ? "ready" : status}</span>
       </span>
       {hash && (
         <a href={explorerTx(hash)} target="_blank" rel="noreferrer" className="font-mono text-signal hover:underline">

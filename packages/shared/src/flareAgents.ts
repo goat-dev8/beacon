@@ -210,6 +210,7 @@ export type AgentCard =
       content?: string;
       mimeType?: string;
       paymentTxHint?: string;
+      serviceId?: string;
     }
   | {
       type: "desk_link";
@@ -482,6 +483,7 @@ export async function fulfillPaidResource(opts: {
       summary: "FTSO deep pack settled on Coston2.",
       content: narr.text,
       paymentTxHint: txHint,
+      serviceId: res.id,
     });
     return {
       agentId: "signals",
@@ -507,6 +509,7 @@ export async function fulfillPaidResource(opts: {
         content: `data:${img.mimeType};base64,${b64}`,
         mimeType: img.mimeType,
         paymentTxHint: txHint,
+        serviceId: res.id,
       });
       return {
         agentId: "image",
@@ -523,7 +526,7 @@ export async function fulfillPaidResource(opts: {
       cards.push({
         type: "desk_link",
         title: "Generation busy — use Bound Work",
-        href: "/app",
+        href: "/flow/desk",
         summary: "Payment recorded. Open Bound Work to retry with escrow if instant media is saturated.",
       });
       return {
@@ -555,6 +558,7 @@ export async function fulfillPaidResource(opts: {
       summary: narr.text,
       content: narr.text,
       paymentTxHint: txHint,
+      serviceId: res.id,
     });
     return {
       agentId: "research",
@@ -943,8 +947,8 @@ export async function runBeaconAgentChat(opts: {
         const narr = await narrate({
           intent: "bridge",
           userMessage: opts.message,
-          situation: `Present bridge quote: ${amount} FXRP Coston2 → ${dest} (EID ${route.eid}). Messaging fee ${quotePreview.nativeFeeDisplay} from quoteSend. Balance ${fxrpBal.formatted} FXRP. Ask user to reply confirm to open wallet for approve + send.`,
-          fallback: `Quote: **${amount} FXRP** Coston2 → **${dest}**.\n\nLayerZero messaging fee (quoteSend): **${quotePreview.nativeFeeDisplay}**.\n\nReply **confirm** when you want approve + OFT send in your wallet.`,
+          situation: `Present bridge quote briefly. Amount ${amount} FXRP to ${dest}. Fee about ${quotePreview.nativeFeeDisplay}. Ask them to confirm — do not dump raw decimals or markdown walls.`,
+          fallback: `Ready to bridge ${amount} FXRP to ${dest}. Messaging fee ≈ ${quotePreview.nativeFeeDisplay}. Confirm to open Approve + Send.`,
           env,
         });
         return {
@@ -998,14 +1002,14 @@ export async function runBeaconAgentChat(opts: {
         sendData: prep.sendData,
         docs: prep.docs,
         warning:
-          `Coston2 FXRP → ${dest} via LayerZero OFT Adapter. You will approve FXRP (if needed) then send with ${prep.nativeFeeDisplay} messaging fee. Track cross-chain delivery on LayerZero Scan after the source tx confirms — we do not claim destination fill here.`,
+          `Bridge ${finalAmount} FXRP to ${dest}. Approve FXRP if needed, then OFT send. Fee ≈ ${prep.nativeFeeDisplay}. Destination fill tracked on LayerZero Scan after source confirms.`,
         layerZeroScanBase: prep.layerZeroScanBase,
       });
       const narr = await narrate({
         intent: "bridge",
         userMessage: opts.message,
-        situation: `User confirmed bridge of ${finalAmount} FXRP to ${dest}. Tell them to tap Approve + Send. Fee ${prep.nativeFeeDisplay}. Show Coston2 explorer after send confirms; LayerZero Scan for cross-chain tracking. Do not invent destination fill.`,
-        fallback: `Confirmed. Tap **Approve + Send** — messaging fee **${prep.nativeFeeDisplay}**. I’ll show the Coston2 explorer link when the send confirms; track cross-chain delivery on LayerZero Scan separately.`,
+        situation: `User confirmed bridge of ${finalAmount} FXRP to ${dest}. Short confirm — point to Approve + Send card. Fee ${prep.nativeFeeDisplay}. Do not dump raw decimals.`,
+        fallback: `Confirmed. Use Approve + Send below — fee ≈ ${prep.nativeFeeDisplay}. Explorer and LayerZero Scan appear after the source tx confirms.`,
         env,
       });
       return {
@@ -1086,7 +1090,7 @@ export async function runBeaconAgentChat(opts: {
             "Transparent background?",
             "Any reference?",
           ],
-          deskHref: "/app",
+          deskHref: "/flow/desk",
         });
         const narr = await narrate({
           intent: "image",
@@ -1168,7 +1172,7 @@ export async function runBeaconAgentChat(opts: {
             "PDF or slides?",
             "Competitor focus?",
           ],
-          deskHref: "/app",
+          deskHref: "/flow/desk",
         });
         const narr = await narrate({
           intent: "research",
@@ -1242,7 +1246,7 @@ export async function runBeaconAgentChat(opts: {
       title: intent === "video" ? "Video Bound Offer" : intent === "image" ? "Creative pack → Bound Work" : "Research → Bound Work",
       kind: intent,
       prompts,
-      deskHref: "/app",
+      deskHref: "/flow/desk",
     });
     const narr = await narrate({
       intent,
@@ -1334,7 +1338,7 @@ export async function runBeaconAgentChat(opts: {
     cards.push({
       type: "desk_link",
       title: "Bound Work desk",
-      href: "/app",
+      href: "/flow/desk",
       summary: "Creative jobs with BeaconEscrow — pay only when quality passes.",
     });
     const narr = await narrate({

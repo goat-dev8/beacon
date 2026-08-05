@@ -51,6 +51,46 @@
   button {
     font: inherit;
   }
+
+  /* Product OS shell tokens — brand-aligned with landing (signal emerald) */
+  .product-shell {
+    --p-accent: #39e08a;
+    --p-accent-soft: color-mix(in oklab, #39e08a 18%, transparent);
+    --p-on-accent: #0a0c0b;
+    color-scheme: dark;
+  }
+
+  .product-shell[data-theme="dark"] {
+    --p-bg: #0c0e0d;
+    --p-rail: #0a0c0b;
+    --p-surface: #121614;
+    --p-surface-2: #181c1a;
+    --p-fg: #f0f2ef;
+    --p-muted: #8b928c;
+    --p-border: rgba(255, 255, 255, 0.1);
+    --p-hover: rgba(255, 255, 255, 0.06);
+    --p-user-bubble: #1a3d2e;
+    --p-card: rgba(255, 255, 255, 0.03);
+    background: var(--p-bg);
+    color: var(--p-fg);
+  }
+
+  .product-shell[data-theme="light"] {
+    --p-bg: #f4f3f1;
+    --p-rail: #ebe9e6;
+    --p-surface: #ffffff;
+    --p-surface-2: #f8f7f5;
+    --p-fg: #2a2735;
+    --p-muted: #6b6778;
+    --p-border: rgba(42, 39, 53, 0.12);
+    --p-hover: rgba(42, 39, 53, 0.05);
+    --p-user-bubble: #d8f5e6;
+    --p-card: #ffffff;
+    --p-on-accent: #0a0c0b;
+    color-scheme: light;
+    background: var(--p-bg);
+    color: var(--p-fg);
+  }
 }
 
 @keyframes beacon-glow {

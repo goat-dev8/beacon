@@ -2,9 +2,13 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LandingPage } from "@/pages/LandingPage";
+import { ProductShell } from "@/components/ProductShell";
 
 const AppPage = lazy(() =>
   import("@/pages/AppPage").then((m) => ({ default: m.AppPage })),
+);
+const DeskPage = lazy(() =>
+  import("@/pages/DeskPage").then((m) => ({ default: m.DeskPage })),
 );
 const FlowPage = lazy(() =>
   import("@/pages/FlowPage").then((m) => ({ default: m.FlowPage })),
@@ -25,8 +29,8 @@ const queryClient = new QueryClient({
 
 function RouteFallback() {
   return (
-    <div className="grid min-h-dvh place-items-center text-sm text-ink-muted">
-      Loading desk…
+    <div className="grid min-h-dvh place-items-center bg-[var(--p-bg,#0a0c0b)] text-sm text-[var(--p-muted,#9a96a8)]">
+      Loading Beacon…
     </div>
   );
 }
@@ -37,27 +41,47 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route
-            path="/app"
-            element={
-              <Suspense fallback={<RouteFallback />}>
-                <AppPage />
-              </Suspense>
-            }
-          />
+          {/* Legacy desk URL → stay inside product shell */}
+          <Route path="/app" element={<Navigate to="/flow/desk" replace />} />
           <Route
             path="/flow"
             element={
               <Suspense fallback={<RouteFallback />}>
-                <FlowPage />
+                <ProductShell />
               </Suspense>
             }
-          />
+          >
+            <Route
+              index
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <FlowPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="desk"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <DeskPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="security"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <SecurityPage />
+                </Suspense>
+              }
+            />
+          </Route>
+          {/* Keep bare AppPage available only via redirect */}
           <Route
-            path="/flow/security"
+            path="/desk-legacy"
             element={
               <Suspense fallback={<RouteFallback />}>
-                <SecurityPage />
+                <AppPage />
               </Suspense>
             }
           />

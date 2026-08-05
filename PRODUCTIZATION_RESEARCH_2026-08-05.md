@@ -75,3 +75,14 @@ Exact commit cutoff is established from `git log` at submission time.
 - Machine-native paid APIs with receipts (x402).  
 - One-signature XRPL → Flare asset journeys when Smart Accounts are fully proven.  
 - Useful Flare primitives: FXRP, FAssets, SparkDEX, FTSO, LayerZero — not protocol tourism.
+
+## UX productization pass (same day)
+
+| Issue | Root cause | Fix |
+|---|---|---|
+| Bound Work leaves chat | Links to `/app` / standalone AppPage | `ProductShell` routes: `/flow`, `/flow/desk`, `/flow/security`; `/app` → `/flow/desk` |
+| All x402 items say Paid | `inferSettledServiceIds` marked every quote after any media_result | Only settle matching `media_result.serviceId`; UI Unpaid vs Settled |
+| Ugly bridge quote text | Raw 18dp fee + markdown narrate | `toFixed(4)` fee display + structured quote card + strip `**` in chat |
+| Dark-only product look | Hardcoded white/black | `--p-*` tokens + theme toggle (landing emerald `#39e08a`) |
+
+**Design read:** Flare AI OS product UI for hackathon judges - preserve Beacon brand (Anybody/DM Sans/Space Mono family already in app), emerald accent, dual theme - not a marketing landing redesign inside Flow.
