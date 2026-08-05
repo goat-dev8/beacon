@@ -4,7 +4,6 @@ import { chatForRole, extractJsonObject, isAiConfigured, loadEnv, newId } from "
 export type ServiceId =
   | "video"
   | "image"
-  | "voice"
   | "presentations"
   | "coding"
   | "research"
@@ -52,7 +51,6 @@ const MARGIN_RATE = 0.25;
 const BASE_COSTS: Record<ServiceId, number> = {
   video: 1200,
   image: 350,
-  voice: 450,
   presentations: 800,
   coding: 900,
   research: 1100,
@@ -84,9 +82,6 @@ export function estimateCost(input: QuoteInput): CostBreakdown {
       break;
     case "image":
       variableCents = (input.assetCount ?? 1) * 120;
-      break;
-    case "voice":
-      variableCents = Math.round(((input.wordCount ?? 150) / 150) * 200);
       break;
     case "presentations":
       variableCents = (input.slideCount ?? 10) * 35;
@@ -158,7 +153,6 @@ function slaForService(serviceId: ServiceId): number {
   const map: Record<ServiceId, number> = {
     video: 900,
     image: 300,
-    voice: 420,
     presentations: 600,
     coding: 720,
     research: 780,
@@ -171,7 +165,6 @@ function includesForService(serviceId: ServiceId): string[] {
   const map: Record<ServiceId, string[]> = {
     video: ["Planning", "Generation", "Captioned export", "Quality check"],
     image: ["Creative generation", "Brand-safe review", "Export pack"],
-    voice: ["Script polish", "Voice render", "Quality check"],
     presentations: ["Outline", "Slide design", "Speaker notes"],
     coding: ["Implementation", "Review summary", "Docs snippet"],
     research: ["Source sweep", "Structured brief", "Executive summary"],
@@ -272,7 +265,6 @@ async function aiCapabilityCheck(
 export const SERVICE_CATALOG: Array<{ id: ServiceId; name: string; description: string }> = [
   { id: "video", name: "Video", description: "Ads, social packs, captioned cuts" },
   { id: "image", name: "Image", description: "Creatives, thumbnails, product shots" },
-  { id: "voice", name: "Voice", description: "Narration and multilingual VO" },
   { id: "presentations", name: "Presentations", description: "Decks from brief and assets" },
   { id: "coding", name: "Coding", description: "UI variants, docs, review summaries" },
   { id: "research", name: "Research", description: "Competitor and market packs" },

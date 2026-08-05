@@ -20,6 +20,13 @@ const coston2 = {
   rpcUrls: { default: { http: [NETWORK.rpc] } },
 } as const;
 
+const flareMainnet = {
+  id: 14,
+  name: "Flare Mainnet",
+  nativeCurrency: { name: "FLR", symbol: "FLR", decimals: 18 },
+  rpcUrls: { default: { http: ["https://flare-api.flare.network/ext/C/rpc"] } },
+} as const;
+
 declare global {
   interface Window {
     ethereum?: {
@@ -30,28 +37,56 @@ declare global {
   }
 }
 
-const CHAIN_ID_HEX = `0x${NETWORK.chainId.toString(16)}` as Hex;
-
 export function hasEvmProvider(): boolean {
   return typeof window !== "undefined" && Boolean(window.ethereum);
 }
 
 export async function ensureCoston2Network(): Promise<void> {
+  await ensureChain({
+    chainId: NETWORK.chainId,
+    name: NETWORK.name,
+    rpc: NETWORK.rpc,
+    explorer: NETWORK.explorer,
+    nativeName: "C2FLR",
+    nativeSymbol: "C2FLR",
+  });
+}
+
+export async function ensureFlareMainnet(): Promise<void> {
+  await ensureChain({
+    chainId: 14,
+    name: "Flare Mainnet",
+    rpc: "https://flare-api.flare.network/ext/C/rpc",
+    explorer: "https://flarescan.com",
+    nativeName: "FLR",
+    nativeSymbol: "FLR",
+  });
+}
+
+async function ensureChain(params: {
+  chainId: number;
+  name: string;
+  rpc: string;
+  explorer: string;
+  nativeName: string;
+  nativeSymbol: string;
+}): Promise<void> {
   if (!window.ethereum) throw new Error("No EVM wallet found. Install MetaMask or Rabby.");
+  const targetHex = `0x${params.chainId.toString(16)}` as Hex;
   const chainIdHex = (await window.ethereum.request({ method: "eth_chainId" })) as Hex;
-  if (parseInt(chainIdHex, 16) === NETWORK.chainId) return;
+  if (parseInt(chainIdHex, 16) === params.chainId) return;
 
   try {
     await window.ethereum.request({
       method: "wallet_switchEthereumChain",
-      params: [{ chainId: CHAIN_ID_HEX }],
+      params: [{ chainId: targetHex }],
     });
     return;
   } catch (err) {
     const code =
       err && typeof err === "object" && "code" in err ? Number((err as { code: number }).code) : undefined;
     if (code !== 4902 && code !== -32603) {
-      throw new Error(`Switch your wallet to Flare Coston2 (chain ${NETWORK.chainId}).`);
+      throw new Error(`Switch your wallet to ${params.name} (chain ${params.chainId}).`);
     }
   }
 
@@ -59,17 +94,17 @@ export async function ensureCoston2Network(): Promise<void> {
     method: "wallet_addEthereumChain",
     params: [
       {
-        chainId: CHAIN_ID_HEX,
-        chainName: NETWORK.name,
-        nativeCurrency: { name: "C2FLR", symbol: "C2FLR", decimals: 18 },
-        rpcUrls: [NETWORK.rpc],
-        blockExplorerUrls: [NETWORK.explorer],
+        chainId: targetHex,
+        chainName: params.name,
+        nativeCurrency: { name: params.nativeName, symbol: params.nativeSymbol, decimals: 18 },
+        rpcUrls: [params.rpc],
+        blockExplorerUrls: [params.explorer],
       },
     ],
   });
   await window.ethereum.request({
     method: "wallet_switchEthereumChain",
-    params: [{ chainId: CHAIN_ID_HEX }],
+    params: [{ chainId: targetHex }],
   });
 }
 
@@ -127,17 +162,28 @@ export type OftBridgeExecutionStep =
   | { step: "approve"; status: "pending" | "confirmed" | "skipped"; hash?: Hex }
   | { step: "send"; status: "pending" | "confirmed" | "failed"; hash?: Hex; error?: string };
 
-/** Approve (if needed) + SparkDEX exactInputSingle; wait for receipts. */
+/** Approve (if needed) + SparkDEX exactInputSingle; wait for receipts. Default chain = Flare Mainnet. */
 export async function executeSparkDexSwap(params: {
   approveTo: Address;
   approveData: Hex;
   swapTo: Address;
   swapData: Hex;
+  chainId?: number;
   onStep?: (s: SwapExecutionStep) => void;
 }): Promise<{ approveHash?: Hex; swapHash: Hex }> {
-  await ensureCoston2Network();
+  const chainId = params.chainId ?? 14;
+  if (chainId === 14) await ensureFlareMainnet();
+  else await ensureCoston2Network();
+
+  const chain = chainId === 14 ? flareMainnet : coston2;
   const wallet = walletClient();
-  const pub = publicClient();
+  const pub =
+    chainId === 14
+      ? createPublicClient({
+          chain: flareMainnet,
+          transport: http("https://flare-api.flare.network/ext/C/rpc"),
+        })
+      : publicClient();
   const [account] = await wallet.getAddresses();
   if (!account) throw new Error("Connect a wallet first.");
 
@@ -148,16 +194,14 @@ export async function executeSparkDexSwap(params: {
       account,
       to: params.approveTo,
       data: params.approveData,
-      chain: coston2,
+      chain,
     });
     params.onStep?.({ step: "approve", status: "pending", hash: approveHash });
     await pub.waitForTransactionReceipt({ hash: approveHash });
     params.onStep?.({ step: "approve", status: "confirmed", hash: approveHash });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    // If user already has allowance, some wallets may reject a zero-change approve — continue to swap.
     if (!/user rejected|denied|reject/i.test(msg)) {
-      // still try swap; allowance may already exist
       params.onStep?.({ step: "approve", status: "skipped" });
     } else {
       throw e;
@@ -169,13 +213,13 @@ export async function executeSparkDexSwap(params: {
     account,
     to: params.swapTo,
     data: params.swapData,
-    chain: coston2,
+    chain,
   });
   params.onStep?.({ step: "swap", status: "pending", hash: swapHash });
   const receipt = await pub.waitForTransactionReceipt({ hash: swapHash });
   if (receipt.status === "reverted") {
     params.onStep?.({ step: "swap", status: "failed", hash: swapHash, error: "Swap reverted on-chain" });
-    throw new Error("Swap transaction reverted. Check USDT0 balance, allowance, and pool liquidity.");
+    throw new Error("Swap transaction reverted. Check token balance, allowance, and pool liquidity on Flare Mainnet.");
   }
   params.onStep?.({ step: "swap", status: "confirmed", hash: swapHash });
   return { approveHash, swapHash };

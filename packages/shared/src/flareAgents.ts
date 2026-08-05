@@ -2,7 +2,6 @@ import { chatCompletion, isAiConfigured } from "./ai.js";
 import { loadEnv, type BeaconEnv } from "./env.js";
 import {
   buildTradeSignal,
-  prepareUsdt0ToFxrpSwap,
   readErc20Balance,
   readFtsoFeeds,
   resolveFxrpAddress,
@@ -14,6 +13,10 @@ import {
   prepareFxrpOftBridge,
   resolveOftRouteByChain,
 } from "./oftBridge.js";
+import { discoverSparkDexPools, prepareSparkDexSwap } from "./sparkDex.js";
+import { readFassetsDesk } from "./fassetsStatus.js";
+import { buildMarketIntelligence } from "./marketIntel.js";
+import { readPortfolioDesk } from "./portfolioDesk.js";
 
 export { COSTON2_FXRP_OFT_ROUTES } from "./oftBridge.js";
 
@@ -26,8 +29,16 @@ export type BeaconAgentId =
   | "trade"
   | "desk"
   | "image"
-  | "video"
-  | "research";
+  | "research"
+  | "portfolio"
+  | "fassets"
+  | "intel"
+  | "yield"
+  | "risk"
+  | "liquidity"
+  | "treasury"
+  | "crosschain"
+  | "xrpfi";
 
 export interface AgentDef {
   id: BeaconAgentId;
@@ -36,19 +47,28 @@ export interface AgentDef {
   builtIn: boolean;
   x402PriceUsdt0: number;
   mention: string;
+  flarePrimitive: string;
 }
 
 export const BEACON_AGENTS: AgentDef[] = [
-  { id: "general", name: "General chat", blurb: "Flare-native co-pilot.", builtIn: true, x402PriceUsdt0: 0, mention: "@general" },
-  { id: "signals", name: "FTSO Signals", blurb: "Live oracle feeds + bias.", builtIn: true, x402PriceUsdt0: 0, mention: "@signals" },
-  { id: "swap", name: "Swap USDT0→FXRP", blurb: "SparkDEX on Coston2.", builtIn: true, x402PriceUsdt0: 0, mention: "@swap" },
-  { id: "bridge", name: "Bridge FXRP OFT", blurb: "LayerZero OFT on Coston2.", builtIn: true, x402PriceUsdt0: 0, mention: "@bridge" },
-  { id: "pay", name: "Pay x402", blurb: "EIP-3009 micropay.", builtIn: true, x402PriceUsdt0: 0, mention: "@pay" },
-  { id: "trade", name: "Trade desk", blurb: "Signals + swap.", builtIn: true, x402PriceUsdt0: 0, mention: "@trade" },
-  { id: "desk", name: "Bound Work desk", blurb: "Escrow creative jobs.", builtIn: true, x402PriceUsdt0: 0, mention: "@desk" },
-  { id: "image", name: "Image", blurb: "Creative generation.", builtIn: true, x402PriceUsdt0: 0, mention: "@image" },
-  { id: "video", name: "Video", blurb: "Motion packs.", builtIn: true, x402PriceUsdt0: 0, mention: "@video" },
-  { id: "research", name: "Research", blurb: "Scoped research packs.", builtIn: true, x402PriceUsdt0: 0, mention: "@research" },
+  { id: "general", name: "General", blurb: "Flare AI OS co-pilot.", builtIn: true, x402PriceUsdt0: 0, mention: "@general", flarePrimitive: "Flare" },
+  { id: "signals", name: "FTSO Signals", blurb: "Live oracle feeds + bias.", builtIn: true, x402PriceUsdt0: 0, mention: "@signals", flarePrimitive: "FTSO" },
+  { id: "intel", name: "Market Intel", blurb: "FTSO + liquidity reasoning.", builtIn: true, x402PriceUsdt0: 0, mention: "@intel", flarePrimitive: "FTSO + SparkDEX" },
+  { id: "portfolio", name: "Portfolio", blurb: "Balances valued with FTSO.", builtIn: true, x402PriceUsdt0: 0, mention: "@portfolio", flarePrimitive: "FTSO + FAssets" },
+  { id: "fassets", name: "FAssets", blurb: "FXRP status · mint/redeem guides.", builtIn: true, x402PriceUsdt0: 0, mention: "@fassets", flarePrimitive: "FAssets" },
+  { id: "swap", name: "Swap", blurb: "SparkDEX pairs (Flare Mainnet).", builtIn: true, x402PriceUsdt0: 0, mention: "@swap", flarePrimitive: "SparkDEX" },
+  { id: "liquidity", name: "Liquidity", blurb: "Discovered SparkDEX pools.", builtIn: true, x402PriceUsdt0: 0, mention: "@liquidity", flarePrimitive: "SparkDEX" },
+  { id: "bridge", name: "Bridge", blurb: "LayerZero FXRP OFT peers.", builtIn: true, x402PriceUsdt0: 0, mention: "@bridge", flarePrimitive: "LayerZero + FAssets" },
+  { id: "crosschain", name: "Cross-chain", blurb: "OFT routes + honesty.", builtIn: true, x402PriceUsdt0: 0, mention: "@crosschain", flarePrimitive: "LayerZero" },
+  { id: "xrpfi", name: "XRPFi", blurb: "FXRP rails: swap · bridge · FAssets.", builtIn: true, x402PriceUsdt0: 0, mention: "@xrpfi", flarePrimitive: "FAssets + SparkDEX + LZ" },
+  { id: "yield", name: "Yield", blurb: "Real opportunities only.", builtIn: true, x402PriceUsdt0: 0, mention: "@yield", flarePrimitive: "FAssets" },
+  { id: "risk", name: "Risk", blurb: "FTSO bias + policy posture.", builtIn: true, x402PriceUsdt0: 0, mention: "@risk", flarePrimitive: "FTSO" },
+  { id: "treasury", name: "Treasury", blurb: "Desk balances + spend rails.", builtIn: true, x402PriceUsdt0: 0, mention: "@treasury", flarePrimitive: "x402 + FTSO" },
+  { id: "pay", name: "Pay x402", blurb: "EIP-3009 micropay.", builtIn: true, x402PriceUsdt0: 0, mention: "@pay", flarePrimitive: "x402" },
+  { id: "trade", name: "Trade", blurb: "Signals → swap.", builtIn: true, x402PriceUsdt0: 0, mention: "@trade", flarePrimitive: "FTSO + SparkDEX" },
+  { id: "desk", name: "Bound Work", blurb: "Escrow creative jobs.", builtIn: true, x402PriceUsdt0: 0, mention: "@desk", flarePrimitive: "x402 escrow" },
+  { id: "image", name: "Image", blurb: "Creative generation.", builtIn: true, x402PriceUsdt0: 0, mention: "@image", flarePrimitive: "x402" },
+  { id: "research", name: "Research", blurb: "Scoped research packs.", builtIn: true, x402PriceUsdt0: 0, mention: "@research", flarePrimitive: "x402" },
 ];
 
 export type ConversationPhase =
@@ -65,11 +85,13 @@ export interface ConversationState {
   bridgeFrom?: string;
   bridgeTo?: string;
   imageStyle?: string;
-  videoDuration?: string;
   researchScope?: string;
   serviceId?: string;
   creativeBrief?: string;
   quotePrice?: string;
+  swapTokenIn?: string;
+  swapTokenOut?: string;
+  swapFee?: number;
 }
 
 export type AgentCard =
@@ -95,11 +117,18 @@ export type AgentCard =
       title: string;
       amountInDisplay: string;
       estimatedFxrp: string;
+      estimatedOut?: string;
+      symbolIn?: string;
+      symbolOut?: string;
       xrpUsd: number;
       wallet: string;
       usdt0Balance: string;
       network: string;
+      chainId?: number;
       note: string;
+      honesty?: string;
+      flarePrimitive?: string;
+      pairsHint?: string[];
     }
   | {
       type: "swap_prepare";
@@ -111,16 +140,88 @@ export type AgentCard =
       amountInDisplay: string;
       amountOutMinimum: string;
       estimatedFxrp: string;
+      estimatedOut?: string;
+      symbolIn?: string;
+      symbolOut?: string;
       approveTo: string;
       swapTo: string;
       approveData: string;
       swapData: string;
       docs: string[];
       warning: string;
+      chainId?: number;
+      network?: string;
+      pool?: string;
+      fee?: number;
+      honesty?: string;
+      requiresChainSwitch?: boolean;
+      flarePrimitive?: string;
+    }
+  | {
+      type: "swap_pairs";
+      title: string;
+      network: string;
+      chainId: number;
+      pairs: Array<{
+        pairKey: string;
+        symbolA: string;
+        symbolB: string;
+        bestFee: number;
+        liquidity: string;
+      }>;
+      honesty: string;
+      flarePrimitive: string;
+    }
+  | {
+      type: "fassets_desk";
+      title: string;
+      flarePrimitive: string;
+      honesty: string;
+      managers: Array<{
+        symbol: string;
+        status: string;
+        lotSize: number;
+        agentCount: number;
+        fAsset: string;
+        mint: string;
+        redeem: string;
+        bridge: string;
+      }>;
+      unavailable: Array<{ symbol: string; note: string }>;
+      xrpUsd: number;
+      lotValueUsd: number | null;
+      docs: string[];
+    }
+  | {
+      type: "portfolio_desk";
+      title: string;
+      flarePrimitive: string;
+      honesty: string;
+      totalUsd: number;
+      positions: Array<{
+        symbol: string;
+        balance: string;
+        usdValue: number | null;
+      }>;
+      recommended: string[];
+    }
+  | {
+      type: "market_intel";
+      title: string;
+      flarePrimitive: string;
+      honesty: string;
+      bias: string;
+      probabilityRiskOn: number;
+      confidence: number;
+      risk: string;
+      recommendedAction: string;
+      rationale: string[];
+      feeds: Array<{ symbol: string; value: number }>;
     }
   | {
       type: "bridge_quote";
       title: string;
+      amountInDisplay?: string;
       destination: string;
       dstEid: number;
       amountDisplay: string;
@@ -184,7 +285,7 @@ export type AgentCard =
   | {
       type: "media_clarify";
       title: string;
-      kind: "image" | "video" | "research";
+      kind: "image" | "research";
       prompts: string[];
       deskHref: string;
     }
@@ -250,15 +351,23 @@ export function displayModelName(model: string): string {
 }
 
 const AGENT_SYSTEM: Record<BeaconAgentId, string> = {
-  general: "You are Beacon general co-pilot on Flare. Route users to FTSO, swap, bridge, x402, or Bound Work.",
+  general: "You are Beacon, the Flare AI OS. Route to FTSO, SparkDEX, FAssets, LayerZero OFT, x402, Bound Work.",
   signals: "You are Beacon Signals. Explain live FTSO feeds and bias. Never invent prices.",
-  swap: "You are Beacon Swap. Conversational USDT0→FXRP on SparkDEX. Quote before execute. Never dump calldata.",
-  bridge: "You are Beacon Bridge. Lead with documented LayerZero FXRP OFT peers. Never invent fills or fees.",
-  pay: "You are Beacon Payment. Every charge must name provider, price, reason, and ETA. No orphan micropays.",
-  trade: "You are Beacon Trade. Use FTSO first; only suggest swap when bias supports it.",
+  intel: "You are Beacon Market Intelligence. FTSO + liquidity reasoning. Never build betting markets.",
+  portfolio: "You are Beacon Portfolio. Value Coston2 balances with FTSO. Never invent holdings.",
+  fassets: "You are Beacon FAssets. Show live Coston2 managers only. Never invent FBTC/FDOGE mint on Coston2.",
+  swap: "You are Beacon Swap. SparkDEX pairs are discovered on Flare Mainnet. Coston2 has no SparkDEX router bytecode.",
+  liquidity: "You are Beacon Liquidity. Report discovered SparkDEX pools with liquidity > 0 only.",
+  bridge: "You are Beacon Bridge. LayerZero FXRP OFT peers from on-chain discovery. Never invent fills.",
+  crosschain: "You are Beacon Cross-chain. Same OFT truth as bridge. Never invent destinations.",
+  xrpfi: "You are Beacon XRPFi. FXRP rails: FAssets status, SparkDEX, LayerZero OFT.",
+  yield: "You are Beacon Yield. Only state real, labeled opportunities. Never invent APY.",
+  risk: "You are Beacon Risk. FTSO bias + honest posture. Not financial advice.",
+  treasury: "You are Beacon Treasury. Desk balances + x402 spend rails.",
+  pay: "You are Beacon Payment. Every charge names provider, price, reason, ETA.",
+  trade: "You are Beacon Trade. FTSO first; SparkDEX only when user confirms on Mainnet.",
   desk: "You are Bound Work. Escrow creative jobs with acceptance.",
-  image: "You are Beacon Image. Small logos → instant x402. Large packs → Bound Offer escrow.",
-  video: "You are Beacon Video. Prefer Bound Offer for motion packs; clarify duration first.",
+  image: "You are Beacon Image. Small logos → x402. Large packs → Bound Offer.",
   research: "You are Beacon Research. Scope then quote; small briefs can be x402.",
 };
 
@@ -338,7 +447,16 @@ export function shouldEmitPayCatalog(paidResource?: boolean): boolean {
 }
 
 function pickModel(intent: BeaconAgentId, env: BeaconEnv): string {
-  if (intent === "swap" || intent === "trade" || intent === "bridge" || intent === "pay" || intent === "signals") {
+  if (
+    intent === "swap" ||
+    intent === "trade" ||
+    intent === "bridge" ||
+    intent === "pay" ||
+    intent === "signals" ||
+    intent === "intel" ||
+    intent === "risk" ||
+    intent === "liquidity"
+  ) {
     return env.AI_MODEL_QUOTE || "gpt-5.6-sol";
   }
   return env.AI_MODEL_GENERATOR || "claude-opus-5";
@@ -346,15 +464,23 @@ function pickModel(intent: BeaconAgentId, env: BeaconEnv): string {
 
 function detectIntent(message: string, fallback: BeaconAgentId, state?: ConversationState): BeaconAgentId {
   const m = message.toLowerCase();
-  // Strong keyword intents always win (auto-route from General)
   if (/@signals|ftso|price feed|oracle|\bsignals?\b/.test(m)) return "signals";
-  if (/@swap|\bswap\b|usdt0.*fxrp/.test(m) && /swap|usdt|fxrp|@swap/.test(m)) return "swap";
+  if (/@intel|market intel|probability|confidence|risk posture/.test(m)) return "intel";
+  if (/@portfolio|balances?|holdings|net worth/.test(m)) return "portfolio";
+  if (/@fassets|fbtc|fdoge|mint fxrp|redeem fxrp|asset manager/.test(m)) return "fassets";
+  if (/@liquidity|pools?|sparkdex pairs/.test(m)) return "liquidity";
+  if (/@yield|apy|earn/.test(m)) return "yield";
+  if (/@risk\b/.test(m)) return "risk";
+  if (/@treasury/.test(m)) return "treasury";
+  if (/@crosschain|cross-chain/.test(m)) return "crosschain";
+  if (/@xrpfi|xrp fi/.test(m)) return "xrpfi";
+  if (/@swap|\bswap\b|usdt0.*fxrp/.test(m) && /swap|usdt|fxrp|@swap|wflr|wnat/.test(m)) return "swap";
   if (/@bridge|\bbridge\b|layerzero|oft|stargate/.test(m)) return "bridge";
   if (/@pay|x402|micropay/.test(m)) return "pay";
   if (/@trade|trade signal|\blong\b|\bshort\b/.test(m)) return "trade";
   if (/@desk|bound work/.test(m)) return "desk";
   if (/@image|create image|generate image|\blogo\b|icon for|thumbnail/.test(m)) return "image";
-  if (/@video|create video|generate video|storyboard/.test(m)) return "video";
+  if (/@video|create video|generate video|storyboard|voice\b/.test(m)) return "desk";
   if (/@research|research |competitors|market pack/.test(m)) return "research";
   if (/@general/.test(m)) return "general";
   if (state && state.phase !== "idle" && !/^@\w+/.test(m.trim())) {
@@ -415,8 +541,8 @@ async function narrate(opts: {
 Speak like Claude/ChatGPT: warm, clear, concise. Never invent transaction hashes.
 Never mention AgentRouter, providers keys, APIs, calldata, HTML, or internal errors.
 Never dump addresses unless the user asks. Prefer natural language.
-MockUSDT0 is for Beacon pay/escrow only. SparkDEX swaps use Coston2 USDT0.
-Pipeline: Intent → Quote → Payment (if needed) → Execution → Receipt.
+MockUSDT0 is for Beacon pay/escrow only. SparkDEX swaps execute on Flare Mainnet (router has no Coston2 bytecode).
+Pipeline: Intent → Clarify → Quote → Policy → Pay → Execute → Observe → Receipt → History → Resume.
 Situation for this turn:\n${opts.situation}`,
           },
           { role: "user", content: opts.userMessage },
@@ -679,21 +805,40 @@ export async function runBeaconAgentChat(opts: {
     }
   }
 
-  // --- Swap multi-turn ---
-  if (intent === "swap" || (intent === "trade" && (/swap|fxrp|usdt/i.test(opts.message) || state.phase !== "idle"))) {
+  // --- Swap multi-turn (SparkDEX = Flare Mainnet only) ---
+  if (intent === "swap" || (intent === "trade" && (/swap|fxrp|usdt|wflr|wnat/i.test(opts.message) || state.phase !== "idle"))) {
     const wallet = opts.wallet;
+    const discovered = await discoverSparkDexPools(env);
+    const dep = discovered.deployment;
+
+    cards.push({
+      type: "swap_pairs",
+      title: "SparkDEX liquid pairs",
+      network: dep.network === "flare" ? "Flare Mainnet" : "unavailable",
+      chainId: dep.chainId || 14,
+      pairs: discovered.pairs.map((p) => ({
+        pairKey: p.pairKey,
+        symbolA: p.symbolA,
+        symbolB: p.symbolB,
+        bestFee: p.bestFee,
+        liquidity: p.liquidity,
+      })),
+      honesty: dep.honesty,
+      flarePrimitive: "SparkDEX",
+    });
+
     if (!wallet) {
       cards.push({
         type: "insufficient",
         title: "Connect your wallet",
-        summary: "Connect on Flare Coston2 so I can read your USDT0 balance and send FXRP to you.",
+        summary: "Connect MetaMask. SparkDEX execute requires Flare Mainnet (chain 14). Coston2 is for FTSO / OFT / x402.",
         faucetHref: "https://faucet.flare.network/coston2",
       });
       const narr = await narrate({
         intent: "swap",
         userMessage: opts.message,
-        situation: "User wants to swap but wallet is not connected. Ask them to connect.",
-        fallback: "Sure, connect your wallet on Flare Coston2 and I’ll read your USDT0 balance before we swap.",
+        situation: "Wallet missing. Explain SparkDEX is Mainnet; show discovered pairs.",
+        fallback: `SparkDEX live pairs are on **Flare Mainnet**. Connect your wallet, then say e.g. **swap 1 USDT0 to FXRP**.`,
         env,
       });
       return {
@@ -707,18 +852,54 @@ export async function runBeaconAgentChat(opts: {
       };
     }
 
-    const fxrp = await resolveFxrpAddress(env);
+    if (dep.network === "none" || !discovered.pairs.length) {
+      const narr = await narrate({
+        intent: "swap",
+        userMessage: opts.message,
+        situation: "No SparkDEX deployment reachable.",
+        fallback: dep.honesty,
+        env,
+      });
+      return {
+        agentId: "swap",
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent: "swap", phase: "idle" },
+      };
+    }
+
+    const fxrpC2 = await resolveFxrpAddress(env);
     const [usdtBal, fxrpBal] = await Promise.all([
-      readErc20Balance(COSTON2_USDT0, wallet, env),
-      readErc20Balance(fxrp, wallet, env),
+      readErc20Balance(COSTON2_USDT0, wallet, env).catch(() => ({ formatted: "0", raw: 0n, decimals: 6, symbol: "USDT0" })),
+      readErc20Balance(fxrpC2, wallet, env).catch(() => ({ formatted: "0", raw: 0n, decimals: 6, symbol: "FXRP" })),
     ]);
 
     let amount = extractAmount(opts.message) ?? state.amountInUnits ?? null;
-    if (amount === "all") {
-      amount = usdtBal.formatted;
+    if (amount === "all") amount = usdtBal.formatted;
+
+    const msg = opts.message.toLowerCase();
+    const wantsFxrpToUsdt = /fxrp\s*(to|→|->)\s*usdt|swap\s*fxrp/.test(msg) && !/usdt0?\s*(to|→|->)\s*fxrp/.test(msg);
+    const wantsWflr = /wflr|wnat|wflare/.test(msg);
+
+    let tokenIn = dep.usdt0;
+    let tokenOut = dep.fxrp;
+    if (wantsFxrpToUsdt) {
+      tokenIn = dep.fxrp;
+      tokenOut = dep.usdt0;
+    } else if (wantsWflr && /to\s*fxrp|→\s*fxrp/.test(msg)) {
+      tokenIn = dep.wnat;
+      tokenOut = dep.fxrp;
+    } else if (wantsWflr && /fxrp.*wflr|to\s*wflr/.test(msg)) {
+      tokenIn = dep.fxrp;
+      tokenOut = dep.wnat;
+    } else if (state.swapTokenIn && state.swapTokenOut) {
+      tokenIn = state.swapTokenIn;
+      tokenOut = state.swapTokenOut;
     }
 
-    // Clarify amount, never prepare calldata yet
     if (!amount) {
       cards.push({
         type: "swap_clarify",
@@ -728,11 +909,12 @@ export async function runBeaconAgentChat(opts: {
         fxrpBalance: fxrpBal.formatted,
         faucetHref: "https://faucet.flare.network/coston2",
       });
+      const pairNames = discovered.pairs.map((p) => `${p.symbolA}/${p.symbolB}`).join(", ");
       const narr = await narrate({
         intent: "swap",
         userMessage: opts.message,
-        situation: `Ask how much USDT0 to swap to FXRP. Wallet ${wallet.slice(0, 6)}… has ${usdtBal.formatted} USDT0 and ${fxrpBal.formatted} FXRP on Coston2. Suggest they can say a number or "swap all". Do not prepare a transaction yet.`,
-        fallback: `Sure.\n\nHow much USDT0 would you like to swap to FXRP?\nYou currently have **${usdtBal.formatted} USDT0** and **${fxrpBal.formatted} FXRP**. You can say a number or “swap all”.`,
+        situation: `Ask amount + direction. Liquid pairs: ${pairNames}. Honesty: execute on Flare Mainnet. Coston2 balances shown for desk context only.`,
+        fallback: `Liquid SparkDEX pairs: **${pairNames}**.\n\nSay e.g. **swap 1 USDT0 to FXRP** (execute on **Flare Mainnet**). Coston2 desk: ${usdtBal.formatted} USDT0 · ${fxrpBal.formatted} FXRP.`,
         env,
       });
       return {
@@ -742,34 +924,62 @@ export async function runBeaconAgentChat(opts: {
         model: narr.model,
         displayModel: narr.displayModel,
         paid: true,
-        state: { intent: "swap", phase: "clarify" },
+        state: { intent: "swap", phase: "clarify", swapTokenIn: tokenIn, swapTokenOut: tokenOut },
       };
     }
 
-    // Quote until user explicitly confirms while we already hold an amount in await_confirm
     const confirmed =
       wantsConfirm(opts.message) &&
       (state.phase === "await_confirm" || state.phase === "ready_execute") &&
       Boolean(state.amountInUnits || amount);
 
     if (!confirmed) {
-      const prepPreview = await prepareUsdt0ToFxrpSwap({ amountInUnits: amount, recipient: wallet }, env);
+      const prepPreview = await prepareSparkDexSwap(
+        { tokenIn, tokenOut, amountInUnits: amount, recipient: wallet },
+        env,
+      );
+      if (!prepPreview.ok) {
+        cards.push({
+          type: "insufficient",
+          title: "Cannot quote pair",
+          summary: prepPreview.error,
+          faucetHref: "https://dev.flare.network/fxrp/token-interactions/usdt0-fxrp-swap",
+        });
+        return {
+          agentId: "swap",
+          text: `${prepPreview.error}. ${prepPreview.honesty}`,
+          cards,
+          model: "beacon-local",
+          displayModel: "Beacon",
+          paid: true,
+          state: { intent: "swap", phase: "clarify" },
+        };
+      }
       cards.push({
         type: "swap_quote",
-        title: "Swap quote",
+        title: "Swap quote · SparkDEX",
         amountInDisplay: amount,
-        estimatedFxrp: prepPreview.estimatedFxrp,
-        xrpUsd: prepPreview.xrpUsd,
+        estimatedFxrp: prepPreview.symbolOut.toUpperCase().includes("FXRP")
+          ? prepPreview.estimatedOut
+          : prepPreview.estimatedOut,
+        estimatedOut: prepPreview.estimatedOut,
+        symbolIn: prepPreview.symbolIn,
+        symbolOut: prepPreview.symbolOut,
+        xrpUsd: 0,
         wallet,
         usdt0Balance: usdtBal.formatted,
-        network: "Flare Testnet Coston2",
-        note: "Estimate uses FTSO XRP/USD (FXRP ≈ XRP). Final fill depends on SparkDEX pool.",
+        network: prepPreview.network,
+        chainId: prepPreview.chainId,
+        note: `${prepPreview.estimateBasis}. ${prepPreview.requiresChainSwitch ? "MetaMask must switch to Flare Mainnet (14) before Approve+Swap." : ""}`,
+        honesty: prepPreview.honesty,
+        flarePrimitive: "SparkDEX + FTSO",
+        pairsHint: discovered.pairs.map((p) => `${p.symbolA}/${p.symbolB}@${p.bestFee}`),
       });
       const narr = await narrate({
         intent: "swap",
         userMessage: opts.message,
-        situation: `Present a clear quote: swap ${amount} USDT0 ≈ ${prepPreview.estimatedFxrp} FXRP at ~$${prepPreview.xrpUsd.toFixed(4)}/XRP. Wallet balance ${usdtBal.formatted} USDT0. Ask them to reply "confirm" to open the wallet for approve + swap. No raw addresses.`,
-        fallback: `Here’s the quote: **${amount} USDT0 ≈ ${prepPreview.estimatedFxrp} FXRP** (FTSO XRP/USD ~$${prepPreview.xrpUsd.toFixed(4)}).\n\nReply **confirm** when you want me to open approve + swap in your wallet.`,
+        situation: `Quote ${amount} ${prepPreview.symbolIn} → ~${prepPreview.estimatedOut} ${prepPreview.symbolOut} on Flare Mainnet SparkDEX. Ask confirm. Mention chain switch if needed.`,
+        fallback: `Quote: **${amount} ${prepPreview.symbolIn} ≈ ${prepPreview.estimatedOut} ${prepPreview.symbolOut}** on **Flare Mainnet** SparkDEX.\n\n${prepPreview.honesty}\n\nReply **confirm** to prepare Approve + Swap.`,
         env,
       });
       return {
@@ -779,22 +989,30 @@ export async function runBeaconAgentChat(opts: {
         model: narr.model,
         displayModel: narr.displayModel,
         paid: true,
-        state: { intent: "swap", phase: "await_confirm", amountInUnits: amount },
+        state: {
+          intent: "swap",
+          phase: "await_confirm",
+          amountInUnits: amount,
+          swapTokenIn: tokenIn,
+          swapTokenOut: tokenOut,
+        },
       };
     }
 
-    // Confirmed → prepare executable card
     const finalAmount = amount || state.amountInUnits || "1";
-    if (parseFloat(usdtBal.formatted) + 1e-9 < parseFloat(finalAmount)) {
-      cards.push({
-        type: "insufficient",
-        title: "Not enough USDT0",
-        summary: `You have ${usdtBal.formatted} USDT0 on Coston2 but need ${finalAmount}. Use the faucet for test USDT0 (not Beacon MockUSDT0).`,
-        faucetHref: "https://faucet.flare.network/coston2",
-      });
+    const prep = await prepareSparkDexSwap(
+      {
+        tokenIn: state.swapTokenIn || tokenIn,
+        tokenOut: state.swapTokenOut || tokenOut,
+        amountInUnits: finalAmount,
+        recipient: wallet,
+      },
+      env,
+    );
+    if (!prep.ok) {
       return {
         agentId: "swap",
-        text: `You only have **${usdtBal.formatted} USDT0** on Coston2. Grab test USDT0 from the faucet, then tell me the amount again.`,
+        text: prep.error,
         cards,
         model: "beacon-local",
         displayModel: "Beacon",
@@ -802,31 +1020,40 @@ export async function runBeaconAgentChat(opts: {
         state: { intent: "swap", phase: "clarify" },
       };
     }
-
-    const prep = await prepareUsdt0ToFxrpSwap({ amountInUnits: finalAmount, recipient: wallet }, env);
     cards.push({
       type: "swap_prepare",
-      title: "Confirm in wallet",
+      title: prep.requiresChainSwitch ? "Switch to Flare Mainnet · then Confirm" : "Confirm in wallet",
       tokenIn: prep.tokenIn,
       tokenOut: prep.tokenOut,
       router: prep.router,
       amountIn: prep.amountIn,
       amountInDisplay: prep.amountInDisplay,
       amountOutMinimum: prep.amountOutMinimum,
-      estimatedFxrp: prep.estimatedFxrp,
+      estimatedFxrp: prep.estimatedOut,
+      estimatedOut: prep.estimatedOut,
+      symbolIn: prep.symbolIn,
+      symbolOut: prep.symbolOut,
       approveTo: prep.approveTo,
       swapTo: prep.swapTo,
       approveData: prep.approveData,
       swapData: prep.swapData,
       docs: prep.docs,
-      warning:
-        "Coston2 USDT0 → FXRP on SparkDEX. You will approve (if needed) then swap. I’ll show explorer links when both confirm.",
+      warning: `${prep.symbolIn}→${prep.symbolOut} on SparkDEX (${prep.network}). Pool fee ${prep.fee}. ${prep.honesty}`,
+      chainId: prep.chainId,
+      network: prep.network,
+      pool: prep.pool,
+      fee: prep.fee,
+      honesty: prep.honesty,
+      requiresChainSwitch: prep.requiresChainSwitch,
+      flarePrimitive: "SparkDEX",
     });
     const narr = await narrate({
       intent: "swap",
       userMessage: opts.message,
-      situation: `User confirmed swap of ${finalAmount} USDT0 (~${prep.estimatedFxrp} FXRP). Tell them to tap Confirm in wallet, then wait for Pending → Confirmed. Do not invent a hash.`,
-      fallback: `Confirmed. Tap **Approve + Swap**, I’ll wait for the on-chain receipt and show the explorer link when it confirms.`,
+      situation: `Prepared Mainnet swap ${finalAmount} ${prep.symbolIn}→${prep.symbolOut}. Chain switch=${prep.requiresChainSwitch}.`,
+      fallback: prep.requiresChainSwitch
+        ? `Prepared. Switch MetaMask to **Flare Mainnet**, then **Approve + Swap**.`
+        : `Confirmed. Tap **Approve + Swap** — explorer link appears after confirmation.`,
       env,
     });
     return {
@@ -836,8 +1063,253 @@ export async function runBeaconAgentChat(opts: {
       model: narr.model,
       displayModel: narr.displayModel,
       paid: true,
-      state: { intent: "swap", phase: "ready_execute", amountInUnits: finalAmount },
+      state: {
+        intent: "swap",
+        phase: "ready_execute",
+        amountInUnits: finalAmount,
+        swapTokenIn: prep.tokenIn,
+        swapTokenOut: prep.tokenOut,
+      },
     };
+  }
+
+  // --- OS agents: portfolio / fassets / intel / liquidity / yield / risk / treasury / crosschain / xrpfi ---
+  if (
+    intent === "portfolio" ||
+    intent === "treasury" ||
+    intent === "fassets" ||
+    intent === "intel" ||
+    intent === "liquidity" ||
+    intent === "yield" ||
+    intent === "risk" ||
+    intent === "crosschain" ||
+    intent === "xrpfi"
+  ) {
+    if (intent === "portfolio" || intent === "treasury") {
+      if (!opts.wallet) {
+        cards.push({
+          type: "insufficient",
+          title: "Connect your wallet",
+          summary: "Portfolio reads live Coston2 balances.",
+          faucetHref: "https://faucet.flare.network/coston2",
+        });
+        return {
+          agentId: intent,
+          text: "Connect your wallet so I can value your Coston2 balances with FTSO.",
+          cards,
+          model: "beacon-local",
+          displayModel: "Beacon",
+          paid: true,
+          state: { intent, phase: "clarify" },
+        };
+      }
+      const desk = await readPortfolioDesk(opts.wallet, env);
+      cards.push({
+        type: "portfolio_desk",
+        title: intent === "treasury" ? "Treasury · desk balances" : "Portfolio · FTSO marked",
+        flarePrimitive: desk.flarePrimitive,
+        honesty: desk.honesty,
+        totalUsd: desk.totalUsd,
+        positions: desk.positions.map((p) => ({
+          symbol: p.symbol,
+          balance: p.balance,
+          usdValue: p.usdValue,
+        })),
+        recommended: desk.recommended,
+      });
+      const narr = await narrate({
+        intent,
+        userMessage: opts.message,
+        situation: `Portfolio totalUsd≈$${desk.totalUsd}. Positions: ${desk.positions.map((p) => `${p.symbol}=${p.balance}`).join(", ")}. ${desk.recommended.join(" ")}`,
+        fallback: `Marked ~**$${desk.totalUsd}** on Coston2 (FTSO). ${desk.recommended[0] ?? ""}`,
+        env,
+      });
+      return {
+        agentId: intent,
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent, phase: "idle" },
+      };
+    }
+
+    if (intent === "fassets" || intent === "yield" || intent === "xrpfi") {
+      const desk = await readFassetsDesk(env);
+      cards.push({
+        type: "fassets_desk",
+        title: intent === "yield" ? "Yield · FAssets honesty" : intent === "xrpfi" ? "XRPFi · FXRP rails" : "FAssets desk · Coston2",
+        flarePrimitive: desk.flarePrimitive,
+        honesty:
+          intent === "yield"
+            ? `${desk.honesty} Beacon does not invent APY. External yield venues are labeled — verify before depositing.`
+            : desk.honesty,
+        managers: desk.managers.map((m) => ({
+          symbol: m.symbol,
+          status: m.status,
+          lotSize: m.lotSizeUnderlying,
+          agentCount: m.agentCount,
+          fAsset: m.fAsset,
+          mint: m.actions.mint,
+          redeem: m.actions.redeem,
+          bridge: m.actions.bridge,
+        })),
+        unavailable: desk.documentedElsewhere.map((d) => ({ symbol: d.symbol, note: d.note })),
+        xrpUsd: desk.xrpUsd,
+        lotValueUsd: desk.lotValueUsd,
+        docs: desk.docs,
+      });
+      if (intent === "xrpfi" || intent === "yield") {
+        const pools = await discoverSparkDexPools(env);
+        cards.push({
+          type: "swap_pairs",
+          title: "FXRP liquidity · SparkDEX Mainnet",
+          network: pools.deployment.network === "flare" ? "Flare Mainnet" : "unavailable",
+          chainId: pools.deployment.chainId || 14,
+          pairs: pools.pairs.filter((p) => /fxrp|xrp/i.test(p.symbolA + p.symbolB)).map((p) => ({
+            pairKey: p.pairKey,
+            symbolA: p.symbolA,
+            symbolB: p.symbolB,
+            bestFee: p.bestFee,
+            liquidity: p.liquidity,
+          })),
+          honesty: pools.deployment.honesty,
+          flarePrimitive: "SparkDEX",
+        });
+        const br = await discoverFxrpOftRoutes(env);
+        cards.push({
+          type: "bridge_routes",
+          title: "FXRP OFT · Coston2",
+          source: "Flare Testnet Coston2",
+          oftAdapter: COSTON2_FXRP_OFT_ADAPTER,
+          routes: br.routes,
+          routesSource: br.source,
+          discoveredAt: br.discoveredAt,
+          unavailable: [],
+          docs: [{ label: "OFT peers", href: "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes" }],
+          honesty: "LayerZero peers discovered on-chain. Destination fill only via LayerZero Scan.",
+        });
+      }
+      const narr = await narrate({
+        intent,
+        userMessage: opts.message,
+        situation: `FAssets managers live=${desk.managers.map((m) => m.symbol).join(",")}. Unavailable=${desk.documentedElsewhere.map((d) => d.symbol).join(",")}. XRP/USD=${desk.xrpUsd}. Lot USD=${desk.lotValueUsd}.`,
+        fallback: `Coston2 FAssets: **${desk.managers.map((m) => m.symbol).join(", ") || "none"}** live. FBTC/FDOGE not on this controller. XRP/USD ≈ $${desk.xrpUsd.toFixed(4)}.`,
+        env,
+      });
+      return {
+        agentId: intent,
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent, phase: "idle" },
+      };
+    }
+
+    if (intent === "intel" || intent === "risk") {
+      const intel = await buildMarketIntelligence({
+        wallet: opts.wallet,
+        question: opts.message,
+        env,
+      });
+      cards.push({
+        type: "market_intel",
+        title: intent === "risk" ? "Risk posture · FTSO" : "AI Market Intelligence",
+        flarePrimitive: intel.flarePrimitive,
+        honesty: intel.honesty,
+        bias: intel.bias,
+        probabilityRiskOn: intel.probabilityRiskOn,
+        confidence: intel.confidence,
+        risk: intel.risk,
+        recommendedAction: intel.recommendedAction,
+        rationale: intel.rationale,
+        feeds: intel.feeds,
+      });
+      return {
+        agentId: intent,
+        text: intel.recommendedAction,
+        cards,
+        model: intel.model,
+        displayModel: intel.displayModel,
+        paid: true,
+        state: { intent, phase: "idle" },
+      };
+    }
+
+    if (intent === "liquidity") {
+      const pools = await discoverSparkDexPools(env);
+      cards.push({
+        type: "swap_pairs",
+        title: "SparkDEX liquidity discovery",
+        network: pools.deployment.network === "flare" ? "Flare Mainnet" : "unavailable",
+        chainId: pools.deployment.chainId || 14,
+        pairs: pools.pairs.map((p) => ({
+          pairKey: p.pairKey,
+          symbolA: p.symbolA,
+          symbolB: p.symbolB,
+          bestFee: p.bestFee,
+          liquidity: p.liquidity,
+        })),
+        honesty: pools.deployment.honesty,
+        flarePrimitive: "SparkDEX",
+      });
+      const narr = await narrate({
+        intent: "liquidity",
+        userMessage: opts.message,
+        situation: `Found ${pools.pools.length} liquid pools. ${pools.deployment.honesty}`,
+        fallback: `Discovered **${pools.pairs.length}** liquid pair(s) on SparkDEX Mainnet. ${pools.deployment.honesty}`,
+        env,
+      });
+      return {
+        agentId: "liquidity",
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent: "liquidity", phase: "idle" },
+      };
+    }
+
+    if (intent === "crosschain") {
+      // reuse bridge routes card path by falling through — set intent bridge-like
+      const discovered = await discoverFxrpOftRoutes(env);
+      cards.push({
+        type: "bridge_routes",
+        title: "Cross-chain · FXRP OFT",
+        source: "Flare Testnet Coston2",
+        oftAdapter: COSTON2_FXRP_OFT_ADAPTER,
+        routes: discovered.routes,
+        routesSource: discovered.source,
+        discoveredAt: discovered.discoveredAt,
+        unavailable: ["Non-peer chains", "Invented fees"],
+        docs: [
+          { label: "LayerZero Flare Testnet", href: "https://docs.layerzero.network/v2/deployments/chains/flare-testnet" },
+          { label: "OFT peers", href: "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes" },
+        ],
+        honesty:
+          "Only FXRP OFT adapter peers on Coston2. Say @bridge with destination + amount to quoteSend + prepare.",
+      });
+      const narr = await narrate({
+        intent: "crosschain",
+        userMessage: opts.message,
+        situation: `Routes: ${discovered.routes.map((r) => r.chain).join(", ")}. Source=${discovered.source}.`,
+        fallback: `Live FXRP OFT peers (${discovered.source}): ${discovered.routes.map((r) => r.chain).join(", ")}. Use **@bridge** to execute.`,
+        env,
+      });
+      return {
+        agentId: "crosschain",
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent: "crosschain", phase: "idle" },
+      };
+    }
   }
 
   // --- Bridge: routes → quote (on-chain fee) → OFT send ---
@@ -1087,14 +1559,13 @@ export async function runBeaconAgentChat(opts: {
   }
 
   // --- Media: small → x402 quote; large → Bound Work ---
-  if (intent === "image" || intent === "video" || intent === "research") {
+  if (intent === "image" || intent === "research") {
     const m = opts.message.toLowerCase();
     const isSmallImage =
       intent === "image" &&
       (/logo|icon|thumbnail|avatar|mark|badge|sticker/.test(m) || m.length < 80);
     const isLargeCreative =
-      intent === "video" ||
-      (intent === "image" && /pack|campaign|brand kit|series|deck|multiple/.test(m));
+      intent === "image" && /pack|campaign|brand kit|series|deck|multiple/.test(m);
 
     if (isSmallImage && !isLargeCreative) {
       const briefReady =
@@ -1258,16 +1729,13 @@ export async function runBeaconAgentChat(opts: {
       };
     }
 
-    const durationHit = m.match(/\b(15|30|60)\s*(s|sec|secs|second|seconds)?\b/);
     const prompts =
       intent === "image"
         ? ["Style / mood?", "Aspect ratio (1:1, 9:16, 16:9)?", "Any reference?", "Quality bar?"]
-        : intent === "video"
-          ? ["Duration, 15s, 30s, or 60s?", "Aspect ratio?", "Voice / language?", "Style?", "Audience?"]
-          : ["Scope?", "Sources?", "Depth?", "Output format?"];
+        : ["Scope?", "Sources?", "Depth?", "Output format?"];
     cards.push({
       type: "media_clarify",
-      title: intent === "video" ? "Video Bound Offer" : intent === "image" ? "Creative pack → Bound Work" : "Research → Bound Work",
+      title: intent === "image" ? "Creative pack → Bound Work" : "Research → Bound Work",
       kind: intent,
       prompts,
       deskHref: "/flow/desk",
@@ -1275,14 +1743,9 @@ export async function runBeaconAgentChat(opts: {
     const narr = await narrate({
       intent,
       userMessage: opts.message,
-      situation:
-        intent === "video"
-          ? "Large video job. Clarify duration then send to Bound Work escrow. Do not pretend instant generation."
-          : "Larger creative/research job. Invite Bound Work for Bound Offer + escrow acceptance.",
+      situation: "Larger creative/research job. Invite Bound Work for Bound Offer + escrow acceptance. Video/voice Flow stubs were removed.",
       fallback:
-        intent === "video"
-          ? "Great, let’s define duration (**15 / 30 / 60s**), then we’ll seal a Bound Offer and lock escrow."
-          : "This looks like a larger job. Open **Bound Work** for a sealed Bound Offer (price + acceptance) on Coston2.",
+        "This looks like a larger job. Open **Bound Work** for a sealed Bound Offer (price + acceptance) on Coston2. Flow video/voice placeholders were removed — use Bound Work Video if you need motion.",
       env,
     });
     return {
@@ -1292,7 +1755,7 @@ export async function runBeaconAgentChat(opts: {
       model: narr.model,
       displayModel: narr.displayModel,
       paid: true,
-      state: { intent, phase: "clarify", videoDuration: durationHit?.[1] },
+      state: { intent, phase: "clarify" },
     };
   }
 

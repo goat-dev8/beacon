@@ -22,6 +22,10 @@ import {
   readErc20Balance,
   resolveFxrpAddress,
   discoverFxrpOftRoutes,
+  discoverSparkDexPools,
+  readFassetsDesk,
+  buildMarketIntelligence,
+  readPortfolioDesk,
   COSTON2_USDT0,
   chatCompletionStream,
   resolveModelForRole,
@@ -208,7 +212,6 @@ const createJobSchema = z.object({
   serviceId: z.enum([
     "video",
     "image",
-    "voice",
     "presentations",
     "coding",
     "research",
@@ -688,12 +691,42 @@ app.get("/v1/agents", async () => ({
     escrow: env.BEACON_ESCROW,
     coston2Usdt0: "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
     sparkdexRouter: "0x8a1E35F5c98C4E85B36B7B253222eE17773b2781",
+    sparkdexNetwork: "flare-mainnet",
+    sparkdexChainId: 14,
+    honesty:
+      "SparkDEX SwapRouter bytecode is on Flare Mainnet only. Coston2 powers FTSO, FAssets FXRP, LayerZero OFT, and x402.",
   },
 }));
 
 app.get("/v1/agents/signals", async () => {
   const snap = await readFtsoFeeds(env);
   return { ok: true, ...snap };
+});
+
+app.get("/v1/agents/swap/pairs", async (req) => {
+  const force = String((req.query as { force?: string }).force ?? "") === "1";
+  const discovered = await discoverSparkDexPools(env, { force });
+  return { ok: true, ...discovered };
+});
+
+app.get("/v1/agents/fassets", async () => {
+  const desk = await readFassetsDesk(env);
+  return { ok: true, ...desk };
+});
+
+app.get("/v1/agents/intel", async (req) => {
+  const wallet = (req.query as { wallet?: string }).wallet;
+  const intel = await buildMarketIntelligence({
+    wallet: wallet && /^0x[a-fA-F0-9]{40}$/.test(wallet) ? wallet : undefined,
+    env,
+  });
+  return { ok: true, ...intel };
+});
+
+app.get("/v1/agents/portfolio", async (req) => {
+  const wallet = z.string().regex(/^0x[a-fA-F0-9]{40}$/).parse((req.query as { wallet?: string }).wallet);
+  const desk = await readPortfolioDesk(wallet, env);
+  return { ok: true, ...desk };
 });
 
 app.get("/v1/agents/bridge/routes", async (req) => {
@@ -779,8 +812,16 @@ const agentChatSchema = z.object({
       "trade",
       "desk",
       "image",
-      "video",
       "research",
+      "portfolio",
+      "fassets",
+      "intel",
+      "yield",
+      "risk",
+      "liquidity",
+      "treasury",
+      "crosschain",
+      "xrpfi",
     ])
     .optional(),
   message: z.string().min(1).max(4000),

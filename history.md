@@ -4,6 +4,38 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-06 - Flare AI OS ship · SparkDEX honesty · FAssets · Market Intel
+
+### Research (mandatory)
+- DevHub MCP + FAssets reference: **Coston2 controller returns 1 manager** (Testnet XRP / FTestXRP). FBTC/FDOGE **not on Coston2**.
+- SparkDEX docs factory/router: **bytecode on Flare Mainnet only**; `eth_getCode` on Coston2 = empty. Prior Coston2 swap prepare targeted a non-contract — critical honesty fix.
+- Mainnet factory scan: liquid USDT0/FXRP@500, USDT0/WFLR@500, FXRP/WFLR@500 (+ thinner fee tiers).
+- FCC: not public for this path → keep simulated labels only.
+- Research file: `WIN_RESEARCH_2026-08-06.md`.
+
+### Shipped
+- `sparkDex.ts`: deployment preflight, dynamic pool discovery, bidirectional prepare, Mainnet execute path
+- `fassetsStatus.ts`: live AssetManagerController + settings + agents; FBTC/FDOGE labeled unavailable
+- `marketIntel.ts`: FTSO + liquidity + LLM — **not** a betting market
+- `portfolioDesk.ts`: Coston2 balances marked with FTSO
+- Agents: portfolio, fassets, intel, yield, risk, liquidity, treasury, crosschain, xrpfi (+ existing rails)
+- Removed Flow `@video` agent + Bound Work **voice** catalog entry
+- UI: Flare primitive badges, pairs / FAssets / intel / portfolio cards; MetaMask **chain 14** switch for SparkDEX
+- APIs: `/v1/agents/swap/pairs`, `/fassets`, `/intel`, `/portfolio`
+
+### Smoke (local)
+- SPARKDEX flare: USD₮0/FXRP@500, USD₮0/WFLR@500, FXRP/WFLR@500
+- FASSETS FTestXRP agents=4; FBTC,FDOGE unavailable
+- INTEL risk-on; PORT ~$19.55 for test wallet
+
+### Network map (judges)
+| Rail | Network |
+| --- | --- |
+| FTSO / FAssets status / OFT / x402 | Coston2 (114) |
+| SparkDEX swap execute | Flare Mainnet (14) |
+
+---
+
 ## 2026-08-05 - Deep Chrome production test + fixes
 
 **Method:** Chrome DevTools MCP against `beacon-desk.vercel.app` + MetaMask account `0x3be5…c794` on Coston2 (`0x72`). Wallet txs that need the MetaMask **notification extension UI** cannot be fully clicked from CDP (extension popup not in page list); prepare/sign paths were exercised up to Confirm.

@@ -42,8 +42,16 @@ type AgentId =
   | "trade"
   | "desk"
   | "image"
-  | "video"
-  | "research";
+  | "research"
+  | "portfolio"
+  | "fassets"
+  | "intel"
+  | "yield"
+  | "risk"
+  | "liquidity"
+  | "treasury"
+  | "crosschain"
+  | "xrpfi";
 
 interface ChatMsg {
   id: string;
@@ -80,7 +88,7 @@ function explorerTx(hash: string) {
 const WELCOME: ChatMsg = {
   id: "welcome",
   role: "system",
-  text: "Hi, I'm Beacon on Flare Coston2. Intent → Quote → Pay (if needed) → Execute → Receipt. Ask for FTSO, swap, bridge routes, a logo, or Bound Work.",
+  text: "Hi, I'm Beacon — Flare AI OS on Coston2. Intent → Quote → Pay → Execute → Receipt. Ask for FTSO, Market Intel, FAssets, SparkDEX pairs, LayerZero bridge, or Bound Work.",
 };
 
 type FlowConv = {
@@ -948,23 +956,37 @@ function ActionCard({
   }
 
   if (card.type === "swap_quote") {
+    const symbolIn = String(card.symbolIn ?? "USDT0");
+    const symbolOut = String(card.symbolOut ?? "FXRP");
+    const est = String(card.estimatedOut ?? card.estimatedFxrp);
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] shadow-[var(--p-shadow)] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
+          <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal">
+            {String(card.flarePrimitive ?? "SparkDEX")}
+          </span>
+        </div>
         <div className="mt-3 flex flex-wrap items-end gap-6">
           <div>
             <p className="font-mono text-[10px] text-[var(--p-muted)]">You pay</p>
-            <p className="font-display text-2xl text-[var(--p-fg)]">{String(card.amountInDisplay)} USDT0</p>
+            <p className="font-display text-2xl text-[var(--p-fg)]">
+              {String(card.amountInDisplay)} {symbolIn}
+            </p>
           </div>
           <div>
             <p className="font-mono text-[10px] text-[var(--p-muted)]">Est. receive</p>
-            <p className="font-display text-2xl text-[var(--p-accent-text)]">~{String(card.estimatedFxrp)} FXRP</p>
+            <p className="font-display text-2xl text-[var(--p-accent-text)]">
+              ~{est} {symbolOut}
+            </p>
           </div>
         </div>
         <p className="mt-2 text-xs text-[var(--p-muted)]">
-          XRP/USD ~${Number(card.xrpUsd).toFixed(4)} · balance {String(card.usdt0Balance)} USDT0 · {String(card.network)}
+          {String(card.network)}
+          {card.chainId ? ` · chain ${String(card.chainId)}` : ""} · desk USDT0 {String(card.usdt0Balance)}
         </p>
         <p className="mt-1 text-xs text-[var(--p-muted)]">{String(card.note)}</p>
+        {card.honesty ? <p className="mt-2 text-xs text-amber-200/90">{String(card.honesty)}</p> : null}
         <button
           type="button"
           onClick={() => onQuickReply("confirm")}
@@ -976,20 +998,193 @@ function ActionCard({
     );
   }
 
-  if (card.type === "swap_prepare") {
+  if (card.type === "swap_pairs") {
+    const pairs = (card.pairs as Array<{
+      symbolA: string;
+      symbolB: string;
+      bestFee: number;
+      liquidity: string;
+    }>) ?? [];
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-muted)]">{card.title}</p>
+          <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal">
+            {String(card.flarePrimitive)}
+          </span>
+        </div>
+        <p className="mt-1 text-xs text-[var(--p-muted)]">
+          {String(card.network)} · chain {String(card.chainId)}
+        </p>
+        <ul className="mt-3 space-y-2">
+          {pairs.map((p) => (
+            <li
+              key={`${p.symbolA}-${p.symbolB}-${p.bestFee}`}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-[var(--p-surface-2)] px-3 py-2 text-sm"
+            >
+              <span className="font-display">
+                {p.symbolA}/{p.symbolB}
+              </span>
+              <span className="font-mono text-[10px] text-[var(--p-muted)]">
+                fee {p.bestFee} · liq {p.liquidity.slice(0, 12)}…
+              </span>
+              <button
+                type="button"
+                onClick={() => onQuickReply(`swap 1 ${p.symbolA} to ${p.symbolB}`)}
+                className="rounded-full border border-[var(--p-border)] px-2 py-0.5 text-[10px] hover:border-signal/40"
+              >
+                Quote
+              </button>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-amber-200/90">{String(card.honesty)}</p>
+      </div>
+    );
+  }
+
+  if (card.type === "portfolio_desk") {
+    const positions = (card.positions as Array<{ symbol: string; balance: string; usdValue: number | null }>) ?? [];
+    return (
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-muted)]">{card.title}</p>
+          <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal">
+            {String(card.flarePrimitive)}
+          </span>
+        </div>
+        <p className="mt-2 font-display text-2xl text-[var(--p-fg)]">~${Number(card.totalUsd).toFixed(2)}</p>
+        <ul className="mt-3 space-y-1.5 text-sm">
+          {positions.map((p) => (
+            <li key={p.symbol} className="flex justify-between gap-2">
+              <span>{p.symbol}</span>
+              <span className="text-[var(--p-muted)]">
+                {p.balance}
+                {p.usdValue != null ? ` · $${p.usdValue.toFixed(2)}` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-[var(--p-muted)]">{String(card.honesty)}</p>
+      </div>
+    );
+  }
+
+  if (card.type === "fassets_desk") {
+    const managers = (card.managers as Array<{
+      symbol: string;
+      status: string;
+      lotSize: number;
+      agentCount: number;
+      mint: string;
+      redeem: string;
+      bridge: string;
+    }>) ?? [];
+    const unavailable = (card.unavailable as Array<{ symbol: string; note: string }>) ?? [];
+    return (
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-muted)]">{card.title}</p>
+          <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal">
+            {String(card.flarePrimitive)}
+          </span>
+        </div>
+        <p className="mt-2 text-xs text-[var(--p-muted)]">
+          XRP/USD ~${Number(card.xrpUsd).toFixed(4)}
+          {card.lotValueUsd != null ? ` · lot ≈ $${Number(card.lotValueUsd).toFixed(2)}` : ""}
+        </p>
+        <ul className="mt-3 space-y-2">
+          {managers.map((m) => (
+            <li key={m.symbol} className="rounded-xl bg-[var(--p-surface-2)] px-3 py-2 text-sm">
+              <p className="font-display">
+                {m.symbol} · <span className="text-signal">{m.status}</span>
+              </p>
+              <p className="font-mono text-[10px] text-[var(--p-muted)]">
+                lot {m.lotSize} · agents {m.agentCount} · mint {m.mint} · redeem {m.redeem} · bridge {m.bridge}
+              </p>
+            </li>
+          ))}
+        </ul>
+        {unavailable.length > 0 && (
+          <ul className="mt-3 space-y-1 text-xs text-amber-200/90">
+            {unavailable.map((u) => (
+              <li key={u.symbol}>
+                {u.symbol}: {u.note}
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="mt-3 text-xs text-[var(--p-muted)]">{String(card.honesty)}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={() => onQuickReply("@bridge")} className="rounded-full border border-[var(--p-border)] px-3 py-1 text-xs">
+            Bridge FXRP
+          </button>
+          <button type="button" onClick={() => onQuickReply("@swap")} className="rounded-full border border-[var(--p-border)] px-3 py-1 text-xs">
+            SparkDEX
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (card.type === "market_intel") {
+    return (
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)] p-4 shadow-[var(--p-shadow)]">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
+          <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal">
+            {String(card.flarePrimitive)}
+          </span>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl bg-[var(--p-bg)] px-3 py-2">
+            <p className="font-mono text-[10px] text-[var(--p-muted)]">P(risk-on)</p>
+            <p className="font-display text-xl">{Number(card.probabilityRiskOn).toFixed(2)}</p>
+          </div>
+          <div className="rounded-xl bg-[var(--p-bg)] px-3 py-2">
+            <p className="font-mono text-[10px] text-[var(--p-muted)]">Confidence</p>
+            <p className="font-display text-xl">{Number(card.confidence).toFixed(2)}</p>
+          </div>
+          <div className="rounded-xl bg-[var(--p-bg)] px-3 py-2">
+            <p className="font-mono text-[10px] text-[var(--p-muted)]">Risk</p>
+            <p className="font-display text-xl">{String(card.risk)}</p>
+          </div>
+        </div>
+        <p className="mt-3 text-sm text-[var(--p-fg)]">{String(card.recommendedAction)}</p>
+        <p className="mt-2 text-xs text-amber-200/90">{String(card.honesty)}</p>
+      </div>
+    );
+  }
+
+  if (card.type === "swap_prepare") {
+    const symbolIn = String(card.symbolIn ?? "USDT0");
+    const symbolOut = String(card.symbolOut ?? "FXRP");
+    const est = String(card.estimatedOut ?? card.estimatedFxrp);
+    const chainId = Number(card.chainId ?? 14);
+    return (
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
+          <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal">
+            {String(card.flarePrimitive ?? "SparkDEX")}
+          </span>
+        </div>
         <p className="mt-2 text-sm text-[var(--p-fg)]/80">
-          Swap <span className="text-[var(--p-fg)]">{String(card.amountInDisplay)} USDT0</span>
+          Swap <span className="text-[var(--p-fg)]">{String(card.amountInDisplay)} {symbolIn}</span>
           {" → "}
-          <span className="text-[var(--p-accent-text)]">~{String(card.estimatedFxrp)} FXRP</span> on SparkDEX
+          <span className="text-[var(--p-accent-text)]">~{est} {symbolOut}</span>
+          {" · "}
+          {String(card.network ?? "Flare Mainnet")}
         </p>
         <p className="mt-1 text-xs text-[var(--p-muted)]">{String(card.warning)}</p>
+        {card.honesty ? <p className="mt-1 text-xs text-amber-200/90">{String(card.honesty)}</p> : null}
+        {card.requiresChainSwitch ? (
+          <p className="mt-2 text-xs text-signal">MetaMask will switch to Flare Mainnet (chain 14) before signing.</p>
+        ) : null}
 
         <div className="mt-4 space-y-2">
           <StatusRow
-            label="Approve USDT0"
+            label={`Approve ${symbolIn}`}
             status={approveStatus}
             hash={approveHash}
           />
@@ -1016,6 +1211,7 @@ function ActionCard({
                       approveData: card.approveData as Hex,
                       swapTo: card.swapTo as Address,
                       swapData: card.swapData as Hex,
+                      chainId,
                       onStep: (s) => {
                         if (s.step === "approve") {
                           setApproveStatus(s.status);
@@ -1033,10 +1229,13 @@ function ActionCard({
                     onBalancesRefresh();
                     onTxConfirmed?.({
                       kind: "swap",
-                      title: `SparkDEX USDT0→FXRP · ${String(card.amountIn ?? "")}`,
+                      title: `SparkDEX ${symbolIn}→${symbolOut} · ${String(card.amountInDisplay ?? "")}`,
                       hash: result.swapHash,
-                      explorerUrl: explorerTx(result.swapHash),
-                      meta: { flarePrimitive: "SparkDEX · FTSO estimate" },
+                      explorerUrl:
+                        chainId === 14
+                          ? `https://flarescan.com/tx/${result.swapHash}`
+                          : explorerTx(result.swapHash),
+                      meta: { flarePrimitive: "SparkDEX · Flare Mainnet", chainId },
                     });
                   } catch (e) {
                     setError(e instanceof Error ? e.message : "Swap failed");
@@ -1048,7 +1247,7 @@ function ActionCard({
               }}
               className="rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink disabled:opacity-50"
             >
-              {busy ? "Confirm in wallet…" : "Approve + Swap"}
+              {busy ? "Signing…" : card.requiresChainSwitch ? "Switch + Approve + Swap" : "Approve + Swap"}
             </button>
           )}
           <a
@@ -1064,7 +1263,16 @@ function ActionCard({
         {swapStatus === "confirmed" && swapHash && (
           <p className="mt-3 text-sm text-[var(--p-accent-text)]">
             Swap confirmed.{" "}
-            <a href={explorerTx(swapHash)} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+            <a
+              href={
+                Number(card.chainId ?? 14) === 14
+                  ? `https://flarescan.com/tx/${swapHash}`
+                  : explorerTx(swapHash)
+              }
+              target="_blank"
+              rel="noreferrer"
+              className="underline underline-offset-2"
+            >
               View on explorer
             </a>
           </p>
@@ -1233,7 +1441,7 @@ function ActionCard({
 
   if (card.type === "bridge_clarify" || card.type === "media_clarify") {
     const prompts = (card.prompts as string[]) ?? [];
-    const isVideo = card.kind === "video";
+    const isVideo = false;
     const isImage = card.kind === "image" || card.type === "media_clarify";
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">

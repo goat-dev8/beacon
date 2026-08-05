@@ -4,9 +4,11 @@ import { loadEnv, type BeaconEnv } from "./env.js";
 export const FLARE_CONTRACT_REGISTRY_DEFAULT =
   "0xaD67FE66660Fb8dFE9d6b1b4240d8650e30F6019";
 
-/** Official Coston2 USDT0 (SparkDEX / faucet), not Beacon MockUSDT0. */
+/** Official Coston2 faucet USDT0 — not Beacon MockUSDT0. SparkDEX execute is Flare Mainnet. */
 export const COSTON2_USDT0 = "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F";
+/** @deprecated Use SPARKDEX_SWAP_ROUTER from sparkDex.ts — mainnet-only bytecode. */
 export const SPARKDEX_SWAP_ROUTER = "0x8a1E35F5c98C4E85B36B7B253222eE17773b2781";
+/** @deprecated Prefer discoverSparkDexPools fee discovery. */
 export const SPARKDEX_POOL_FEE = 500;
 
 export const FTSO_FEEDS = [
@@ -144,81 +146,5 @@ export async function estimateUsdt0ToFxrp(
     estimatedFxrp: estimated.toFixed(6),
     xrpUsd: xrp,
     slippageBps: 100,
-  };
-}
-
-/**
- * Prepare Uniswap V3 exactInputSingle calldata for SparkDEX USDT0 → FXRP.
- * User must approve router then send this tx from MetaMask, we never auto-broadcast.
- */
-export async function prepareUsdt0ToFxrpSwap(
-  params: { amountInUnits: string; recipient: string; amountOutMinUnits?: string },
-  env: BeaconEnv = loadEnv(),
-): Promise<{
-  tokenIn: string;
-  tokenOut: string;
-  router: string;
-  fee: number;
-  amountIn: string;
-  amountInDisplay: string;
-  amountOutMinimum: string;
-  estimatedFxrp: string;
-  xrpUsd: number;
-  deadline: number;
-  approveTo: string;
-  swapTo: string;
-  approveData: string;
-  swapData: string;
-  explorerApproveHint: string;
-  docs: string[];
-}> {
-  const { Interface, parseUnits } = await import("ethers");
-  const fxrp = await resolveFxrpAddress(env);
-  const estimate = await estimateUsdt0ToFxrp(params.amountInUnits, env);
-  const amountIn = parseUnits(params.amountInUnits, 6);
-  const minOut =
-    params.amountOutMinUnits ??
-    (Math.max(0, parseFloat(estimate.estimatedFxrp) * 0.99) || 0).toFixed(6);
-  const amountOutMinimum = parseUnits(minOut, 6);
-  const deadline = Math.floor(Date.now() / 1000) + 20 * 60;
-  const erc20 = new Interface([
-    "function approve(address spender, uint256 amount) returns (bool)",
-  ]);
-  const routerIf = new Interface([
-    "function exactInputSingle((address tokenIn,address tokenOut,uint24 fee,address recipient,uint256 deadline,uint256 amountIn,uint256 amountOutMinimum,uint160 sqrtPriceLimitX96) params) payable returns (uint256 amountOut)",
-  ]);
-  const approveData = erc20.encodeFunctionData("approve", [SPARKDEX_SWAP_ROUTER, amountIn]);
-  const swapData = routerIf.encodeFunctionData("exactInputSingle", [
-    {
-      tokenIn: COSTON2_USDT0,
-      tokenOut: fxrp,
-      fee: SPARKDEX_POOL_FEE,
-      recipient: params.recipient,
-      deadline,
-      amountIn,
-      amountOutMinimum,
-      sqrtPriceLimitX96: 0n,
-    },
-  ]);
-  return {
-    tokenIn: COSTON2_USDT0,
-    tokenOut: fxrp,
-    router: SPARKDEX_SWAP_ROUTER,
-    fee: SPARKDEX_POOL_FEE,
-    amountIn: amountIn.toString(),
-    amountInDisplay: params.amountInUnits,
-    amountOutMinimum: amountOutMinimum.toString(),
-    estimatedFxrp: estimate.estimatedFxrp,
-    xrpUsd: estimate.xrpUsd,
-    deadline,
-    approveTo: COSTON2_USDT0,
-    swapTo: SPARKDEX_SWAP_ROUTER,
-    approveData,
-    swapData,
-    explorerApproveHint: `https://coston2-explorer.flare.network/address/${COSTON2_USDT0}`,
-    docs: [
-      "https://dev.flare.network/fxrp/token-interactions/usdt0-fxrp-swap",
-      "https://dev.flare.network/smart-accounts/guides/typescript-viem/control-usdt0-ts#swap-usdt0-to-fxrp",
-    ],
   };
 }

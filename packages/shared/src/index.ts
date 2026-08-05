@@ -26,5 +26,25 @@ export * from "./errors.js";
 export * from "./states.js";
 export * from "./flareBoot.js";
 export * from "./ftso.js";
+export {
+  SPARKDEX_V3_FACTORY,
+  SPARKDEX_FEE_TIERS,
+  FLARE_MAINNET_CHAIN_ID,
+  FLARE_MAINNET_RPC_DEFAULT,
+  FLARE_MAINNET_USDT0,
+  resolveSparkDexDeployment,
+  discoverSparkDexPools,
+  estimateSparkDexOut,
+  prepareSparkDexSwap,
+  prepareUsdt0ToFxrpSwap,
+  resolveFxrpOnRpc,
+  type SparkDexDeployment,
+  type SparkDexPool,
+  type SparkDexPairView,
+  type SparkDexNetwork,
+} from "./sparkDex.js";
+export * from "./fassetsStatus.js";
+export * from "./marketIntel.js";
+export * from "./portfolioDesk.js";
 export * from "./oftBridge.js";
 export * from "./flareAgents.js";

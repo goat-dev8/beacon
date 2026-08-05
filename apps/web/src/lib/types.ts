@@ -1,7 +1,6 @@
 export type ServiceId =
   | "video"
   | "image"
-  | "voice"
   | "presentations"
   | "coding"
   | "research"
