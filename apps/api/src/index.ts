@@ -717,15 +717,23 @@ app.get("/v1/agents/balances", async (req) => {
       ? readErc20Balance(env.X402_TOKEN_ADDRESS, wallet, env)
       : Promise.resolve(null),
   ]);
+  const serializeBal = (address: string, bal: { raw: bigint; formatted: string; decimals: number; symbol: string }) => ({
+    address,
+    raw: bal.raw.toString(),
+    formatted: bal.formatted,
+    decimals: bal.decimals,
+    symbol: bal.symbol,
+  });
   return {
     ok: true,
     wallet,
     network: "coston2",
     chainId: 114,
     balances: {
-      usdt0: { address: COSTON2_USDT0, ...usdt0 },
-      fxrp: { address: fxrp, ...fxrpBal },
-      mockUsdt0: mock && env.X402_TOKEN_ADDRESS ? { address: env.X402_TOKEN_ADDRESS, ...mock } : null,
+      usdt0: serializeBal(COSTON2_USDT0, usdt0),
+      fxrp: serializeBal(fxrp, fxrpBal),
+      mockUsdt0:
+        mock && env.X402_TOKEN_ADDRESS ? serializeBal(env.X402_TOKEN_ADDRESS, mock) : null,
     },
   };
 });
