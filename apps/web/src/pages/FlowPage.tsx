@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "motion/react";
@@ -13,6 +13,7 @@ import {
   Search,
   CheckCircle2,
   Clock,
+  ChevronDown,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import {
@@ -20,10 +21,19 @@ import {
   shortAddress,
   mintMockUsdt0,
   executeSparkDexSwap,
+  executeOftBridge,
   tryRestoreWallet,
 } from "@/lib/wallet";
 import { NETWORK } from "@/lib/chain";
 import { cn } from "@/lib/utils";
+import { ExecutionDrawer } from "@/components/ExecutionDrawer";
+import {
+  cardKey,
+  findActiveExecution,
+  inferSettledServiceIds,
+  type CardExecutionState,
+  type AgentCard,
+} from "@/lib/executionPhases";
 import type { Address, Hex } from "viem";
 
 type AgentId =
@@ -47,15 +57,23 @@ interface ChatMsg {
   displayModel?: string;
 }
 
-type AgentCard = Record<string, unknown> & { type: string; title?: string };
-
 type ConvState = {
   intent: string;
   phase: string;
   amountInUnits?: string;
   bridgeFrom?: string;
   bridgeTo?: string;
+  serviceId?: string;
+  creativeBrief?: string;
+  quotePrice?: string;
 } | null;
+
+type PaidResendMeta = {
+  agentId?: AgentId;
+  serviceId?: string;
+  resource?: string;
+  brief?: string;
+};
 
 function explorerTx(hash: string) {
   return `${NETWORK.explorer}/tx/${hash}`;
@@ -82,11 +100,18 @@ export function FlowPage() {
   const [input, setInput] = useState("");
   const [wallet, setWallet] = useState<string | null>(null);
   const [convState, setConvState] = useState<ConvState>(null);
+  const [settledServiceIds, setSettledServiceIds] = useState<Set<string>>(() => new Set());
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([WELCOME]);
   const [convSearch, setConvSearch] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [executionStates, setExecutionStates] = useState<Record<string, CardExecutionState>>({});
+  const [showAllAgents, setShowAllAgents] = useState(false);
+
+  const onExecutionStateChange = useCallback((key: string, state: CardExecutionState) => {
+    setExecutionStates((prev) => ({ ...prev, [key]: { ...prev[key], ...state } }));
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -153,6 +178,8 @@ export function FlowPage() {
             displayModel: m.displayModel,
           }))
         : [WELCOME];
+    setSettledServiceIds(inferSettledServiceIds(loaded));
+    setExecutionStates({});
     setMessages(loaded);
   }
 
@@ -160,6 +187,7 @@ export function FlowPage() {
     if (!wallet) {
       setConversationId(null);
       setConvState(null);
+      setSettledServiceIds(new Set());
       setAgentId("general");
       setMessages([WELCOME]);
       return;
@@ -167,6 +195,7 @@ export function FlowPage() {
     const { conversation } = await api.createFlowConversation(wallet, "New chat", agentId);
     setConversationId(conversation.id);
     setConvState(null);
+    setSettledServiceIds(new Set());
     setMessages([WELCOME]);
     void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
   }
@@ -243,6 +272,10 @@ export function FlowPage() {
 
   const bal = balancesQuery.data?.balances;
   const recentActivity = activityQuery.data?.activity?.slice(0, 5) ?? [];
+  const activeExecution = useMemo(
+    () => findActiveExecution(messages, executionStates, settledServiceIds),
+    [messages, executionStates, settledServiceIds],
+  );
 
   return (
     <div className="flex h-dvh max-h-dvh overflow-hidden bg-[#0a0c0b] text-[#f0f2ef]">
@@ -292,6 +325,26 @@ export function FlowPage() {
           >
             New chat
           </button>
+          <nav className="flex gap-1 rounded-lg border border-white/10 bg-black/20 p-1">
+            <Link
+              to="/flow"
+              className="flex-1 rounded-md bg-white/10 px-2 py-1.5 text-center text-[11px] font-medium text-signal"
+            >
+              Flow
+            </Link>
+            <Link
+              to="/app"
+              className="flex-1 rounded-md px-2 py-1.5 text-center text-[11px] text-white/50 hover:bg-white/5 hover:text-white/80"
+            >
+              Bound Work
+            </Link>
+            <Link
+              to="/flow/security"
+              className="flex-1 rounded-md px-2 py-1.5 text-center text-[11px] text-white/50 hover:bg-white/5 hover:text-white/80"
+            >
+              Security
+            </Link>
+          </nav>
           <div className="relative">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 size-3.5 text-white/35" />
             <input
@@ -444,7 +497,8 @@ export function FlowPage() {
         </div>
       </aside>
 
-      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {/* Fixed header */}
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
           <div className="min-w-0">
@@ -454,11 +508,26 @@ export function FlowPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <span className="hidden rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wide text-white/45 sm:inline">
+              Coston2
+            </span>
             {wallet && bal && (
-              <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-[11px] text-white/65 sm:flex">
-                <span>{bal.usdt0.formatted} USDT0</span>
-                <span className="text-white/25">·</span>
-                <span>{bal.fxrp.formatted} FXRP</span>
+              <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 font-mono text-[10px] text-white/65 lg:flex">
+                <span title="SparkDEX / faucet USDT0">
+                  <span className="text-white/35">USDT0</span> {bal.usdt0.formatted}
+                </span>
+                {bal.mockUsdt0 && (
+                  <>
+                    <span className="text-white/20">·</span>
+                    <span title="Beacon x402 / desk token">
+                      <span className="text-white/35">Mock</span> {bal.mockUsdt0.formatted}
+                    </span>
+                  </>
+                )}
+                <span className="text-white/20">·</span>
+                <span>
+                  <span className="text-white/35">FXRP</span> {bal.fxrp.formatted}
+                </span>
               </div>
             )}
             <button
@@ -523,7 +592,11 @@ export function FlowPage() {
                       <ActionCard
                         key={`${msg.id}-${i}`}
                         card={card}
+                        cardKey={cardKey(msg.id, i)}
                         wallet={wallet}
+                        convState={convState}
+                        settledServiceIds={settledServiceIds}
+                        onExecutionStateChange={onExecutionStateChange}
                         onConnect={() => void onConnect()}
                         onMint={() => void mintMockUsdt0()}
                         onBalancesRefresh={() => {
@@ -533,21 +606,33 @@ export function FlowPage() {
                           setInput("");
                           chat.mutate(text);
                         }}
-                        onPaidResend={(payment) => {
-                          const lastUser = [...messages].reverse().find((m) => m.role === "user");
-                          if (!lastUser) return;
+                        onPaidResend={(payment, meta) => {
+                          const brief =
+                            meta.brief ??
+                            convState?.creativeBrief ??
+                            [...messages].reverse().find((m) => m.role === "user")?.text ??
+                            "";
                           void api
                             .agentChat({
-                              agentId: msg.agentId,
-                              message: lastUser.text,
+                              agentId: meta.agentId ?? msg.agentId,
+                              message: brief,
                               wallet: wallet ?? undefined,
                               conversationId: conversationId ?? undefined,
                               state: convState,
-                              payment,
+                              serviceId: meta.serviceId,
+                              resource: meta.resource,
+                              payment: {
+                                ...payment,
+                                serviceId: meta.serviceId,
+                                resource: meta.resource,
+                              },
                             })
                             .then((data) => {
                               setConvState(data.state);
                               if (data.conversationId) setConversationId(data.conversationId);
+                              if (meta.serviceId) {
+                                setSettledServiceIds((prev) => new Set(prev).add(meta.serviceId!));
+                              }
                               setMessages((m) => [
                                 ...m,
                                 {
@@ -582,25 +667,51 @@ export function FlowPage() {
 
         {/* Fixed composer */}
         <div className="shrink-0 border-t border-white/10 bg-[#0a0c0b] px-5 py-3">
-          <div className="mb-2 flex flex-wrap gap-2">
-            {agents.slice(0, 8).map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                onClick={() => {
-                  setAgentId(a.id as AgentId);
-                  setInput((v) => (v.includes("@") ? v : `${a.mention} `));
-                }}
-                className={cn(
-                  "rounded-full border px-3 py-1 text-xs",
-                  a.id === agentId
-                    ? "border-signal/50 bg-signal/15 text-signal"
-                    : "border-white/15 text-white/60 hover:border-white/30",
-                )}
-              >
-                {a.name}
-              </button>
-            ))}
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full border border-signal/50 bg-signal/15 px-3 py-1 text-xs text-signal"
+            >
+              {active.name}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAllAgents((v) => !v)}
+              className="inline-flex items-center gap-1 rounded-full border border-white/15 px-3 py-1 text-xs text-white/60 hover:border-white/30"
+            >
+              All agents
+              <ChevronDown className={cn("size-3 transition", showAllAgents && "rotate-180")} />
+            </button>
+            <AnimatePresence>
+              {showAllAgents && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="flex w-full flex-wrap gap-1.5 overflow-hidden"
+                >
+                  {agents.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => {
+                        setAgentId(a.id as AgentId);
+                        setInput((v) => (v.includes("@") ? v : `${a.mention} `));
+                        setShowAllAgents(false);
+                      }}
+                      className={cn(
+                        "rounded-full border px-2.5 py-0.5 text-[11px]",
+                        a.id === agentId
+                          ? "border-signal/50 bg-signal/15 text-signal"
+                          : "border-white/15 text-white/55 hover:border-white/30",
+                      )}
+                    >
+                      {a.name}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <div className="flex items-end gap-2 rounded-2xl border border-white/15 bg-white/[0.04] px-3 py-2">
             <textarea
@@ -629,6 +740,9 @@ export function FlowPage() {
             Flare Coston2 · FTSO · SparkDEX · LayerZero OFT · x402 · EIP-3009 · verify every tx on explorer
           </p>
         </div>
+        </div>
+
+        <ExecutionDrawer active={activeExecution} />
       </main>
     </div>
   );
@@ -636,7 +750,11 @@ export function FlowPage() {
 
 function ActionCard({
   card,
+  cardKey: execKey,
   wallet,
+  convState,
+  settledServiceIds,
+  onExecutionStateChange,
   onConnect,
   onMint,
   onPaidResend,
@@ -644,10 +762,14 @@ function ActionCard({
   onQuickReply,
 }: {
   card: AgentCard;
+  cardKey: string;
   wallet: string | null;
+  convState: ConvState;
+  settledServiceIds: Set<string>;
+  onExecutionStateChange: (key: string, state: CardExecutionState) => void;
   onConnect: () => void;
   onMint: () => void;
-  onPaidResend: (payment: Record<string, unknown>) => void;
+  onPaidResend: (payment: Record<string, unknown>, meta: PaidResendMeta) => void;
   onBalancesRefresh: () => void;
   onQuickReply: (text: string) => void;
 }) {
@@ -655,8 +777,40 @@ function ActionCard({
   const [error, setError] = useState<string | null>(null);
   const [approveStatus, setApproveStatus] = useState<"idle" | "pending" | "confirmed" | "skipped">("idle");
   const [swapStatus, setSwapStatus] = useState<"idle" | "pending" | "confirmed" | "failed">("idle");
+  const [sendStatus, setSendStatus] = useState<"idle" | "pending" | "confirmed" | "failed">("idle");
   const [approveHash, setApproveHash] = useState<string | null>(null);
   const [swapHash, setSwapHash] = useState<string | null>(null);
+  const [sendHash, setSendHash] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (
+      card.type === "swap_prepare" ||
+      card.type === "bridge_prepare" ||
+      card.type === "x402_quote" ||
+      card.type === "media_result"
+    ) {
+      onExecutionStateChange(execKey, {
+        approveStatus,
+        swapStatus,
+        sendStatus,
+        approveHash,
+        swapHash,
+        sendHash,
+        payBusy: busy && card.type === "x402_quote",
+      });
+    }
+  }, [
+    card.type,
+    execKey,
+    approveStatus,
+    swapStatus,
+    sendStatus,
+    approveHash,
+    swapHash,
+    sendHash,
+    busy,
+    onExecutionStateChange,
+  ]);
 
   if (card.type === "ftso_signals") {
     const feeds = (card.feeds as Array<{ symbol: string; value: number }>) ?? [];
@@ -834,6 +988,130 @@ function ActionCard({
     );
   }
 
+  if (card.type === "bridge_quote") {
+    return (
+      <div className="rounded-2xl border border-[#c4b5fd]/30 bg-gradient-to-br from-[#1a1528] to-[#0a0c0b] p-4">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-[#c4b5fd]">{card.title}</p>
+        <div className="mt-3 flex flex-wrap items-end gap-6">
+          <div>
+            <p className="font-mono text-[10px] text-white/40">You bridge</p>
+            <p className="font-display text-2xl text-white">{String(card.amountDisplay)} FXRP</p>
+          </div>
+          <div>
+            <p className="font-mono text-[10px] text-white/40">To</p>
+            <p className="font-display text-2xl text-[#c4b5fd]">{String(card.destination)}</p>
+          </div>
+          <div>
+            <p className="font-mono text-[10px] text-white/40">Messaging fee</p>
+            <p className="font-display text-2xl text-signal">{String(card.nativeFeeDisplay)}</p>
+          </div>
+        </div>
+        <p className="mt-2 text-xs text-white/45">
+          EID {String(card.dstEid)} · balance {String(card.fxrpBalance)} FXRP · {String(card.network)}
+        </p>
+        <p className="mt-1 text-xs text-white/35">{String(card.note)}</p>
+        <button
+          type="button"
+          onClick={() => onQuickReply("confirm")}
+          className="mt-4 rounded-full bg-[#c4b5fd] px-5 py-2 text-sm font-medium text-ink"
+        >
+          Confirm bridge
+        </button>
+      </div>
+    );
+  }
+
+  if (card.type === "bridge_prepare") {
+    const lzScanBase = String(card.layerZeroScanBase ?? "https://testnet.layerzeroscan.com/tx/");
+    return (
+      <div className="rounded-2xl border border-white/12 bg-white/[0.04] p-4">
+        <p className="font-mono text-[11px] uppercase tracking-widest text-[#c4b5fd]">{card.title}</p>
+        <p className="mt-2 text-sm text-white/75">
+          Bridge <span className="text-white">{String(card.amountDisplay)} FXRP</span>
+          {" → "}
+          <span className="text-[#c4b5fd]">{String(card.destination)}</span>
+          {" · fee "}
+          <span className="text-signal">{String(card.nativeFeeDisplay)}</span>
+        </p>
+        <p className="mt-1 text-xs text-white/40">{String(card.warning)}</p>
+
+        <div className="mt-4 space-y-2">
+          <StatusRow label="Approve FXRP" status={approveStatus} hash={approveHash} />
+          <StatusRow label="OFT send" status={sendStatus} hash={sendHash} />
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          {!wallet && (
+            <button type="button" onClick={onConnect} className="rounded-full bg-[#2563eb] px-4 py-2 text-sm text-white">
+              Connect wallet
+            </button>
+          )}
+          {wallet && sendStatus !== "confirmed" && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                void (async () => {
+                  setBusy(true);
+                  setError(null);
+                  try {
+                    const result = await executeOftBridge({
+                      approveTo: card.approveTo as Address,
+                      approveData: card.approveData as Hex,
+                      sendTo: card.sendTo as Address,
+                      sendData: card.sendData as Hex,
+                      nativeFee: BigInt(String(card.nativeFee)),
+                      onStep: (s) => {
+                        if (s.step === "approve") {
+                          setApproveStatus(s.status);
+                          if (s.hash) setApproveHash(s.hash);
+                        }
+                        if (s.step === "send") {
+                          setSendStatus(s.status);
+                          if (s.hash) setSendHash(s.hash);
+                        }
+                      },
+                    });
+                    if (result.approveHash) setApproveHash(result.approveHash);
+                    setSendHash(result.sendHash);
+                    setSendStatus("confirmed");
+                    onBalancesRefresh();
+                  } catch (e) {
+                    setError(e instanceof Error ? e.message : "Bridge send failed");
+                    setSendStatus((prev) => (prev === "pending" ? "failed" : prev));
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }}
+              className="rounded-full bg-[#c4b5fd] px-4 py-2 text-sm font-medium text-ink disabled:opacity-50"
+            >
+              {busy ? "Confirm in wallet…" : "Approve + Send"}
+            </button>
+          )}
+        </div>
+        {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
+        {sendStatus === "confirmed" && sendHash && (
+          <div className="mt-3 space-y-1 text-sm text-signal">
+            <p>
+              Source tx confirmed on Coston2.{" "}
+              <a href={explorerTx(sendHash)} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                View on explorer
+              </a>
+            </p>
+            <p className="text-xs text-white/50">
+              Cross-chain delivery is tracked separately on{" "}
+              <a href={`${lzScanBase}${sendHash}`} target="_blank" rel="noreferrer" className="text-[#c4b5fd] underline underline-offset-2">
+                LayerZero Scan
+              </a>
+              — destination fill is not shown here until LayerZero confirms delivery.
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (card.type === "bridge_clarify" || card.type === "media_clarify") {
     const prompts = (card.prompts as string[]) ?? [];
     const isVideo = card.kind === "video";
@@ -978,6 +1256,8 @@ function ActionCard({
   }
 
   if (card.type === "x402_quote") {
+    const serviceId = typeof card.serviceId === "string" ? card.serviceId : "";
+    const isSettled = serviceId ? settledServiceIds.has(serviceId) : false;
     return (
       <div className="rounded-2xl border border-signal/25 bg-gradient-to-br from-[#1a2430] to-[#0a0c0b] p-5">
         <div className="flex flex-wrap items-center gap-2">
@@ -1007,6 +1287,11 @@ function ActionCard({
           <button type="button" onClick={onMint} className="rounded-full border border-white/20 px-4 py-2 text-sm text-white/80">
             Mint test USDT0
           </button>
+          {isSettled ? (
+            <span className="inline-flex items-center rounded-full bg-signal/15 px-5 py-2 text-sm font-medium text-signal">
+              Paid
+            </span>
+          ) : (
           <button
             type="button"
             disabled={!wallet || busy}
@@ -1022,7 +1307,15 @@ function ActionCard({
                     payTo: String(card.payTo),
                     token: String(card.token),
                   });
-                  onPaidResend(payment);
+                  onPaidResend(payment, {
+                    agentId: (card.agentId as AgentId | undefined) ?? undefined,
+                    serviceId: serviceId || undefined,
+                    resource: typeof card.resource === "string" ? card.resource : undefined,
+                    brief:
+                      (typeof card.brief === "string" && card.brief) ||
+                      convState?.creativeBrief ||
+                      undefined,
+                  });
                 } catch (e) {
                   setError(e instanceof Error ? e.message : "pay failed");
                 } finally {
@@ -1034,6 +1327,7 @@ function ActionCard({
           >
             {busy ? "Signing…" : "Pay & run"}
           </button>
+          )}
         </div>
         {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
       </div>
@@ -1045,6 +1339,17 @@ function ActionCard({
       <div className="rounded-2xl border border-signal/25 bg-white/[0.04] p-4">
         <p className="font-mono text-[11px] uppercase tracking-widest text-signal">{card.title}</p>
         <p className="mt-2 text-sm text-white/75">{String(card.summary)}</p>
+        {typeof card.paymentTxHint === "string" && card.paymentTxHint && (
+          <a
+            href={explorerTx(card.paymentTxHint)}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 inline-flex items-center gap-1 font-mono text-[11px] text-signal hover:underline"
+          >
+            Settlement tx · {card.paymentTxHint.slice(0, 10)}…
+            <ExternalLink className="size-3" />
+          </a>
+        )}
         {typeof card.content === "string" && card.content.startsWith("data:image") && (
           <img src={card.content} alt="Beacon result" className="mt-3 max-h-72 rounded-xl border border-white/10" />
         )}

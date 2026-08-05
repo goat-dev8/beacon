@@ -1,5 +1,3 @@
-import { loadEnv, type BeaconEnv } from "./env.js";
-
 export interface LogoBrief {
   name: string;
   tagline?: string;

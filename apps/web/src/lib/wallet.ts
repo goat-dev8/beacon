@@ -123,6 +123,10 @@ export type SwapExecutionStep =
   | { step: "approve"; status: "pending" | "confirmed" | "skipped"; hash?: Hex }
   | { step: "swap"; status: "pending" | "confirmed" | "failed"; hash?: Hex; error?: string };
 
+export type OftBridgeExecutionStep =
+  | { step: "approve"; status: "pending" | "confirmed" | "skipped"; hash?: Hex }
+  | { step: "send"; status: "pending" | "confirmed" | "failed"; hash?: Hex; error?: string };
+
 /** Approve (if needed) + SparkDEX exactInputSingle; wait for receipts. */
 export async function executeSparkDexSwap(params: {
   approveTo: Address;
@@ -175,6 +179,60 @@ export async function executeSparkDexSwap(params: {
   }
   params.onStep?.({ step: "swap", status: "confirmed", hash: swapHash });
   return { approveHash, swapHash };
+}
+
+/** Approve FXRP (if needed) + LayerZero OFT send with native messaging fee. */
+export async function executeOftBridge(params: {
+  approveTo: Address;
+  approveData: Hex;
+  sendTo: Address;
+  sendData: Hex;
+  nativeFee: bigint;
+  onStep?: (s: OftBridgeExecutionStep) => void;
+}): Promise<{ approveHash?: Hex; sendHash: Hex }> {
+  await ensureCoston2Network();
+  const wallet = walletClient();
+  const pub = publicClient();
+  const [account] = await wallet.getAddresses();
+  if (!account) throw new Error("Connect a wallet first.");
+
+  let approveHash: Hex | undefined;
+  params.onStep?.({ step: "approve", status: "pending" });
+  try {
+    approveHash = await wallet.sendTransaction({
+      account,
+      to: params.approveTo,
+      data: params.approveData,
+      chain: coston2,
+    });
+    params.onStep?.({ step: "approve", status: "pending", hash: approveHash });
+    await pub.waitForTransactionReceipt({ hash: approveHash });
+    params.onStep?.({ step: "approve", status: "confirmed", hash: approveHash });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (!/user rejected|denied|reject/i.test(msg)) {
+      params.onStep?.({ step: "approve", status: "skipped" });
+    } else {
+      throw e;
+    }
+  }
+
+  params.onStep?.({ step: "send", status: "pending" });
+  const sendHash = await wallet.sendTransaction({
+    account,
+    to: params.sendTo,
+    data: params.sendData,
+    value: params.nativeFee,
+    chain: coston2,
+  });
+  params.onStep?.({ step: "send", status: "pending", hash: sendHash });
+  const receipt = await pub.waitForTransactionReceipt({ hash: sendHash });
+  if (receipt.status === "reverted") {
+    params.onStep?.({ step: "send", status: "failed", hash: sendHash, error: "OFT send reverted on-chain" });
+    throw new Error("OFT send transaction reverted. Check FXRP balance, allowance, and C2FLR for messaging fee.");
+  }
+  params.onStep?.({ step: "send", status: "confirmed", hash: sendHash });
+  return { approveHash, sendHash };
 }
 
 export function jobIdToBytes32(jobId: string): Hex {

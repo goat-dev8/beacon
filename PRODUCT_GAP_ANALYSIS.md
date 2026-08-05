@@ -24,8 +24,8 @@
 | FTSO Signals | Price truth for decisions | **FTSO** | Yes — traders need live bias | Yes if tied to trade action | **Working** |
 | Swap USDT0→FXRP | Acquire FXRP on Coston2 | **FAssets FXRP + SparkDEX** | Yes | Yes (screenshots: approve→swap→explorer) | **Working** |
 | Trade desk | Signal → act | **FTSO** (+ optional SparkDEX) | Yes | Partial | **Partial** |
-| Bridge | Move FXRP cross-chain | **LayerZero OFT + FAssets** | Yes | No — asks clarify instead of listing peers | **Partial** |
-| Pay x402 | Micropay for agent resources | **x402 / EIP-3009** | Yes | No — generic $0.10 with no resource | **Placeholder product** (rails real) |
+| Bridge | Move FXRP cross-chain | **LayerZero OFT + FAssets** | Yes | Yes for quote+send UI | **Working quote; Partial send proof** |
+| Pay x402 | Micropay for agent resources | **x402 / EIP-3009** | Yes | Yes if settle→deliver once | **Working** (fail-closed settle) |
 | Bound Work | Escrowed creative jobs | **Escrow + EIP-3009** | Yes | Yes for large jobs | **Working** |
 | Image / Video | Creative generation | Escrow / x402 for settle | Yes | No — every image forced to Bound Work | **Partial** |
 | Research | Packs with citations | x402 or Escrow | Yes | Partial | **Partial** |

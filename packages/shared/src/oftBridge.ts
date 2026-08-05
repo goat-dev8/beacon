@@ -1,0 +1,187 @@
+import { Options } from "@layerzerolabs/lz-v2-utilities";
+import { loadEnv, type BeaconEnv } from "./env.js";
+import { resolveFxrpAddress } from "./ftso.js";
+
+/** Official Coston2 FXRP OFT Adapter (LayerZero V2). */
+export const COSTON2_FXRP_OFT_ADAPTER = "0xCd3d2127935Ae82Af54Fc31cCD9D3440dbF46639";
+
+/** Official Coston2 FXRP OFT peers from Flare DevHub getOftPeers. */
+export const COSTON2_FXRP_OFT_ROUTES = [
+  {
+    chain: "BSC Testnet",
+    eid: 40102,
+    peer: "0xac7c4a07670589cf83b134a843bfe86c45a4bf4e",
+    asset: "FXRP",
+    status: "supported" as const,
+    eta: "minutes (LayerZero)",
+    fees: "LayerZero messaging fee in native gas — quote on send",
+  },
+  {
+    chain: "Sepolia",
+    eid: 40161,
+    peer: "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+    asset: "FXRP",
+    status: "supported" as const,
+    eta: "minutes (LayerZero)",
+    fees: "LayerZero messaging fee in native gas — quote on send",
+  },
+  {
+    chain: "Hyperliquid EVM Testnet",
+    eid: 40362,
+    peer: "0x14bfb521e318fc3d5e92a8462c65079bc7d4284c",
+    asset: "FXRP",
+    status: "supported" as const,
+    eta: "minutes (LayerZero)",
+    fees: "HYPE gas + LZ fee — quote on send",
+  },
+] as const;
+
+export type Coston2FxrpOftRoute = (typeof COSTON2_FXRP_OFT_ROUTES)[number];
+
+export function resolveOftRouteByEid(dstEid: number): Coston2FxrpOftRoute {
+  const route = COSTON2_FXRP_OFT_ROUTES.find((r) => r.eid === dstEid);
+  if (!route) {
+    throw new Error(
+      `Unsupported dstEid ${dstEid}. Known peers: BSC 40102, Sepolia 40161, Hyperliquid 40362.`,
+    );
+  }
+  return route;
+}
+
+export function resolveOftRouteByChain(chain: string): Coston2FxrpOftRoute | undefined {
+  const norm = chain.trim().toLowerCase();
+  return COSTON2_FXRP_OFT_ROUTES.find((r) => r.chain.toLowerCase() === norm);
+}
+
+const OFT_ADAPTER_ABI = [
+  "function quoteSend((uint32 dstEid, bytes32 to, uint256 amountLD, uint256 minAmountLD, bytes extraOptions, bytes composeMsg, bytes oftCmd) _sendParam, bool _payInLzToken) view returns (uint256 nativeFee, uint256 lzTokenFee)",
+  "function send((uint32 dstEid, bytes32 to, uint256 amountLD, uint256 minAmountLD, bytes extraOptions, bytes composeMsg, bytes oftCmd) _sendParam, (uint256 nativeFee, uint256 lzTokenFee) _fee, address _refundAddress) payable",
+] as const;
+
+export interface FxrpOftSendParam {
+  dstEid: number;
+  to: string;
+  amountLD: bigint;
+  minAmountLD: bigint;
+  extraOptions: string;
+  composeMsg: string;
+  oftCmd: string;
+}
+
+function addressToBytes32(recipient: string): string {
+  const addr = recipient.toLowerCase().replace(/^0x/, "");
+  return `0x${addr.padStart(64, "0")}`;
+}
+
+/** Executor gas for destination lzReceive — matches flare-viem-starter default. */
+export const OFT_EXECUTOR_GAS = 400_000;
+
+/** Build LayerZero V2 OFT SendParam with executor lzReceive options (required for delivery). */
+export function buildFxrpOftSendParam(params: {
+  dstEid: number;
+  recipient: string;
+  amountLD: bigint;
+  slippageBps?: number;
+  executorGas?: number;
+}): FxrpOftSendParam {
+  const gas = params.executorGas ?? OFT_EXECUTOR_GAS;
+  const extraOptions = Options.newOptions().addExecutorLzReceiveOption(gas, 0).toHex();
+  const slippageBps = params.slippageBps ?? 100;
+  const minAmountLD = (params.amountLD * BigInt(10_000 - slippageBps)) / 10_000n;
+  return {
+    dstEid: params.dstEid,
+    to: addressToBytes32(params.recipient),
+    amountLD: params.amountLD,
+    minAmountLD,
+    extraOptions,
+    composeMsg: "0x",
+    oftCmd: "0x",
+  };
+}
+
+/**
+ * Prepare LayerZero OFT Adapter approve + send calldata for Coston2 → peer.
+ * Messaging fee comes from on-chain quoteSend — never invented.
+ */
+export async function prepareFxrpOftBridge(
+  params: { amountFxrpUnits: string; recipient: string; dstEid: number },
+  env: BeaconEnv = loadEnv(),
+): Promise<{
+  fxrp: string;
+  oftAdapter: string;
+  approveTo: string;
+  approveData: string;
+  sendTo: string;
+  sendData: string;
+  nativeFee: string;
+  lzTokenFee: string;
+  nativeFeeDisplay: string;
+  dstEid: number;
+  amountLD: string;
+  amountDisplay: string;
+  minAmountLD: string;
+  recipient: string;
+  peer: Coston2FxrpOftRoute;
+  sendParam: FxrpOftSendParam;
+  docs: string[];
+  layerZeroScanBase: string;
+  explorerBase: string;
+}> {
+  const { Contract, Interface, JsonRpcProvider, parseUnits, formatUnits } = await import("ethers");
+  const route = resolveOftRouteByEid(params.dstEid);
+  const fxrp = await resolveFxrpAddress(env);
+  const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
+
+  const erc = new Contract(fxrp, ["function decimals() view returns (uint8)"], provider);
+  const decimals = Number(await erc.decimals());
+  const amountLD = parseUnits(params.amountFxrpUnits, decimals);
+  const sendParam = buildFxrpOftSendParam({
+    dstEid: params.dstEid,
+    recipient: params.recipient,
+    amountLD,
+    slippageBps: 100,
+  });
+
+  const oftAdapter = new Contract(COSTON2_FXRP_OFT_ADAPTER, OFT_ADAPTER_ABI, provider);
+  const quote = (await oftAdapter.quoteSend(sendParam, false)) as {
+    nativeFee: bigint;
+    lzTokenFee: bigint;
+  };
+  const nativeFee = quote.nativeFee;
+  const lzTokenFee = quote.lzTokenFee;
+
+  const erc20If = new Interface(["function approve(address spender, uint256 amount) returns (bool)"]);
+  const oftIf = new Interface(OFT_ADAPTER_ABI);
+  const approveData = erc20If.encodeFunctionData("approve", [COSTON2_FXRP_OFT_ADAPTER, amountLD]);
+  const sendData = oftIf.encodeFunctionData("send", [
+    sendParam,
+    { nativeFee, lzTokenFee },
+    params.recipient,
+  ]);
+
+  return {
+    fxrp,
+    oftAdapter: COSTON2_FXRP_OFT_ADAPTER,
+    approveTo: fxrp,
+    approveData,
+    sendTo: COSTON2_FXRP_OFT_ADAPTER,
+    sendData,
+    nativeFee: nativeFee.toString(),
+    lzTokenFee: lzTokenFee.toString(),
+    nativeFeeDisplay: `${formatUnits(nativeFee, 18)} C2FLR`,
+    dstEid: params.dstEid,
+    amountLD: amountLD.toString(),
+    amountDisplay: params.amountFxrpUnits,
+    minAmountLD: sendParam.minAmountLD.toString(),
+    recipient: params.recipient,
+    peer: route,
+    sendParam,
+    docs: [
+      "https://dev.flare.network/fxrp/oft/fxrp-automint",
+      "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes",
+      "https://docs.layerzero.network/v2/deployments/chains/flare-testnet",
+    ],
+    layerZeroScanBase: "https://testnet.layerzeroscan.com/tx/",
+    explorerBase: "https://coston2-explorer.flare.network/tx/",
+  };
+}

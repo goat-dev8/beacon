@@ -1,11 +1,13 @@
-# Beacon — Complete Implementation Plan
+# Beacon — Living Consolidation Architecture
 
-**Status:** Execution plan (pre-code)  
+**Status:** Living architecture (post-production Flow OS). Supersedes the old “pre-code” reading of this file.  
 **Network target (phase 1):** Flare Testnet Coston2 (chainId `114`) + XRPL Testnet  
-**Product:** Beacon (see `PRODUCT.md`)  
+**Product:** Beacon — AI execution layer for Flare (Bounty 1 beachhead). See `PRODUCTIZATION_RESEARCH_2026-08-05.md`.  
 **Honesty rule:** Facts from official Flare docs and verified Foundation repos only. Unknowns marked **UNKNOWN**. Decisions needing live checks marked **VALIDATE FIRST**. Do not invent Flare APIs.
 
-**Frontend is last.** Build order is mandatory (§0).
+**Current authority:** Universal execution engine (`packages/execution`) + Flow workspace + registered adapters (swap, bridge.fxrp_oft, media, research, bound_work). Historical Bound Work phases below remain valid for escrow jobs; new work consolidates onto execution phases.
+
+**Frontend is not last anymore** — Flow is live. Remaining UI work is consolidation onto one shell/drawer, not greenfield.
 
 ---
 

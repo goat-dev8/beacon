@@ -1,5 +1,5 @@
 {
-  "name": "@beacon/shared",
+  "name": "@beacon/execution",
   "version": "0.1.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -16,11 +16,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@layerzerolabs/lz-v2-utilities": "^3.0.168",
-    "uuid": "^14.0.1",
-    "zod": "^4.4.3"
-  },
-  "devDependencies": {
-    "@types/uuid": "^10.0.0"
+    "zod": "^3.24.2"
   }
 }

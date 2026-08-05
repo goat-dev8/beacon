@@ -18,9 +18,13 @@ import {
   runBeaconAgentChat,
   readFtsoFeeds,
   prepareUsdt0ToFxrpSwap,
+  prepareFxrpOftBridge,
   readErc20Balance,
   resolveFxrpAddress,
   COSTON2_USDT0,
+  chatCompletionStream,
+  resolveModelForRole,
+  isAiConfigured,
   type BeaconAgentId,
   type ConversationState,
 } from "@beacon/shared";
@@ -61,6 +65,8 @@ import {
   renameConversation,
   updateConversationState,
 } from "./flowStore.js";
+import { registerPaidResourceRoutes } from "./resources/paidResources.js";
+import { registerExecutionRoutes } from "./execution/routes.js";
 
 const env = loadEnv();
 assertFlareRequired(env);
@@ -718,6 +724,18 @@ app.post("/v1/agents/swap/prepare", async (req) => {
   return { ok: true, prep };
 });
 
+app.post("/v1/agents/bridge/prepare", async (req) => {
+  const body = z
+    .object({
+      amountFxrpUnits: z.string().default("1"),
+      recipient: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+      dstEid: z.number().int().positive(),
+    })
+    .parse(req.body ?? {});
+  const prep = await prepareFxrpOftBridge(body, env);
+  return { ok: true, prep };
+});
+
 const agentChatSchema = z.object({
   agentId: z
     .enum([
@@ -736,6 +754,9 @@ const agentChatSchema = z.object({
   message: z.string().min(1).max(4000),
   wallet: z.string().optional(),
   conversationId: z.string().uuid().optional(),
+  serviceId: z.string().optional(),
+  resource: z.string().optional(),
+  quoteId: z.string().optional(),
   state: z
     .object({
       intent: z.string(),
@@ -743,6 +764,9 @@ const agentChatSchema = z.object({
       amountInUnits: z.string().optional(),
       bridgeFrom: z.string().optional(),
       bridgeTo: z.string().optional(),
+      serviceId: z.string().optional(),
+      creativeBrief: z.string().optional(),
+      quotePrice: z.string().optional(),
     })
     .optional()
     .nullable(),
@@ -759,13 +783,20 @@ const agentChatSchema = z.object({
       r: z.string().optional(),
       s: z.string().optional(),
       signature: z.string().optional(),
+      serviceId: z.string().optional(),
+      resource: z.string().optional(),
+      quoteId: z.string().optional(),
     })
     .optional(),
 });
 
+await registerPaidResourceRoutes(app, redis, env);
+await registerExecutionRoutes(app, pool, redis);
+
 app.post("/v1/agents/chat", async (req) => {
   const body = agentChatSchema.parse(req.body ?? {});
   let paidResource = false;
+  let settlementTxHash: string | undefined;
 
   if (body.wallet) {
     await assertPolicyAllows(redis, {
@@ -809,28 +840,41 @@ app.post("/v1/agents/chat", async (req) => {
     if (!ok) {
       throw new AppError("VALIDATION", { message: "x402 payment authorization invalid." });
     }
-    if (env.DEPLOYER_PRIVATE_KEY) {
-      const wallet = new Wallet(env.DEPLOYER_PRIVATE_KEY, provider);
-      await client.settlePayment(
-        wallet,
-        body.payment.from,
-        body.payment.to,
-        BigInt(body.payment.value),
-        BigInt(body.payment.validAfter),
-        BigInt(body.payment.validBefore),
-        body.payment.nonce as `0x${string}`,
-        signature,
-      );
+    if (!env.DEPLOYER_PRIVATE_KEY) {
+      throw new AppError("SETTLE_FAILED", {
+        message: "Payment settlement unavailable — DEPLOYER_PRIVATE_KEY not configured.",
+        statusCode: 503,
+      });
     }
+    const wallet = new Wallet(env.DEPLOYER_PRIVATE_KEY, provider);
+    const settled = await client.settlePayment(
+      wallet,
+      body.payment.from,
+      body.payment.to,
+      BigInt(body.payment.value),
+      BigInt(body.payment.validAfter),
+      BigInt(body.payment.validBefore),
+      body.payment.nonce as `0x${string}`,
+      signature,
+    );
+    if (!settled.success) {
+      throw new AppError("SETTLE_FAILED", { message: "x402 settlement failed on-chain." });
+    }
+    settlementTxHash = settled.txHash;
     paidResource = true;
     await recordSpendUsdt0(redis, body.payment.from, spendUnits);
   }
+
+  const serviceId =
+    body.serviceId ?? body.payment?.serviceId ?? undefined;
 
   const result = await runBeaconAgentChat({
     agentId: body.agentId as BeaconAgentId | undefined,
     message: body.message,
     wallet: body.wallet,
     paidResource,
+    serviceId,
+    settlementTxHash,
     state: (body.state as ConversationState | null | undefined) ?? null,
     env,
   });
@@ -860,15 +904,24 @@ app.post("/v1/agents/chat", async (req) => {
       if (paidResource) {
         await recordActivity(pool, body.wallet, "payment", `x402 · ${result.agentId}`, {
           agentId: result.agentId,
+          serviceId,
+          resource: body.resource ?? body.payment?.resource,
+          quoteId: body.quoteId ?? body.payment?.quoteId,
+          settlementTxHash,
         });
       }
-      if (result.cards.some((c) => c.type === "swap_prepare" || c.type === "media_result")) {
+      if (result.cards.some((c) => c.type === "swap_prepare" || c.type === "bridge_prepare" || c.type === "media_result")) {
         await recordActivity(
           pool,
           body.wallet,
-          result.cards.some((c) => c.type === "media_result") ? "media" : "swap",
-          result.cards.find((c) => c.type === "media_result" || c.type === "swap_prepare")?.title ??
-            result.agentId,
+          result.cards.some((c) => c.type === "media_result")
+            ? "media"
+            : result.cards.some((c) => c.type === "bridge_prepare")
+              ? "bridge"
+              : "swap",
+          result.cards.find(
+            (c) => c.type === "media_result" || c.type === "swap_prepare" || c.type === "bridge_prepare",
+          )?.title ?? result.agentId,
           { agentId: result.agentId },
         );
       }
@@ -979,7 +1032,7 @@ app.get("/v1/security/policy", async (req) => {
       perJobLimitUsdt0: policy.perJobLimitUsdt0,
       emergencyPause: policy.emergencyPause,
       allowedAgents: policy.allowedAgents,
-      note: "Your agent spends only within this budget. Pause or revoke anytime.",
+      note: "Server-enforced policy on Beacon API. Your agent spends only within this budget. Pause or revoke anytime.",
     },
   };
 });
@@ -1029,6 +1082,49 @@ app.post("/v1/security/revoke", async (req) => {
 });
 
 const port = Number(process.env.PORT || env.API_PORT || 3001);
+
+/** Answer-token stream — conversation only; never advances execution money state. */
+app.post("/v1/chat/stream", async (req, reply) => {
+  const body = z
+    .object({
+      message: z.string().min(1).max(4000),
+      role: z.enum(["generator", "quote", "judge", "acceptance"]).default("quote"),
+      system: z.string().max(4000).optional(),
+    })
+    .parse(req.body ?? {});
+
+  if (!isAiConfigured(env)) {
+    throw new AppError("VALIDATION", { message: "AI provider is not configured." });
+  }
+
+  reply.hijack();
+  reply.raw.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "Access-Control-Allow-Origin": "*",
+  });
+
+  const model = resolveModelForRole(body.role, env);
+  reply.raw.write(`event: meta\ndata: ${JSON.stringify({ model, role: body.role })}\n\n`);
+
+  try {
+    const messages = [
+      ...(body.system ? [{ role: "system" as const, content: body.system }] : []),
+      { role: "user" as const, content: body.message },
+    ];
+    for await (const delta of chatCompletionStream({ model, messages }, env)) {
+      reply.raw.write(`event: token\ndata: ${JSON.stringify({ delta })}\n\n`);
+    }
+    reply.raw.write(`event: done\ndata: ${JSON.stringify({ ok: true })}\n\n`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "stream failed";
+    reply.raw.write(`event: error\ndata: ${JSON.stringify({ message })}\n\n`);
+  } finally {
+    reply.raw.end();
+  }
+});
+
 try {
   await ensureFlowSchema(pool);
   console.log("Flow persistence schema ready");

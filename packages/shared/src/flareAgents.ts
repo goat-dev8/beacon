@@ -8,6 +8,13 @@ import {
   resolveFxrpAddress,
   COSTON2_USDT0,
 } from "./ftso.js";
+import {
+  COSTON2_FXRP_OFT_ADAPTER,
+  COSTON2_FXRP_OFT_ROUTES,
+  prepareFxrpOftBridge,
+} from "./oftBridge.js";
+
+export { COSTON2_FXRP_OFT_ROUTES } from "./oftBridge.js";
 
 export type BeaconAgentId =
   | "general"
@@ -34,7 +41,7 @@ export const BEACON_AGENTS: AgentDef[] = [
   { id: "general", name: "General chat", blurb: "Flare-native co-pilot.", builtIn: true, x402PriceUsdt0: 0, mention: "@general" },
   { id: "signals", name: "FTSO Signals", blurb: "Live oracle feeds + bias.", builtIn: true, x402PriceUsdt0: 0, mention: "@signals" },
   { id: "swap", name: "Swap USDT0→FXRP", blurb: "SparkDEX on Coston2.", builtIn: true, x402PriceUsdt0: 0, mention: "@swap" },
-  { id: "bridge", name: "Bridge planner", blurb: "LayerZero / FXRP OFT.", builtIn: true, x402PriceUsdt0: 0, mention: "@bridge" },
+  { id: "bridge", name: "Bridge FXRP OFT", blurb: "LayerZero OFT on Coston2.", builtIn: true, x402PriceUsdt0: 0, mention: "@bridge" },
   { id: "pay", name: "Pay x402", blurb: "EIP-3009 micropay.", builtIn: true, x402PriceUsdt0: 0, mention: "@pay" },
   { id: "trade", name: "Trade desk", blurb: "Signals + swap.", builtIn: true, x402PriceUsdt0: 0, mention: "@trade" },
   { id: "desk", name: "Bound Work desk", blurb: "Escrow creative jobs.", builtIn: true, x402PriceUsdt0: 0, mention: "@desk" },
@@ -59,6 +66,9 @@ export interface ConversationState {
   imageStyle?: string;
   videoDuration?: string;
   researchScope?: string;
+  serviceId?: string;
+  creativeBrief?: string;
+  quotePrice?: string;
 }
 
 export type AgentCard =
@@ -106,6 +116,37 @@ export type AgentCard =
       swapData: string;
       docs: string[];
       warning: string;
+    }
+  | {
+      type: "bridge_quote";
+      title: string;
+      destination: string;
+      dstEid: number;
+      amountDisplay: string;
+      nativeFeeDisplay: string;
+      wallet: string;
+      fxrpBalance: string;
+      network: string;
+      note: string;
+    }
+  | {
+      type: "bridge_prepare";
+      title: string;
+      destination: string;
+      dstEid: number;
+      peer: string;
+      amountLD: string;
+      amountDisplay: string;
+      minAmountLD: string;
+      nativeFee: string;
+      nativeFeeDisplay: string;
+      approveTo: string;
+      sendTo: string;
+      approveData: string;
+      sendData: string;
+      docs: string[];
+      warning: string;
+      layerZeroScanBase: string;
     }
   | {
       type: "bridge_routes";
@@ -158,6 +199,8 @@ export type AgentCard =
       etaSeconds?: number;
       flarePrimitive?: string;
       serviceId?: string;
+      agentId?: BeaconAgentId;
+      brief?: string;
     }
   | {
       type: "media_result";
@@ -215,37 +258,6 @@ const AGENT_SYSTEM: Record<BeaconAgentId, string> = {
   research: "You are Beacon Research. Scope then quote; small briefs can be x402.",
 };
 
-/** Official Coston2 FXRP OFT peers from Flare DevHub getOftPeers. */
-export const COSTON2_FXRP_OFT_ROUTES = [
-  {
-    chain: "BSC Testnet",
-    eid: 40102,
-    peer: "0xac7c4a07670589cf83b134a843bfe86c45a4bf4e",
-    asset: "FXRP",
-    status: "supported" as const,
-    eta: "minutes (LayerZero)",
-    fees: "LayerZero messaging fee in native gas — quote on send",
-  },
-  {
-    chain: "Sepolia",
-    eid: 40161,
-    peer: "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
-    asset: "FXRP",
-    status: "supported" as const,
-    eta: "minutes (LayerZero)",
-    fees: "LayerZero messaging fee in native gas — quote on send",
-  },
-  {
-    chain: "Hyperliquid EVM Testnet",
-    eid: 40362,
-    peer: "0x14bfb521e318fc3d5e92a8462c65079bc7d4284c",
-    asset: "FXRP",
-    status: "supported" as const,
-    eta: "minutes (LayerZero)",
-    fees: "HYPE gas + LZ fee — quote on send",
-  },
-];
-
 export type PaidResourceDef = {
   id: string;
   title: string;
@@ -294,6 +306,33 @@ export const PAID_RESOURCES: PaidResourceDef[] = [
   },
 ];
 
+export function findPaidResource(id?: string): PaidResourceDef | undefined {
+  if (!id) return undefined;
+  return PAID_RESOURCES.find((r) => r.id === id);
+}
+
+/** When payment settled, force delivery for the quoted service — never re-show the pay catalog. */
+export function resolvePaidResourceTurn(opts: {
+  paidResource?: boolean;
+  serviceId?: string;
+  state?: ConversationState | null;
+}): { serviceId: string; intent: BeaconAgentId; creativeBrief?: string } | null {
+  if (!opts.paidResource) return null;
+  const serviceId = opts.serviceId ?? opts.state?.serviceId;
+  if (!serviceId) return null;
+  const res = findPaidResource(serviceId);
+  if (!res) return null;
+  return {
+    serviceId,
+    intent: res.agentId,
+    creativeBrief: opts.state?.creativeBrief,
+  };
+}
+
+export function shouldEmitPayCatalog(paidResource?: boolean): boolean {
+  return !paidResource;
+}
+
 function pickModel(intent: BeaconAgentId, env: BeaconEnv): string {
   if (intent === "swap" || intent === "trade" || intent === "bridge" || intent === "pay" || intent === "signals") {
     return env.AI_MODEL_QUOTE || "gpt-5.6-sol";
@@ -331,7 +370,7 @@ export function extractAmount(message: string): string | null {
 }
 
 function wantsConfirm(message: string): boolean {
-  return /\b(confirm|yes|proceed|do it|execute|go ahead|approve)\b/i.test(message);
+  return /\b(confirm|yes|proceed|do it|execute|go ahead|approve|bridge now)\b/i.test(message);
 }
 
 function sanitizeAssistantText(text: string): string {
@@ -391,16 +430,176 @@ Situation for this turn:\n${opts.situation}`,
   }
 }
 
+/** Deliver a paid resource once — no x402 quote cards. */
+export async function fulfillPaidResource(opts: {
+  serviceId: string;
+  message: string;
+  creativeBrief?: string;
+  settlementTxHash?: string;
+  wallet?: string;
+  env: BeaconEnv;
+}): Promise<AgentChatResult | null> {
+  const res = findPaidResource(opts.serviceId);
+  if (!res) return null;
+
+  const brief =
+    opts.creativeBrief?.trim() ||
+    opts.message.replace(/^pay(ment)?\s*/i, "").trim() ||
+    opts.message;
+  const cards: AgentCard[] = [];
+  const txHint = opts.settlementTxHash;
+  const idleState: ConversationState = {
+    intent: res.agentId,
+    phase: "idle",
+    serviceId: res.id,
+    creativeBrief: brief,
+    quotePrice: res.priceUsdt0,
+  };
+
+  if (res.id === "signals-deep") {
+    const snap = await readFtsoFeeds(opts.env);
+    const signal = buildTradeSignal(snap.feeds);
+    cards.push({
+      type: "ftso_signals",
+      title: "Live FTSO · Coston2",
+      feeds: snap.feeds.map((f) => ({ symbol: f.symbol, value: f.value })),
+      bias: signal.bias,
+      summary: signal.summary,
+      ftsoV2: snap.ftsoV2,
+      timestamp: snap.timestamp,
+    });
+    const narr = await narrate({
+      intent: "signals",
+      userMessage: brief,
+      situation: `Paid FTSO deep pack. Bias=${signal.bias}. ${signal.summary}. Include settlement receipt.`,
+      fallback: `${signal.summary} Bias: ${signal.bias}. Paid FTSO deep pack unlocked.`,
+      env: opts.env,
+    });
+    cards.push({
+      type: "media_result",
+      title: "x402 receipt",
+      kind: "research",
+      summary: "FTSO deep pack settled on Coston2.",
+      content: narr.text,
+      paymentTxHint: txHint,
+    });
+    return {
+      agentId: "signals",
+      text: narr.text,
+      cards,
+      model: narr.model,
+      displayModel: narr.displayModel,
+      paid: true,
+      state: idleState,
+    };
+  }
+
+  if (res.id === "image-logo") {
+    const { generateProImage } = await import("./mediaPro.js");
+    try {
+      const img = await generateProImage(brief, { env: opts.env, width: 1024, height: 1024 });
+      const b64 = img.bytes.toString("base64");
+      cards.push({
+        type: "media_result",
+        title: "Image ready",
+        kind: "image",
+        summary: `Generated via ${img.provider} after x402 settlement on Coston2.`,
+        content: `data:${img.mimeType};base64,${b64}`,
+        mimeType: img.mimeType,
+        paymentTxHint: txHint,
+      });
+      return {
+        agentId: "image",
+        text: txHint
+          ? `Payment settled (${txHint.slice(0, 10)}…). Here’s your image.`
+          : "Payment settled. Here’s your image.",
+        cards,
+        model: "beacon-media",
+        displayModel: "Beacon",
+        paid: true,
+        state: idleState,
+      };
+    } catch {
+      cards.push({
+        type: "desk_link",
+        title: "Generation busy — use Bound Work",
+        href: "/app",
+        summary: "Payment recorded. Open Bound Work to retry with escrow if instant media is saturated.",
+      });
+      return {
+        agentId: "image",
+        text: "Payment settled but generation is saturated — try Bound Work for a retry with escrow.",
+        cards,
+        model: "beacon-media",
+        displayModel: "Beacon",
+        paid: true,
+        state: idleState,
+      };
+    }
+  }
+
+  if (res.id === "research-brief") {
+    const narr = await narrate({
+      intent: "research",
+      userMessage: brief,
+      situation:
+        "User paid for a research brief. Deliver a concise structured brief with source checklist. No fake citations.",
+      fallback:
+        "Paid research brief unlocked. Scope received — delivering a structured outline with source checklist (no invented URLs).",
+      env: opts.env,
+    });
+    cards.push({
+      type: "media_result",
+      title: "Research brief",
+      kind: "research",
+      summary: narr.text,
+      content: narr.text,
+      paymentTxHint: txHint,
+    });
+    return {
+      agentId: "research",
+      text: narr.text,
+      cards,
+      model: narr.model,
+      displayModel: narr.displayModel,
+      paid: true,
+      state: idleState,
+    };
+  }
+
+  return null;
+}
+
 export async function runBeaconAgentChat(opts: {
   agentId?: BeaconAgentId;
   message: string;
   wallet?: string;
   paidResource?: boolean;
+  serviceId?: string;
+  settlementTxHash?: string;
   state?: ConversationState | null;
   env?: BeaconEnv;
 }): Promise<AgentChatResult> {
   const env = opts.env ?? loadEnv();
   const prev = opts.state ?? null;
+
+  const paidTurn = resolvePaidResourceTurn({
+    paidResource: opts.paidResource,
+    serviceId: opts.serviceId,
+    state: prev,
+  });
+  if (paidTurn) {
+    const fulfilled = await fulfillPaidResource({
+      serviceId: paidTurn.serviceId,
+      message: opts.message,
+      creativeBrief: paidTurn.creativeBrief ?? prev?.creativeBrief,
+      settlementTxHash: opts.settlementTxHash,
+      wallet: opts.wallet,
+      env,
+    });
+    if (fulfilled) return fulfilled;
+  }
+
   const intent = detectIntent(opts.message, opts.agentId ?? prev?.intent ?? "general", prev ?? undefined);
   const cards: AgentCard[] = [];
   let state: ConversationState = prev && prev.intent === intent
@@ -618,22 +817,23 @@ export async function runBeaconAgentChat(opts: {
     };
   }
 
-  // ——— Bridge: routes → destination+amount quote (honest fees) ———
+  // ——— Bridge: routes → quote (on-chain fee) → OFT send ———
   if (intent === "bridge") {
+    const wallet = opts.wallet;
     const m = opts.message.toLowerCase();
     const dest =
       /sepolia/.test(m) ? "Sepolia"
       : /hyperliquid|hyperevm/.test(m) ? "Hyperliquid EVM Testnet"
       : /bsc|bnb/.test(m) ? "BSC Testnet"
       : state.bridgeTo;
-    const amount = extractAmount(opts.message) ?? state.amountInUnits;
+    let amount = extractAmount(opts.message) ?? state.amountInUnits ?? null;
 
     cards.push({
       type: "bridge_routes",
       title: "FXRP OFT routes · Coston2",
       source: "Flare Testnet Coston2",
-      oftAdapter: "0xCd3d2127935Ae82Af54Fc31cCD9D3440dbF46639",
-      routes: COSTON2_FXRP_OFT_ROUTES,
+      oftAdapter: COSTON2_FXRP_OFT_ADAPTER,
+      routes: [...COSTON2_FXRP_OFT_ROUTES],
       unavailable: ["Arbitrary EVM chains without OFT peer", "Fake fee quotes without quoteSend"],
       docs: [
         { label: "OFT peers discovery", href: "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes" },
@@ -644,24 +844,18 @@ export async function runBeaconAgentChat(opts: {
         "Supported peers from official getOftPeers. Beacon will not claim a bridge filled without an OFT send receipt. Fees require an on-chain quote at send time.",
     });
 
-    if (dest && amount && amount !== "all") {
-      const route = COSTON2_FXRP_OFT_ROUTES.find((r) => r.chain === dest);
+    if (!wallet) {
       cards.push({
-        type: "bridge_intent",
-        title: `Plan · Coston2 → ${dest}`,
-        summary: `Bridge **${amount} FXRP** from Coston2 to **${dest}** (EID ${route?.eid ?? "—"}) via LayerZero OFT Adapter. Asset: FXRP (FAssets). ETA: minutes after send confirms. Messaging fee is quoted on-chain at send — we do not invent fee amounts.`,
-        links: [
-          { label: "FXRP automint + bridge", href: "https://dev.flare.network/fxrp/oft/fxrp-automint" },
-          { label: "LayerZero Flare Testnet", href: "https://docs.layerzero.network/v2/deployments/chains/flare-testnet" },
-        ],
-        honesty:
-          "Execution requires OFT send from a funded FXRP balance (EOA or Smart Account custom instruction for XRPL users). Beacon stores this plan in history — explorer receipt appears only after a real send tx.",
+        type: "insufficient",
+        title: "Connect your wallet",
+        summary: "Connect on Flare Coston2 so I can read your FXRP balance and prepare the OFT send to your address.",
+        faucetHref: "https://faucet.flare.network/coston2",
       });
       const narr = await narrate({
         intent: "bridge",
         userMessage: opts.message,
-        situation: `User selected ${dest} and amount ${amount} FXRP. Confirm the plan clearly. Fees unknown until quoteSend. Do not pretend the bridge already executed.`,
-        fallback: `Plan ready: **${amount} FXRP** Coston2 → **${dest}** via LayerZero OFT.\n\nNext: fund FXRP on Coston2, then run OFT send (fee quoted on-chain). I’ll record the plan in your history — no fake fill.`,
+        situation: "User wants to bridge FXRP but wallet is not connected. Ask them to connect on Coston2.",
+        fallback: "Connect your wallet on Flare Coston2 and tell me the destination (Sepolia, BSC, or Hyperliquid) plus how much FXRP to bridge.",
         env,
       });
       return {
@@ -671,7 +865,157 @@ export async function runBeaconAgentChat(opts: {
         model: narr.model,
         displayModel: narr.displayModel,
         paid: true,
-        state: { intent: "bridge", phase: "await_confirm", bridgeTo: dest, amountInUnits: amount },
+        state: { intent: "bridge", phase: "clarify" },
+      };
+    }
+
+    const fxrp = await resolveFxrpAddress(env);
+    const fxrpBal = await readErc20Balance(fxrp, wallet, env);
+
+    if (amount === "all") {
+      amount = fxrpBal.formatted;
+    }
+
+    if (dest && amount) {
+      const route = COSTON2_FXRP_OFT_ROUTES.find((r) => r.chain === dest);
+      if (!route) {
+        const narr = await narrate({
+          intent: "bridge",
+          userMessage: opts.message,
+          situation: `Unknown destination ${dest}. Only BSC Testnet, Sepolia, and Hyperliquid EVM Testnet are supported.`,
+          fallback: "That destination isn’t a documented FXRP OFT peer. Pick **Sepolia**, **BSC Testnet**, or **Hyperliquid EVM Testnet**.",
+          env,
+        });
+        return {
+          agentId: "bridge",
+          text: narr.text,
+          cards,
+          model: narr.model,
+          displayModel: narr.displayModel,
+          paid: true,
+          state: { intent: "bridge", phase: "clarify" },
+        };
+      }
+
+      const confirmed =
+        wantsConfirm(opts.message) &&
+        (state.phase === "await_confirm" || state.phase === "ready_execute") &&
+        Boolean(state.amountInUnits || amount);
+
+      if (!confirmed) {
+        let quotePreview;
+        try {
+          quotePreview = await prepareFxrpOftBridge(
+            { amountFxrpUnits: amount, recipient: wallet, dstEid: route.eid },
+            env,
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          cards.push({
+            type: "insufficient",
+            title: "Could not quote bridge fee",
+            summary: msg,
+            faucetHref: "https://faucet.flare.network/coston2",
+          });
+          return {
+            agentId: "bridge",
+            text: `I couldn’t get an on-chain **quoteSend** fee for **${amount} FXRP → ${dest}**: ${msg}`,
+            cards,
+            model: "beacon-local",
+            displayModel: "Beacon",
+            paid: true,
+            state: { intent: "bridge", phase: "clarify", bridgeTo: dest, amountInUnits: amount },
+          };
+        }
+
+        cards.push({
+          type: "bridge_quote",
+          title: "Bridge quote",
+          destination: dest,
+          dstEid: route.eid,
+          amountDisplay: amount,
+          nativeFeeDisplay: quotePreview.nativeFeeDisplay,
+          wallet,
+          fxrpBalance: fxrpBal.formatted,
+          network: "Flare Testnet Coston2",
+          note: `LayerZero messaging fee from quoteSend on OFT Adapter. Delivery to ${dest} is tracked separately on LayerZero Scan — we do not invent destination fills.`,
+        });
+        const narr = await narrate({
+          intent: "bridge",
+          userMessage: opts.message,
+          situation: `Present bridge quote: ${amount} FXRP Coston2 → ${dest} (EID ${route.eid}). Messaging fee ${quotePreview.nativeFeeDisplay} from quoteSend. Balance ${fxrpBal.formatted} FXRP. Ask user to reply confirm to open wallet for approve + send.`,
+          fallback: `Quote: **${amount} FXRP** Coston2 → **${dest}**.\n\nLayerZero messaging fee (quoteSend): **${quotePreview.nativeFeeDisplay}**.\n\nReply **confirm** when you want approve + OFT send in your wallet.`,
+          env,
+        });
+        return {
+          agentId: "bridge",
+          text: narr.text,
+          cards,
+          model: narr.model,
+          displayModel: narr.displayModel,
+          paid: true,
+          state: { intent: "bridge", phase: "await_confirm", bridgeTo: dest, amountInUnits: amount },
+        };
+      }
+
+      const finalAmount = amount || state.amountInUnits || "1";
+      if (parseFloat(fxrpBal.formatted) + 1e-9 < parseFloat(finalAmount)) {
+        cards.push({
+          type: "insufficient",
+          title: "Not enough FXRP",
+          summary: `You have ${fxrpBal.formatted} FXRP on Coston2 but need ${finalAmount}. Swap USDT0→FXRP or mint FXRP via FAssets docs first.`,
+          faucetHref: "https://faucet.flare.network/coston2",
+        });
+        return {
+          agentId: "bridge",
+          text: `You only have **${fxrpBal.formatted} FXRP** on Coston2. Fund FXRP first, then tell me the amount again.`,
+          cards,
+          model: "beacon-local",
+          displayModel: "Beacon",
+          paid: true,
+          state: { intent: "bridge", phase: "clarify", bridgeTo: dest },
+        };
+      }
+
+      const prep = await prepareFxrpOftBridge(
+        { amountFxrpUnits: finalAmount, recipient: wallet, dstEid: route.eid },
+        env,
+      );
+      cards.push({
+        type: "bridge_prepare",
+        title: "Confirm in wallet",
+        destination: dest,
+        dstEid: route.eid,
+        peer: route.peer,
+        amountLD: prep.amountLD,
+        amountDisplay: finalAmount,
+        minAmountLD: prep.minAmountLD,
+        nativeFee: prep.nativeFee,
+        nativeFeeDisplay: prep.nativeFeeDisplay,
+        approveTo: prep.approveTo,
+        sendTo: prep.sendTo,
+        approveData: prep.approveData,
+        sendData: prep.sendData,
+        docs: prep.docs,
+        warning:
+          `Coston2 FXRP → ${dest} via LayerZero OFT Adapter. You will approve FXRP (if needed) then send with ${prep.nativeFeeDisplay} messaging fee. Track cross-chain delivery on LayerZero Scan after the source tx confirms — we do not claim destination fill here.`,
+        layerZeroScanBase: prep.layerZeroScanBase,
+      });
+      const narr = await narrate({
+        intent: "bridge",
+        userMessage: opts.message,
+        situation: `User confirmed bridge of ${finalAmount} FXRP to ${dest}. Tell them to tap Approve + Send. Fee ${prep.nativeFeeDisplay}. Show Coston2 explorer after send confirms; LayerZero Scan for cross-chain tracking. Do not invent destination fill.`,
+        fallback: `Confirmed. Tap **Approve + Send** — messaging fee **${prep.nativeFeeDisplay}**. I’ll show the Coston2 explorer link when the send confirms; track cross-chain delivery on LayerZero Scan separately.`,
+        env,
+      });
+      return {
+        agentId: "bridge",
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent: "bridge", phase: "ready_execute", bridgeTo: dest, amountInUnits: finalAmount },
       };
     }
 
@@ -679,8 +1023,8 @@ export async function runBeaconAgentChat(opts: {
       const narr = await narrate({
         intent: "bridge",
         userMessage: opts.message,
-        situation: `User picked ${dest}. Ask only how much FXRP to bridge. Do not re-list all clarifying questions.`,
-        fallback: `Got it — destination **${dest}**. How much **FXRP** should we plan to bridge from Coston2?`,
+        situation: `User picked ${dest}. Ask only how much FXRP to bridge. FXRP balance ${fxrpBal.formatted}. Do not re-list all clarifying questions.`,
+        fallback: `Got it — destination **${dest}**. How much **FXRP** should we bridge from Coston2? You have **${fxrpBal.formatted} FXRP**.`,
         env,
       });
       return {
@@ -723,67 +1067,6 @@ export async function runBeaconAgentChat(opts: {
     const isLargeCreative =
       intent === "video" ||
       (intent === "image" && /pack|campaign|brand kit|series|deck|multiple/.test(m));
-
-    if (opts.paidResource && (intent === "image" || intent === "research")) {
-      if (intent === "image") {
-        const { generateProImage } = await import("./mediaPro.js");
-        try {
-          const img = await generateProImage(
-            opts.message.replace(/^pay(ment)?\s*/i, "").trim() || opts.message,
-            { env, width: 1024, height: 1024 },
-          );
-          const b64 = img.bytes.toString("base64");
-          cards.push({
-            type: "media_result",
-            title: "Image ready",
-            kind: "image",
-            summary: `Generated via ${img.provider} after x402 settlement on Coston2.`,
-            content: `data:${img.mimeType};base64,${b64}`,
-            mimeType: img.mimeType,
-          });
-          return {
-            agentId: "image",
-            text: "Payment settled. Here’s your image — verify the x402 receipt on Coston2 if you need the settlement tx.",
-            cards,
-            model: "beacon-media",
-            displayModel: "Beacon",
-            paid: true,
-            state: { intent: "image", phase: "idle" },
-          };
-        } catch {
-          cards.push({
-            type: "desk_link",
-            title: "Generation busy — use Bound Work",
-            href: "/app",
-            summary: "Payment recorded. Open Bound Work to retry with escrow if instant media is saturated.",
-          });
-        }
-      }
-      if (intent === "research") {
-        const narr = await narrate({
-          intent: "research",
-          userMessage: opts.message,
-          situation: "User paid for a research brief. Deliver a concise structured brief with source checklist. No fake citations.",
-          fallback: "Paid research brief unlocked. Scope received — delivering a structured outline with source checklist (no invented URLs).",
-          env,
-        });
-        cards.push({
-          type: "media_result",
-          title: "Research brief",
-          kind: "research",
-          summary: narr.text,
-        });
-        return {
-          agentId: "research",
-          text: narr.text,
-          cards,
-          model: narr.model,
-          displayModel: narr.displayModel,
-          paid: true,
-          state: { intent: "research", phase: "idle" },
-        };
-      }
-    }
 
     if (isSmallImage && !isLargeCreative) {
       const briefReady =
@@ -840,6 +1123,8 @@ export async function runBeaconAgentChat(opts: {
         etaSeconds: res.etaSeconds,
         flarePrimitive: res.flarePrimitive,
         serviceId: res.id,
+        agentId: res.agentId,
+        brief: opts.message,
       });
       const narr = await narrate({
         intent: "image",
@@ -854,8 +1139,14 @@ export async function runBeaconAgentChat(opts: {
         cards,
         model: narr.model,
         displayModel: narr.displayModel,
-        paid: Boolean(opts.paidResource),
-        state: { intent: "image", phase: "await_confirm" },
+        paid: false,
+        state: {
+          intent: "image",
+          phase: "await_confirm",
+          serviceId: res.id,
+          creativeBrief: opts.message,
+          quotePrice: res.priceUsdt0,
+        },
       };
     }
 
@@ -912,6 +1203,8 @@ export async function runBeaconAgentChat(opts: {
         etaSeconds: res.etaSeconds,
         flarePrimitive: res.flarePrimitive,
         serviceId: res.id,
+        agentId: res.agentId,
+        brief: opts.message,
       });
       const narr = await narrate({
         intent: "research",
@@ -926,8 +1219,14 @@ export async function runBeaconAgentChat(opts: {
         cards,
         model: narr.model,
         displayModel: narr.displayModel,
-        paid: Boolean(opts.paidResource),
-        state: { intent: "research", phase: "await_confirm" },
+        paid: false,
+        state: {
+          intent: "research",
+          phase: "await_confirm",
+          serviceId: res.id,
+          creativeBrief: opts.message,
+          quotePrice: res.priceUsdt0,
+        },
       };
     }
 
@@ -970,22 +1269,46 @@ export async function runBeaconAgentChat(opts: {
   }
 
   if (intent === "pay") {
-    for (const res of PAID_RESOURCES) {
-      cards.push({
-        type: "x402_quote",
-        title: res.title,
-        priceUsdt0: res.priceUsdt0,
-        resource: res.resource,
-        payTo: env.X402_PAYEE_ADDRESS || "",
-        token: env.X402_TOKEN_ADDRESS || "",
-        facilitator: env.X402_FACILITATOR_ADDRESS || "",
-        chainId: 114,
-        provider: res.provider,
-        reason: res.reason,
-        etaSeconds: res.etaSeconds,
-        flarePrimitive: res.flarePrimitive,
-        serviceId: res.id,
+    if (opts.paidResource) {
+      const narr = await narrate({
+        intent: "pay",
+        userMessage: opts.message,
+        situation:
+          "Payment settled but no service was selected. Ask which resource: FTSO deep pack, logo still, or research brief. Do NOT re-list the full catalog.",
+        fallback:
+          "Payment settled — which resource did you mean?\n• **FTSO deep pack** ($0.25)\n• **Logo still** ($0.50)\n• **Research brief** ($0.75)\n\nReply with the one you want and I’ll deliver it.",
+        env,
       });
+      return {
+        agentId: "pay",
+        text: narr.text,
+        cards: [],
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent: "pay", phase: "idle" },
+      };
+    }
+
+    if (shouldEmitPayCatalog(opts.paidResource)) {
+      for (const res of PAID_RESOURCES) {
+        cards.push({
+          type: "x402_quote",
+          title: res.title,
+          priceUsdt0: res.priceUsdt0,
+          resource: res.resource,
+          payTo: env.X402_PAYEE_ADDRESS || "",
+          token: env.X402_TOKEN_ADDRESS || "",
+          facilitator: env.X402_FACILITATOR_ADDRESS || "",
+          chainId: 114,
+          provider: res.provider,
+          reason: res.reason,
+          etaSeconds: res.etaSeconds,
+          flarePrimitive: res.flarePrimitive,
+          serviceId: res.id,
+          agentId: res.agentId,
+        });
+      }
     }
     const narr = await narrate({
       intent: "pay",

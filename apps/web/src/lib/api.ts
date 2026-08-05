@@ -157,12 +157,18 @@ export const api = {
     message: string;
     wallet?: string;
     conversationId?: string;
+    serviceId?: string;
+    resource?: string;
+    quoteId?: string;
     state?: {
       intent: string;
       phase: string;
       amountInUnits?: string;
       bridgeFrom?: string;
       bridgeTo?: string;
+      serviceId?: string;
+      creativeBrief?: string;
+      quotePrice?: string;
     } | null;
     payment?: Record<string, unknown>;
   }) =>
@@ -181,6 +187,9 @@ export const api = {
         amountInUnits?: string;
         bridgeFrom?: string;
         bridgeTo?: string;
+        serviceId?: string;
+        creativeBrief?: string;
+        quotePrice?: string;
       };
     }>("/v1/agents/chat", {
       method: "POST",

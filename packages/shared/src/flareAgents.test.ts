@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { displayModelName, extractAmount } from "./flareAgents.js";
+import {
+  displayModelName,
+  extractAmount,
+  resolvePaidResourceTurn,
+  shouldEmitPayCatalog,
+} from "./flareAgents.js";
 
 describe("extractAmount", () => {
   it("does not treat the trailing 0 in USDT0 as an amount", () => {
@@ -21,5 +26,24 @@ describe("displayModelName", () => {
     expect(displayModelName("gpt-4o")).toBe("GPT-5.6");
     expect(displayModelName("local-heuristic")).toBe("Beacon");
     expect(displayModelName("agentrouter-foo")).toBe("Beacon");
+  });
+});
+
+describe("paidResource + serviceId", () => {
+  it("skips quote catalog when payment settled for a service", () => {
+    expect(
+      resolvePaidResourceTurn({
+        paidResource: true,
+        serviceId: "image-logo",
+        state: { intent: "image", phase: "await_confirm", creativeBrief: "Acme logo, blue" },
+      }),
+    ).toEqual({
+      serviceId: "image-logo",
+      intent: "image",
+      creativeBrief: "Acme logo, blue",
+    });
+    expect(shouldEmitPayCatalog(true)).toBe(false);
+    expect(shouldEmitPayCatalog(false)).toBe(true);
+    expect(resolvePaidResourceTurn({ paidResource: false, serviceId: "image-logo" })).toBeNull();
   });
 });

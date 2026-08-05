@@ -11,6 +11,7 @@
     "packages/shared",
     "packages/x402",
     "packages/quote",
+    "packages/execution",
     "packages/acceptance",
     "packages/pipeline",
     "packages/receipts",

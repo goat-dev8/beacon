@@ -100,6 +100,60 @@ function normalizeOpenAiBase(baseUrl: string): string {
   return `${trimmed}/v1`;
 }
 
+/** Stream Agent Router tokens; yields text deltas. Failures throw — never invent content. */
+export async function* chatCompletionStream(
+  req: ChatCompletionRequest,
+  env: BeaconEnv = loadEnv(),
+): AsyncGenerator<string, void, unknown> {
+  const apiKey = resolveAiApiKey(env);
+  const baseUrl = resolveAiBaseUrl(env);
+  if (!apiKey) throw new Error("AI_API_KEY is not configured");
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: buildAgentRouterHeaders(apiKey),
+    body: JSON.stringify({
+      model: req.model,
+      temperature: req.temperature ?? 0.2,
+      max_tokens: req.maxTokens ?? 2048,
+      messages: req.messages,
+      stream: true,
+    }),
+    signal: AbortSignal.timeout(90_000),
+  });
+
+  if (!response.ok || !response.body) {
+    const text = await response.text().catch(() => "");
+    throw new Error(`AI stream unavailable (${response.status}). ${text.slice(0, 120)}`);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+      const data = trimmed.slice(5).trim();
+      if (data === "[DONE]") return;
+      try {
+        const parsed = JSON.parse(data) as {
+          choices?: Array<{ delta?: { content?: string } }>;
+        };
+        const delta = parsed.choices?.[0]?.delta?.content;
+        if (delta) yield delta;
+      } catch {
+        // skip malformed chunk
+      }
+    }
+  }
+}
+
 export async function chatCompletion(
   req: ChatCompletionRequest,
   env: BeaconEnv = loadEnv(),
@@ -113,8 +167,6 @@ export async function chatCompletion(
   const started = Date.now();
   let response: Response | null = null;
   let text = "";
-  let lastError = "";
-
   for (let attempt = 1; attempt <= 3; attempt++) {
     response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
@@ -129,7 +181,6 @@ export async function chatCompletion(
     });
     text = await response.text();
     if (response.ok) break;
-    lastError = text.slice(0, 400);
     // Retry transient upstream capacity / gateway errors.
     if (![429, 502, 503, 504].includes(response.status) || attempt === 3) break;
     await new Promise((r) => setTimeout(r, 1500 * attempt));

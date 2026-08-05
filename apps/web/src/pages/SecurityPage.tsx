@@ -105,7 +105,7 @@ export function SecurityPage() {
               <Shield className="size-5 text-signal" />
               Security Center
             </p>
-            <p className="text-sm text-white/45">Policy limits for Beacon on Coston2</p>
+            <p className="text-sm text-white/45">Server-enforced spend policy for Beacon on Coston2</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -125,7 +125,7 @@ export function SecurityPage() {
       <main className="mx-auto max-w-3xl space-y-6 px-5 pb-16">
         {!wallet && (
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 text-sm text-white/65">
-            Connect your wallet to load and save spend policies. Limits are enforced on Bound Work approve and agent micropays when Redis is configured.
+            Connect your wallet to load and save spend policies. Limits are server-enforced on Bound Work approve, agent micropays, and execution risk checks when Redis is configured. Flare FCC attestation is simulated — not on-chain enforcement yet.
           </div>
         )}
 
@@ -153,7 +153,7 @@ export function SecurityPage() {
             </div>
             <p className="mt-3 text-xs text-white/45">{policyQuery.data.receipt.note}</p>
             <p className="mt-1 font-mono text-[10px] text-white/30">
-              Enforced on Coston2 · x402 + Escrow · pause anytime
+              Server-enforced policy · Coston2 · x402 + Escrow · FCC simulated · pause anytime
             </p>
           </section>
         )}
