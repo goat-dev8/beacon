@@ -1333,10 +1333,12 @@ function ActionCard({
           <p className="mt-3 text-xs text-[var(--p-warn)]">Unavailable: {unavailable.join(" · ")}</p>
         )}
         <p className="mt-2 text-xs text-[var(--p-muted)]">{String(card.honesty)}</p>
-        {card.routesSource && (
+        {typeof card.routesSource === "string" && (
           <p className="mt-1 font-mono text-[10px] text-[var(--p-accent-text)]">
-            Peers · {String(card.routesSource)}
-            {card.discoveredAt ? ` · synced ${new Date(Number(card.discoveredAt)).toLocaleTimeString()}` : ""}
+            Peers · {card.routesSource}
+            {typeof card.discoveredAt === "number"
+              ? ` · synced ${new Date(card.discoveredAt).toLocaleTimeString()}`
+              : ""}
           </p>
         )}
         <div className="mt-3 flex flex-wrap gap-2">
