@@ -6,8 +6,6 @@ import {
   Send,
   Loader2,
   ExternalLink,
-  Sparkles,
-  Shield,
   Search,
   CheckCircle2,
   Clock,
