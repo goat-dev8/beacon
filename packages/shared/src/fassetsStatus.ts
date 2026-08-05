@@ -15,9 +15,9 @@ import { FLARE_CONTRACT_REGISTRY_DEFAULT, readFtsoFeeds } from "./ftso.js";
 const CONTROLLER_ABI = ["function getAssetManagers() view returns (address[])"];
 const ASSET_MANAGER_ABI = [
   "function fAsset() view returns (address)",
-  "function getSettings() view returns (tuple(uint64 lotSizeAMG, uint8 assetDecimals, address agentOwnerRegistry))",
+  "function lotSize() view returns (uint256)",
   "function getAllAgents(uint256 start, uint256 end) view returns (address[] agents, uint256 totalLength)",
-  "function getCollateralPoolTokenTimelockSeconds() view returns (uint256)",
+  "function getAgentOwnerRegistry() view returns (address)",
 ];
 const ERC20_ABI = [
   "function symbol() view returns (string)",
