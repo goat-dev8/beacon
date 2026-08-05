@@ -122,7 +122,15 @@ export async function prepareFxrpOftBridge(
   minAmountLD: string;
   recipient: string;
   peer: Coston2FxrpOftRoute;
-  sendParam: FxrpOftSendParam;
+  sendParam: {
+    dstEid: number;
+    to: string;
+    amountLD: string;
+    minAmountLD: string;
+    extraOptions: string;
+    composeMsg: string;
+    oftCmd: string;
+  };
   docs: string[];
   layerZeroScanBase: string;
   explorerBase: string;
@@ -175,7 +183,15 @@ export async function prepareFxrpOftBridge(
     minAmountLD: sendParam.minAmountLD.toString(),
     recipient: params.recipient,
     peer: route,
-    sendParam,
+    sendParam: {
+      dstEid: sendParam.dstEid,
+      to: sendParam.to,
+      amountLD: sendParam.amountLD.toString(),
+      minAmountLD: sendParam.minAmountLD.toString(),
+      extraOptions: sendParam.extraOptions,
+      composeMsg: sendParam.composeMsg,
+      oftCmd: sendParam.oftCmd,
+    },
     docs: [
       "https://dev.flare.network/fxrp/oft/fxrp-automint",
       "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes",

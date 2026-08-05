@@ -13,16 +13,17 @@ Living log of what was done. No secrets in this file.
 **Shipped**
 - Gate 0: research baseline + living `IMPLEMENTATION.md` header (no longer “pre-code”); `FINAL_AUDIT` / gap analysis corrected
 - Gate 1: `@beacon/execution` — phases, transitions, hash, registry, events; `003_execution_engine.sql`; 9 transition tests green
-- Hero bridge (EOA): `prepareFxrpOftBridge` with live `quoteSend` (~22.95 C2FLR for 1 FXRP→Sepolia); executor `extraOptions` via LayerZero Options; `POST /v1/agents/bridge/prepare`; Flow `bridge_quote` / `bridge_prepare`; `executeOftBridge`; agent renamed Bridge FXRP OFT
+- Hero bridge (EOA): `prepareFxrpOftBridge` with live `quoteSend` (~22.95 C2FLR for 1 FXRP→Sepolia); executor `extraOptions` via LayerZero Options; `POST /v1/agents/bridge/prepare`; Flow `bridge_quote` / `bridge_prepare`; `executeOftBridge`; agent renamed Bridge FXRP OFT; JSON-safe BigInt serialization for API
 - x402 P0: settle fail-closed (verify alone never grants access); `serviceId` + frozen brief on Pay resend; `fulfillPaidResource` skips catalog; protected `/v1/agents/resources/:id` with nonce replay cache; historical Pay buttons disable after settle
 - Gate 2: `PolicyEvaluator` — server-enforced + honest FCC mode; Security Center copy updated
 - Gate 2: Execution API runtime — Postgres store, engine, workflow registry; swap + bridge adapters call real prepare; stubs for media/research/bound_work/trade/signals
 - Gate 5: Unified Flow shell — `ExecutionDrawer` phase timeline, Mock vs USDT0 labels, denser agent chips, Flow|Bound Work|Security nav
 - Gate 6: `POST /v1/chat/stream` Agent Router token SSE; execution events SSE already on `/v1/executions/:id/events`
+- Deploy: pushed `a597ef0` → GitHub main; Render build includes `@beacon/execution`; Vercel `beacon-desk` auto-deploy; live `/v1/agents/resources/image-logo` returns 402; `/v1/executions/workflows` lists adapters
 
 **Honesty:** Destination OFT fill not claimed without LayerZero Scan + dest receipt. MockUSDT0 ≠ Coston2 USDT0. Smart Account direct-mint path not exposed until full evidence chain.
 
-**Next:** Production deploy + wallet acceptance runs; Bound Work adapter deep wiring; Smart Account path only after full XRPL→Coston2→LZ→Sepolia proof.
+**Next:** Wallet acceptance runs (swap/bridge/pay) on Coston2; Bound Work adapter deep wiring; Smart Account path only after full XRPL→Coston2→LZ→Sepolia proof.
 
 ---
 
