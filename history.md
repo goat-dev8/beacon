@@ -4,6 +4,24 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-05 - x402 Settled is not a lock · Pay again · win research
+
+**User question:** After FTSO / Research settle, UI showed "Settled for this service". Does that mean another pay is impossible?
+
+**Answer:** No. Official x402/EIP-3009 is idempotent **per nonce**, not per catalog service. Remaining Security budget is unrelated.
+
+**Fix**
+- Badge → "Last run settled"; CTA → **Pay again** (same EIP-3009 sign path)
+- Helper copy: fresh nonce unlocks a new resource
+- `findActiveExecution` prefers in-flight → unpaid → latest `media_result` → settled quote matching last delivery (stops drawer sticking on Research while FTSO is focused)
+- Policy deny on pay → **Authorization Receipt** card (BLOCKED) with link to Policy
+- FTSO deep pack `media_result` now carries structured live feeds + notes (not narrate-only stub)
+- Research file: `WIN_RESEARCH_2026-08-05.md` (Flare MCP + skills + Bounty 1 decisions; prediction markets = no)
+
+**Test:** Hard refresh `/flow` → `@pay` → settle once → confirm Pay again still clickable; optional Policy cap block shows receipt.
+
+---
+
 ## 2026-08-05 - Real x402 research brief (no stub receipt)
 
 **Bug:** Paying Research brief ($0.75) settled on-chain but UI showed the same stub three times: "Paid research brief unlocked…". Root cause: `fulfillPaidResource` used `narrate()` with a weak prompt; on model failure it returned the stub while still labeling Claude Opus 5. Summary + content + chat text were identical.

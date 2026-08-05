@@ -160,11 +160,70 @@ function summaryForCard(card: AgentCard, cardType: ActionableCardType): string {
   return String(card.title ?? "Execution");
 }
 
+function toActive(
+  msgId: string,
+  cardIndex: number,
+  card: AgentCard,
+  type: ActionableCardType,
+  exec: CardExecutionState | undefined,
+  isSettled: boolean,
+): ActiveExecution {
+  return {
+    msgId,
+    cardIndex,
+    card,
+    cardType: type,
+    phase: phaseFromCard(type, exec, isSettled),
+    title: String(card.title ?? type.replace(/_/g, " ")),
+    summary: summaryForCard(card, type),
+    explorerLinks: buildExplorerLinks(card, type, exec),
+    steps: buildSteps(type, exec),
+  };
+}
+
+function isInFlight(type: ActionableCardType, exec: CardExecutionState | undefined): boolean {
+  if (!exec) return false;
+  if (type === "x402_quote" && exec.payBusy) return true;
+  if (type === "swap_prepare") {
+    return exec.approveStatus === "pending" || exec.swapStatus === "pending";
+  }
+  if (type === "bridge_prepare") {
+    return exec.approveStatus === "pending" || exec.sendStatus === "pending";
+  }
+  return false;
+}
+
+/**
+ * Prefer live work over settled catalog leftovers.
+ * Catalog messages list every x402 quote; picking the last card made the drawer
+ * stick on Research while the user was looking at a settled FTSO pack.
+ */
 export function findActiveExecution(
   messages: Array<{ id: string; role: string; cards?: AgentCard[] }>,
   executionStates: Record<string, CardExecutionState>,
   settledServiceIds: Set<string>,
 ): ActiveExecution | null {
+  let latestDeliveredServiceId = "";
+  for (let mi = messages.length - 1; mi >= 0 && !latestDeliveredServiceId; mi--) {
+    const msg = messages[mi];
+    if (msg.role !== "assistant" || !msg.cards?.length) continue;
+    for (let ci = msg.cards.length - 1; ci >= 0; ci--) {
+      const card = msg.cards[ci];
+      if (card.type !== "media_result") continue;
+      const serviceId = typeof card.serviceId === "string" ? card.serviceId : "";
+      if (serviceId) {
+        latestDeliveredServiceId = serviceId;
+        break;
+      }
+    }
+  }
+
+  let bestReceipt: ActiveExecution | null = null;
+  let bestUnpaid: ActiveExecution | null = null;
+  let bestSettledMatching: ActiveExecution | null = null;
+  let bestSettledAny: ActiveExecution | null = null;
+  let bestInFlight: ActiveExecution | null = null;
+
   for (let mi = messages.length - 1; mi >= 0; mi--) {
     const msg = messages[mi];
     if (msg.role !== "assistant" || !msg.cards?.length) continue;
@@ -178,21 +237,51 @@ export function findActiveExecution(
       const exec = executionStates[key];
       const serviceId = typeof card.serviceId === "string" ? card.serviceId : "";
       const isSettled = type === "x402_quote" && serviceId ? settledServiceIds.has(serviceId) : false;
+      const active = toActive(msg.id, ci, card, type, exec, isSettled);
 
-      return {
-        msgId: msg.id,
-        cardIndex: ci,
-        card,
-        cardType: type,
-        phase: phaseFromCard(type, exec, isSettled),
-        title: String(card.title ?? type.replace(/_/g, " ")),
-        summary: summaryForCard(card, type),
-        explorerLinks: buildExplorerLinks(card, type, exec),
-        steps: buildSteps(type, exec),
-      };
+      if (isInFlight(type, exec) && !bestInFlight) {
+        bestInFlight = active;
+        continue;
+      }
+
+      if (type === "media_result" && !bestReceipt) {
+        bestReceipt = active;
+        continue;
+      }
+
+      if (type === "x402_quote" && !isSettled && !bestUnpaid) {
+        bestUnpaid = active;
+        continue;
+      }
+
+      if (type === "x402_quote" && isSettled) {
+        if (!bestSettledAny) bestSettledAny = active;
+        if (serviceId && serviceId === latestDeliveredServiceId && !bestSettledMatching) {
+          bestSettledMatching = active;
+        }
+        continue;
+      }
+
+      if (type === "swap_prepare" || type === "bridge_prepare") {
+        const done =
+          (type === "swap_prepare" && exec?.swapStatus === "confirmed") ||
+          (type === "bridge_prepare" && exec?.sendStatus === "confirmed");
+        if (done) {
+          if (!bestReceipt) bestReceipt = active;
+        } else if (!bestUnpaid) {
+          bestUnpaid = active;
+        }
+      }
     }
   }
-  return null;
+
+  return (
+    bestInFlight ??
+    bestUnpaid ??
+    bestReceipt ??
+    bestSettledMatching ??
+    bestSettledAny
+  );
 }
 
 export function inferSettledServiceIds(

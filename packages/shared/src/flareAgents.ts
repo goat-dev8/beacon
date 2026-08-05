@@ -460,6 +460,23 @@ export async function fulfillPaidResource(opts: {
   if (res.id === "signals-deep") {
     const snap = await readFtsoFeeds(opts.env);
     const signal = buildTradeSignal(snap.feeds);
+    const feedLines = snap.feeds.map((f) => `${f.symbol}=${f.value}`).join(" · ");
+    const deepContent = [
+      "FTSO deep pack",
+      "",
+      "Live feeds (Coston2)",
+      feedLines,
+      "",
+      `Bias · ${signal.bias}`,
+      signal.summary,
+      "",
+      "Trading notes",
+      "1. Prefer live FTSO reads over screenshots for size decisions.",
+      "2. SparkDEX USDT0→FXRP is the DeFi path; MockUSDT0 is for x402 / escrow only.",
+      "3. Cross-check explorer settlement after any paid unlock.",
+      "",
+      txHint ? `Settlement · ${txHint}` : "Settlement · confirmed via facilitator",
+    ].join("\n");
     cards.push({
       type: "ftso_signals",
       title: "Live FTSO · Coston2",
@@ -472,16 +489,16 @@ export async function fulfillPaidResource(opts: {
     const narr = await narrate({
       intent: "signals",
       userMessage: brief,
-      situation: `Paid FTSO deep pack. Bias=${signal.bias}. ${signal.summary}. Include settlement receipt.`,
+      situation: `Paid FTSO deep pack. Bias=${signal.bias}. ${signal.summary}. Keep the chat line short; full pack is in the card.`,
       fallback: `${signal.summary} Bias: ${signal.bias}. Paid FTSO deep pack unlocked.`,
       env: opts.env,
     });
     cards.push({
       type: "media_result",
-      title: "x402 receipt",
+      title: "FTSO deep pack",
       kind: "research",
-      summary: "FTSO deep pack settled on Coston2.",
-      content: narr.text,
+      summary: `Bias ${signal.bias} · live FTSO on Coston2`,
+      content: deepContent,
       paymentTxHint: txHint,
       serviceId: res.id,
     });

@@ -610,6 +610,37 @@ export function FlowPage() {
                                 void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
                                 void qc.invalidateQueries({ queryKey: ["flow-activity", wallet] });
                               }
+                            })
+                            .catch((e) => {
+                              const reason =
+                                e instanceof Error ? e.message : "Payment blocked by policy.";
+                              setMessages((m) => [
+                                ...m,
+                                {
+                                  id: crypto.randomUUID(),
+                                  role: "assistant",
+                                  agentId: (meta.agentId ?? msg.agentId) as AgentId,
+                                  text: "Authorization Receipt · spend policy blocked this settle before on-chain transfer.",
+                                  cards: [
+                                    {
+                                      type: "authorization_receipt",
+                                      title: "Authorization Receipt",
+                                      allowed: false,
+                                      reason,
+                                      agentId: meta.agentId ?? msg.agentId,
+                                      serviceId: meta.serviceId,
+                                      priceUsdt0:
+                                        typeof card.priceUsdt0 === "string" ||
+                                        typeof card.priceUsdt0 === "number"
+                                          ? card.priceUsdt0
+                                          : undefined,
+                                      flarePrimitive: "Security Policy · server-enforced",
+                                      fccMode: "simulated",
+                                    },
+                                  ],
+                                  displayModel: "Beacon Policy",
+                                },
+                              ]);
                             });
                         }}
                       />
@@ -1240,6 +1271,59 @@ function ActionCard({
     );
   }
 
+  if (card.type === "authorization_receipt") {
+    const allowed = card.allowed === true;
+    return (
+      <div
+        className={cn(
+          "overflow-hidden rounded-2xl border px-4 py-4",
+          allowed
+            ? "border-signal/40 bg-signal/10"
+            : "border-[var(--p-danger)]/40 bg-[var(--p-danger)]/5",
+        )}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-muted)]">
+            {String(card.title ?? "Authorization Receipt")}
+          </p>
+          <span
+            className={cn(
+              "rounded-full px-2.5 py-0.5 font-mono text-[10px]",
+              allowed
+                ? "bg-signal/20 text-[var(--p-accent-text)]"
+                : "bg-[var(--p-danger)]/15 text-[var(--p-danger)]",
+            )}
+          >
+            {allowed ? "ALLOWED" : "BLOCKED"}
+          </span>
+        </div>
+        <p className="mt-3 text-sm leading-relaxed text-[var(--p-fg)]">
+          {String(card.reason ?? "Policy decision")}
+        </p>
+        <dl className="mt-3 space-y-1 font-mono text-[11px] text-[var(--p-muted)]">
+          {card.serviceId != null && (
+            <div>
+              Service · {String(card.serviceId)}
+              {card.priceUsdt0 != null ? ` · $${String(card.priceUsdt0)}` : ""}
+            </div>
+          )}
+          <div>{String(card.flarePrimitive ?? "Security Policy · server-enforced")}</div>
+          <div>
+            FCC · {String(card.fccMode ?? "simulated")} · Coston2 only · pause anytime in Policy
+          </div>
+        </dl>
+        {!allowed && (
+          <a
+            href="/flow/security"
+            className="mt-3 inline-flex rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40"
+          >
+            Adjust spend policy
+          </a>
+        )}
+      </div>
+    );
+  }
+
   if (card.type === "x402_quote") {
     const serviceId = typeof card.serviceId === "string" ? card.serviceId : "";
     const isSettled = serviceId ? settledServiceIds.has(serviceId) : false;
@@ -1253,7 +1337,9 @@ function ActionCard({
             </span>
           </div>
           {isSettled ? (
-            <span className="rounded-full bg-signal/20 px-2.5 py-0.5 font-mono text-[10px] text-[var(--p-accent-text)]">Settled</span>
+            <span className="rounded-full bg-signal/20 px-2.5 py-0.5 font-mono text-[10px] text-[var(--p-accent-text)]">
+              Last run settled
+            </span>
           ) : (
             <span className="rounded-full border border-[var(--p-border)] px-2.5 py-0.5 font-mono text-[10px] text-[var(--p-muted)]">
               Unpaid
@@ -1278,16 +1364,17 @@ function ActionCard({
             MockUSDT0 · EIP-3009 · chain {String(card.chainId)} · {String(card.resource)}
           </div>
         </dl>
+        {isSettled && (
+          <p className="mt-3 text-xs leading-relaxed text-[var(--p-muted)]">
+            Settled means the last payment delivered. Pay again anytime. Each run signs a fresh EIP-3009 nonce
+            and unlocks a new resource (not a one-time lock).
+          </p>
+        )}
         </div>
         <div className="flex flex-wrap gap-2 border-t border-[var(--p-border)] px-4 py-3">
           <button type="button" onClick={onMint} className="rounded-full border border-[var(--p-border)] px-4 py-2 text-sm text-[var(--p-muted)] hover:border-signal/40">
             Mint test USDT0
           </button>
-          {isSettled ? (
-            <span className="inline-flex items-center rounded-full bg-signal/15 px-5 py-2 text-sm font-medium text-[var(--p-accent-text)]">
-              Settled for this service
-            </span>
-          ) : (
           <button
             type="button"
             disabled={!wallet || busy}
@@ -1321,9 +1408,8 @@ function ActionCard({
             }}
             className="rounded-full bg-signal px-5 py-2 text-sm font-medium text-ink disabled:opacity-40"
           >
-            {busy ? "Signing…" : "Pay & run"}
+            {busy ? "Signing…" : isSettled ? "Pay again" : "Pay & run"}
           </button>
-          )}
         </div>
         {error && <p className="px-4 pb-3 text-xs text-[var(--p-danger)]">{error}</p>}
       </div>
