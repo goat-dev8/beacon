@@ -55,13 +55,33 @@ function utcDay(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Agents introduced after the first Security Center ship — auto-union into stale Redis policies. */
+const OS_AGENT_ROLLOUT = [
+  "intel",
+  "portfolio",
+  "fassets",
+  "liquidity",
+  "crosschain",
+  "xrpfi",
+  "yield",
+  "risk",
+  "treasury",
+] as const;
+
+function migrateStoredPolicy(stored: BeaconSecurityPolicy): BeaconSecurityPolicy {
+  const allowedAgents = [...new Set([...stored.allowedAgents.filter((a) => a !== "video"), ...OS_AGENT_ROLLOUT])];
+  const allowedChains = [...new Set([...(stored.allowedChains ?? [114]), 14])];
+  return { ...stored, allowedAgents, allowedChains };
+}
+
 export async function loadPolicy(
   redis: Redis | null,
   wallet: string,
 ): Promise<{ policy: BeaconSecurityPolicy; source: "redis" | "default" }> {
   if (!redis) return { policy: DEFAULT_SECURITY_POLICY, source: "default" };
   const stored = await redis.get<BeaconSecurityPolicy>(policyKey(wallet));
-  return { policy: stored ?? DEFAULT_SECURITY_POLICY, source: stored ? "redis" : "default" };
+  if (!stored) return { policy: DEFAULT_SECURITY_POLICY, source: "default" };
+  return { policy: migrateStoredPolicy(stored), source: "redis" };
 }
 
 export async function getDailySpendUsdt0(redis: Redis | null, wallet: string): Promise<number> {
