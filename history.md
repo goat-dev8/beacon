@@ -4,6 +4,33 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-05 - Deep Chrome production test + fixes
+
+**Method:** Chrome DevTools MCP against `beacon-desk.vercel.app` + MetaMask account `0x3be5…c794` on Coston2 (`0x72`). Wallet txs that need the MetaMask **notification extension UI** cannot be fully clicked from CDP (extension popup not in page list); prepare/sign paths were exercised up to Confirm.
+
+### Pass
+- Wallet restore + shared session across Flow / Work / Policy
+- FTSO live strip + `@signals` live feeds + risk-on bias
+- Swap quote → Confirm → **Approve + Swap** card + Execution drawer (ready)
+- Bound Work: wallet shown, Research → brief form, draft resume after reload
+- Security Center: Authorization Receipt (spent 1.75 / remaining), limits, agents
+- Policy enforcement: daily 0.5 with spent 1.75 → `Daily budget 0.5 USDT0 exceeded`
+- History: conversations list + activity strip
+- Bridge routes API: 4 on-chain peers including Base Sepolia
+- Balances API after fix: USDT0 10 · FXRP 9 · Mock ~3006
+
+### Bugs found and fixed (pushed)
+1. `/v1/agents/balances` 500 — MockUSDT0 `symbol()` CALL_EXCEPTION + bigint JSON → tolerate symbol + serialize raw string (`9b36e68`)
+2. Bound Work `/quote` 500 — AI 405 message mismatch vs transient regex → treat `temporarily unavailable (405)` as FIT fallback (`6a832bf`)
+3. INTERNAL errors opaque → include `detail` slice for diagnosis (`ee2f29c`)
+
+### Blocked / needs human MetaMask click
+- Complete Approve+Swap / Approve+Send / x402 Pay again on-chain confirms (MetaMask notification.html not automatable in this Chrome MCP session)
+
+**Restore:** daily policy returned to 50 USDT0 after policy-block probe.
+
+---
+
 ## 2026-08-05 - Dynamic OFT peers · FTSO strip · refresh-safe execution · win research refresh
 
 **Research:** DevHub getOftPeers pattern + Polymarket Gamma overview. Decision: **no Polymarket betting UI** for Bounty 1; keep Flare asset rails as the hero. Documented in `WIN_RESEARCH_2026-08-05.md`.
