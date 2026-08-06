@@ -498,14 +498,14 @@ function detectIntent(message: string, fallback: BeaconAgentId, state?: Conversa
   const m = message.toLowerCase();
   if (wantsSafeHelp(m)) return "general";
   if (/@signals|ftso|price feed|oracle|\bsignals?\b/.test(m)) return "signals";
-  if (/@intel|market intel|probability|confidence|risk posture/.test(m)) return "intel";
+  if (/@intel|\bintel\b|market intel|intelligence|probability|confidence|risk posture/.test(m)) return "intel";
   if (/@portfolio|\bportfolio\b|balances?|holdings|net worth/.test(m)) return "portfolio";
-  if (/@fassets|fbtc|fdoge|mint fxrp|redeem fxrp|asset manager/.test(m)) return "fassets";
+  if (/@fassets|\bfassets\b|fbtc|fdoge|mint fxrp|redeem fxrp|asset manager/.test(m)) return "fassets";
   if (/@liquidity|pools?|sparkdex pairs/.test(m)) return "liquidity";
-  if (/@yield|apy|earn/.test(m)) return "yield";
-  if (/@risk\b/.test(m)) return "risk";
+  if (/@yield|\byield\b|apy|\bearn\b/.test(m)) return "yield";
+  if (/@risk\b|\brisk\b/.test(m)) return "risk";
   if (/@treasury/.test(m)) return "treasury";
-  if (/@crosschain|cross-chain/.test(m)) return "crosschain";
+  if (/@crosschain|cross-chain|\bcross chain\b/.test(m)) return "crosschain";
   if (/@xrpfi|xrp fi/.test(m)) return "xrpfi";
   if (/@swap|\bswap\b|usdt0.*fxrp/.test(m) && /swap|usdt|fxrp|@swap|wflr|wnat/.test(m)) return "swap";
   if (/@bridge|\bbridge\b|layerzero|oft|stargate/.test(m)) return "bridge";
@@ -514,7 +514,7 @@ function detectIntent(message: string, fallback: BeaconAgentId, state?: Conversa
   if (/@desk|bound work/.test(m)) return "desk";
   if (/@image|create image|generate image|\blogo\b|icon for|thumbnail/.test(m)) return "image";
   if (/@video|create video|generate video|storyboard|voice\b/.test(m)) return "desk";
-  if (/@research|research |competitors|market pack/.test(m)) return "research";
+  if (/@research|\bresearch\b|competitors|market pack/.test(m)) return "research";
   if (/@general/.test(m)) return "general";
   if (state && state.phase !== "idle" && !/^@\w+/.test(m.trim())) {
     return state.intent;
