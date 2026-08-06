@@ -4,6 +4,32 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-07 - Loop deep retest + Safe intent / vault validation
+
+### Fixes shipped (`ffa0dfe`, `6fe0f25`)
+- **Bare Safe intent:** `Safe` / `@safe` / `open safe` / `from … Safe` → `desk_link` `/flow/security` (no SparkDEX pairs).
+- **Tighten:** `is it safe to swap` still routes to **swap** (does not steal Safe help).
+- **Vault prepare:** zero deposit/withdraw amount → HTTP **400 VALIDATION** (was 500 INTERNAL).
+- **Deposit UX:** MetaMask reject / cancel notes styled as danger on Safe page.
+
+### Deploy status (verified)
+- **GitHub main:** `6fe0f25`
+- **Render `beacon-api`:** live on `6fe0f25` → https://beacon-api-97gl.onrender.com
+- **Vercel `beacon-desk` + `beacon`:** Production **success** for `6fe0f25` (vercel[bot]) → https://beacon-desk.vercel.app
+- Push workflow: always `git push` via `GITHUB_TOKEN` from `.env` (token never written into history).
+
+### Live retest (Chrome + API)
+- Safe / open safe / Send from Safe → `general` + `desk_link`.
+- prep `amountUsdt0=0` → `VALIDATION`.
+- Vault prepare deposit still `mode: eip3009`.
+- On-chain Safe balance now **14.0 USDT0** (was 4.0 — deposit confirmed).
+- Loop ticks 29–48 stayed green on chips / Bridge Base Sepolia / New chat→General / SIMULATED_TEE honesty.
+
+### Ops note
+- Always update this file after fix + test + each loop cycle; show Render + Vercel status; push with token.
+
+---
+
 ## 2026-08-06 - Safe deposit EIP-3009 fix + feature rail arrows
 
 - **Root cause of deposit revert:** Coston2 MockUSDT0 at `0x6fd8…` has **no** `approve` / `transferFrom` / `allowance` (EIP-3009 + transfer/mint only). Approve+deposit path always reverted.
