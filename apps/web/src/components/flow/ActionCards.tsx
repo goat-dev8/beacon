@@ -1129,12 +1129,13 @@ export function ActionCard({
   }
 
   if (card.type === "desk_link") {
+    const cta = String(card.href).includes("/security") ? "Open Safe" : "Open desk";
     return (
       <div className="rounded-2xl border border-[var(--p-border)] p-4">
         <p className="font-medium text-[var(--p-fg)]">{card.title}</p>
         <p className="mt-1 text-sm text-[var(--p-muted)]">{String(card.summary)}</p>
         <Link to={String(card.href)} className="mt-3 inline-flex rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink">
-          Open desk
+          {cta}
         </Link>
       </div>
     );

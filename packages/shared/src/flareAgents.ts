@@ -486,8 +486,17 @@ function pickModel(intent: BeaconAgentId, env: BeaconEnv): string {
   return env.AI_MODEL_GENERATOR || "claude-opus-5";
 }
 
+/** Beacon Safe deposit / spend-policy help — must win over sticky swap state. */
+function wantsSafeHelp(message: string): boolean {
+  const m = message.toLowerCase();
+  return /@safe\b|beacon safe|spend policy|fund (the )?safe|deposit (into |to )?(beacon )?safe|agent vault|prepaid (ai )?budget/.test(
+    m,
+  );
+}
+
 function detectIntent(message: string, fallback: BeaconAgentId, state?: ConversationState): BeaconAgentId {
   const m = message.toLowerCase();
+  if (wantsSafeHelp(m)) return "general";
   if (/@signals|ftso|price feed|oracle|\bsignals?\b/.test(m)) return "signals";
   if (/@intel|market intel|probability|confidence|risk posture/.test(m)) return "intel";
   if (/@portfolio|balances?|holdings|net worth/.test(m)) return "portfolio";
@@ -793,6 +802,37 @@ export async function runBeaconAgentChat(opts: {
       env,
     });
     if (fulfilled) return fulfilled;
+  }
+
+  // Safe help before sticky swap/bridge state can swallow the turn.
+  if (wantsSafeHelp(opts.message)) {
+    const cards: AgentCard[] = [
+      {
+        type: "desk_link",
+        title: "Beacon Safe",
+        href: "/flow/security",
+        summary:
+          "Deposit USDT0 with one MetaMask EIP-3009 signature. Anyone can fund; withdraw and spend policy stay owner-only.",
+      },
+    ];
+    const narr = await narrate({
+      intent: "general",
+      userMessage: opts.message,
+      situation:
+        "User wants to fund Beacon Safe and/or set spend policy. Guide them to /flow/security. EIP-3009 deposit (no approve). MockUSDT0 on Coston2. Do not start a SparkDEX swap.",
+      fallback:
+        "Open **Beacon Safe** to deposit USDT0 with one MetaMask signature (EIP-3009). Anyone can fund the prepaid pool; withdraw and spend policy stay with the Safe owner.",
+      env,
+    });
+    return {
+      agentId: "general",
+      text: narr.text,
+      cards,
+      model: narr.model,
+      displayModel: narr.displayModel,
+      paid: true,
+      state: { intent: "general", phase: "idle" },
+    };
   }
 
   const intent = detectIntent(opts.message, opts.agentId ?? prev?.intent ?? "general", prev ?? undefined);
@@ -2056,7 +2096,7 @@ export async function runBeaconAgentChat(opts: {
     situation:
       "Be a helpful Flare co-pilot. You can help with FTSO signals, USDT0→FXRP swaps, bridges, x402 pay, or Bound Work creative jobs. Ask what they want to do.",
     fallback:
-      "I'm Beacon on Flare. I can pull FTSO signals, quote USDT0→FXRP swaps, plan bridges, take x402 micropays, or start Bound Work. What should we do?",
+      "I'm Beacon on Flare. I can pull FTSO signals, quote USDT0→FXRP swaps, plan bridges, fund Beacon Safe, take x402 micropays, or start Bound Work. What should we do?",
     env,
   });
   return {
