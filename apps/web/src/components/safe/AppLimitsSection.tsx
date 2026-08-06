@@ -145,8 +145,10 @@ export function AppLimitsSection({
         </div>
       </div>
 
-      <label className="mt-5 flex items-center gap-3 text-sm">
+      <label className="mt-5 flex items-center gap-3 text-sm" htmlFor="safe-app-emergency-pause">
         <input
+          id="safe-app-emergency-pause"
+          name="emergencyPause"
           type="checkbox"
           checked={policy.emergencyPause}
           disabled={!wallet}
