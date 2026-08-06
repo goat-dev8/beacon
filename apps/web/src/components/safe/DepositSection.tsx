@@ -8,6 +8,7 @@ export function DepositSection({
   onWithdraw,
   onMint,
   pending,
+  busy,
   minting,
   wallet,
   isOwner,
@@ -23,6 +24,8 @@ export function DepositSection({
   onWithdraw: () => void;
   onMint?: () => void;
   pending: boolean;
+  /** True only while deposit/withdraw is the in-flight vault action. */
+  busy?: boolean;
   minting?: boolean;
   wallet: string | null;
   isOwner: boolean;
@@ -121,8 +124,13 @@ export function DepositSection({
             onClick={onDeposit}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--p-accent)] px-5 py-2.5 text-sm font-medium text-[var(--p-on-accent)] transition-transform active:scale-[0.98] disabled:opacity-40"
           >
-            {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-            Deposit
+            {busy ? (
+              <>
+                <Loader2 className="size-4 animate-spin" /> Signing…
+              </>
+            ) : (
+              "Deposit"
+            )}
           </button>
           <button
             type="button"

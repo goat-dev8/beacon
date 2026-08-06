@@ -259,6 +259,11 @@ export function SecurityPage() {
                 onWithdraw={() => vaultTx.mutate({ action: "withdraw", amountUsdt0: amount })}
                 onMint={() => mintTx.mutate()}
                 pending={vaultTx.isPending}
+                busy={
+                  vaultTx.isPending &&
+                  (vaultTx.variables?.action === "deposit" ||
+                    vaultTx.variables?.action === "withdraw")
+                }
                 minting={mintTx.isPending}
                 wallet={wallet}
                 isOwner={isOwner}
@@ -281,6 +286,7 @@ export function SecurityPage() {
                 onWindowHours={setWindowHours}
                 onSessionHours={setSessionHours}
                 pending={vaultTx.isPending}
+                busy={vaultTx.isPending && vaultTx.variables?.action === "setPolicy"}
                 wallet={wallet}
                 isOwner={isOwner}
                 onConnect={() => void onConnect()}

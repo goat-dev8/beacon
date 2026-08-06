@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function SafeReveal({
@@ -57,6 +57,7 @@ export function SafeField({
   string: asString,
   hint,
   disabled,
+  name,
 }: {
   label: string;
   value: number | string;
@@ -64,11 +65,16 @@ export function SafeField({
   string?: boolean;
   hint?: string;
   disabled?: boolean;
+  name?: string;
 }) {
+  const autoId = useId();
+  const fieldId = name ?? autoId;
   return (
-    <label className="block text-sm">
+    <label className="block text-sm" htmlFor={fieldId}>
       <span className="font-medium text-[var(--p-muted)]">{label}</span>
       <input
+        id={fieldId}
+        name={fieldId}
         type={asString ? "text" : "number"}
         min={asString ? undefined : 0}
         value={value}

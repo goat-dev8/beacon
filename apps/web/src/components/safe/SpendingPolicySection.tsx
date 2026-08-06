@@ -12,6 +12,7 @@ export function SpendingPolicySection({
   onSessionHours,
   onSave,
   pending,
+  busy,
   wallet,
   isOwner,
   onConnect,
@@ -27,6 +28,8 @@ export function SpendingPolicySection({
   onSessionHours: (v: number) => void;
   onSave: () => void;
   pending: boolean;
+  /** True only while this section's save tx is in flight (not deposit/emergency). */
+  busy?: boolean;
   wallet: string | null;
   isOwner: boolean;
   onConnect: () => void;
@@ -90,9 +93,9 @@ export function SpendingPolicySection({
         onClick={onSave}
         className="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--p-accent)] px-5 py-2.5 text-sm font-medium text-[var(--p-on-accent)] disabled:opacity-40"
       >
-        {pending ? (
+        {busy ? (
           <>
-            <Loader2 className="size-4 animate-spin" /> Signing…
+            <Loader2 className="size-4 animate-spin" /> Saving…
           </>
         ) : (
           "Save spending policy"
