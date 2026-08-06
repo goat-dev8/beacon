@@ -1527,12 +1527,15 @@ export async function runBeaconAgentChat(opts: {
     const discovered = await discoverFxrpOftRoutes(env);
     const oftRoutes = discovered.routes;
     const dest =
-      /sepolia/.test(m) ? "Sepolia"
+      /base\s*sepolia|base/.test(m) ? "Base Sepolia"
+      : /sepolia/.test(m) ? "Sepolia"
       : /hyperliquid|hyperevm/.test(m) ? "Hyperliquid EVM Testnet"
       : /bsc|bnb/.test(m) ? "BSC Testnet"
       : state.bridgeTo;
     let amount = extractAmount(opts.message) ?? state.amountInUnits ?? null;
     const discoveryOnly = wantsBridgeDiscovery(opts.message) && !amount && !dest;
+    const routeNames =
+      oftRoutes.map((r) => r.chain).filter(Boolean).join(", ") || "live OFT peers";
 
     const pushBridgeRoutes = () => {
       cards.push({
@@ -1588,7 +1591,7 @@ export async function runBeaconAgentChat(opts: {
         intent: "bridge",
         userMessage: opts.message,
         situation: "User wants to bridge FXRP but wallet is not connected. Ask them to connect on Coston2.",
-        fallback: "Connect your wallet on Flare Coston2 and tell me the destination (Sepolia, BSC, or Hyperliquid) plus how much FXRP to bridge.",
+        fallback: "Connect your wallet on Flare Coston2 and tell me the destination plus how much FXRP to bridge.",
         env,
       });
       return {
@@ -1784,10 +1787,8 @@ export async function runBeaconAgentChat(opts: {
     const narr = await narrate({
       intent: "bridge",
       userMessage: opts.message,
-      situation:
-        "Present the three supported FXRP OFT destinations. Ask which destination and FXRP amount. Do not invent fees.",
-      fallback:
-        "Here are the **documented FXRP OFT routes from Coston2**: BSC, Sepolia, and Hyperliquid. Which destination and how much FXRP?",
+      situation: `Present live FXRP OFT destinations from Coston2: ${routeNames}. Ask which destination and FXRP amount. Do not invent fees.`,
+      fallback: `Here are the **live FXRP OFT routes from Coston2**: ${routeNames}. Which destination and how much FXRP?`,
       env,
     });
     return {
