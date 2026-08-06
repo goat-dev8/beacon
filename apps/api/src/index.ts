@@ -1298,18 +1298,26 @@ app.post("/v1/vault/prepare", async (req) => {
   const addr = body.address;
   let prep;
   switch (body.action) {
-    case "deposit":
-      prep = await prepareAgentVaultDeposit(
-        { amountUsdt0: body.amountUsdt0 ?? "0", address: addr },
-        env,
-      );
+    case "deposit": {
+      const amountUsdt0 = body.amountUsdt0 ?? "0";
+      if (!(Number(amountUsdt0) > 0)) {
+        throw new AppError("VALIDATION", {
+          message: "Deposit amount must be greater than 0.",
+        });
+      }
+      prep = await prepareAgentVaultDeposit({ amountUsdt0, address: addr }, env);
       break;
-    case "withdraw":
-      prep = await prepareAgentVaultWithdraw(
-        { amountUsdt0: body.amountUsdt0 ?? "0", address: addr },
-        env,
-      );
+    }
+    case "withdraw": {
+      const amountUsdt0 = body.amountUsdt0 ?? "0";
+      if (!(Number(amountUsdt0) > 0)) {
+        throw new AppError("VALIDATION", {
+          message: "Withdraw amount must be greater than 0.",
+        });
+      }
+      prep = await prepareAgentVaultWithdraw({ amountUsdt0, address: addr }, env);
       break;
+    }
     case "setPolicy":
       prep = await prepareAgentVaultSetPolicy(
         {

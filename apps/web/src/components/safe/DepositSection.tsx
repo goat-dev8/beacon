@@ -146,7 +146,7 @@ export function DepositSection({
       {txNote && (
         <p
           className={`mt-3 text-sm ${
-            /fail|revert|error|not enough/i.test(txNote)
+            /fail|revert|error|not enough|reject|denied|cancel/i.test(txNote)
               ? "text-[var(--p-danger)]"
               : "text-[var(--p-accent-text)]"
           }`}
