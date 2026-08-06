@@ -349,7 +349,7 @@ export function ActionCard({
               {m.mint === "docs_handoff" || m.mintHandoffSummary ? (
                 <p className="mt-1 text-xs text-amber-200/90">
                   {m.mintHandoffSummary ??
-                    "Mint requires XRPL/Xaman agent flow — documented handoff, not an in-app mint button."}
+                    "Mint requires XRPL/Xaman agent flow: documented handoff, not an in-app mint button."}
                 </p>
               ) : null}
             </li>
@@ -850,7 +850,7 @@ export function ActionCard({
           </span>
           {isFallback && (
             <span className="rounded-full bg-[var(--p-warn)]/20 px-2 py-0.5 font-mono text-[10px] text-[var(--p-warn)]">
-              Fallback snapshot — not live
+              Fallback snapshot - not live
             </span>
           )}
         </div>
@@ -882,7 +882,7 @@ export function ActionCard({
                   </button>
                 ) : (
                   <p className="mt-2 font-mono text-[10px] text-[var(--p-warn)]">
-                    Snapshot only — re-sync peers before planning
+                    Snapshot only - re-sync peers before planning
                   </p>
                 )}
               </div>

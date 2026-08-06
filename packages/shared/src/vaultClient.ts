@@ -47,7 +47,7 @@ const ERC20_ABI = [
 export const BEACON_SAFE_LABEL = "Beacon Safe";
 
 const DISTINCTION =
-  "Beacon Safe is a prepaid pooled budget under owner policy. Bound Work uses BeaconEscrow for per-job locks — they are not the same rail.";
+  "Beacon Safe is a prepaid pooled budget under owner policy. Bound Work uses BeaconEscrow for per-job locks. They are not the same rail.";
 
 const NOT_CONFIGURED_NOTE =
   "Set BEACON_AGENT_VAULT_ADDRESS (or pass ?address=) after deploying BeaconAgentVault on Coston2. No fake balances are shown.";
@@ -199,7 +199,7 @@ export async function readAgentVaultStatus(opts?: {
       network: "coston2",
       chainId: COSTON2_CHAIN_ID_VAULT,
       note: NOT_CONFIGURED_NOTE,
-      honesty: "Beacon Safe address unset — readiness only, no invented balances.",
+      honesty: "Beacon Safe address unset: readiness only, no invented balances.",
       distinction: DISTINCTION,
     };
   }
