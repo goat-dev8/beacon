@@ -19,6 +19,7 @@ type Props = {
   onConnect: () => void;
   onOpenHistory: () => void;
   historyOpen: boolean;
+  onOpenWhyFlare: () => void;
   messages: ChatMsg[];
   pending: boolean;
   convState: ConvState;
@@ -53,6 +54,7 @@ export function ChatColumn(props: Props) {
         onConnect={props.onConnect}
         onOpenHistory={props.onOpenHistory}
         historyOpen={props.historyOpen}
+        onOpenWhyFlare={props.onOpenWhyFlare}
       />
       <MessageList
         messages={props.messages}
@@ -68,6 +70,8 @@ export function ChatColumn(props: Props) {
         onTxConfirmed={props.onTxConfirmed}
         onQuickReply={props.onQuickReply}
         onPaidResend={props.onPaidResend}
+        onFillComposer={props.onInputChange}
+        onOpenWhyFlare={props.onOpenWhyFlare}
       />
       <Composer
         input={props.input}
@@ -75,6 +79,9 @@ export function ChatColumn(props: Props) {
         onSend={props.onSend}
         pending={props.pending}
         agentHint={props.agentName}
+        onSuggestion={(text) => {
+          props.onInputChange(text);
+        }}
       />
     </div>
   );

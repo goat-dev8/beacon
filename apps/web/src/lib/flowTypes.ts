@@ -59,7 +59,7 @@ export type FlowConv = {
 export const WELCOME: ChatMsg = {
   id: "welcome",
   role: "system",
-  text: "Hi, I'm Beacon. Flare AI OS on Coston2. Signal → Quote → Policy → Pay → Execute → Receipt. Ask for FTSO, Market Intel, FAssets, SparkDEX pairs, LayerZero bridge, or Bound Work.",
+  text: "Beacon is Flare AI OS. Describe a move (swap, bridge, portfolio, yield, FAssets, x402) and I will quote, check policy, then leave an explorer receipt. Start from a capability below or type freely.",
 };
 
 /** Card types that belong to discovery / catalog (not the live execution path). */

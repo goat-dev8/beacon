@@ -6,6 +6,11 @@ import { useProductWallet } from "@/lib/productWallet";
 import { ChatColumn } from "@/components/flow/ChatColumn";
 import { HistoryRail } from "@/components/flow/HistoryRail";
 import { EvidencePanel } from "@/components/ExecutionDrawer";
+import { WhyFlareDrawer } from "@/components/landing/WhyFlare";
+import {
+  OnboardingWalkthrough,
+  shouldShowOnboarding,
+} from "@/components/onboarding/OnboardingWalkthrough";
 import {
   findActiveExecution,
   inferSettledServiceIds,
@@ -39,6 +44,12 @@ export function FlowPage() {
     typeof window !== "undefined" ? window.matchMedia("(min-width: 768px)").matches : true,
   );
   const [dismissedExecKey, setDismissedExecKey] = useState<string | null>(null);
+  const [whyFlareOpen, setWhyFlareOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+
+  useEffect(() => {
+    setOnboardingOpen(shouldShowOnboarding());
+  }, []);
 
   const onExecutionStateChange = useCallback((key: string, state: CardExecutionState) => {
     setExecutionStates((prev) => ({ ...prev, [key]: { ...prev[key], ...state } }));
@@ -72,6 +83,21 @@ export function FlowPage() {
     queryKey: ["agents"],
     queryFn: () => api.agents(),
   });
+
+  const fccQuery = useQuery({
+    queryKey: ["fcc-status"],
+    queryFn: () => api.getFccStatus(),
+    staleTime: 60_000,
+    retry: 1,
+  });
+
+  const fccMode = fccQuery.data?.mode ?? "unavailable";
+  const fccPrimitive =
+    fccMode === "simulated"
+      ? "Confidential policy (simulated TEE)"
+      : fccMode === "verified"
+        ? "Confidential policy (verified TEE)"
+        : "Security Policy · server-enforced";
 
   const balancesQuery = useQuery({
     queryKey: ["balances", wallet],
@@ -297,8 +323,8 @@ export function FlowPage() {
                   typeof card.priceUsdt0 === "string" || typeof card.priceUsdt0 === "number"
                     ? card.priceUsdt0
                     : undefined,
-                flarePrimitive: "Security Policy · server-enforced",
-                fccMode: "unavailable",
+                flarePrimitive: fccPrimitive,
+                fccMode,
               },
             ],
             displayModel: "Beacon Policy",
@@ -374,6 +400,7 @@ export function FlowPage() {
           onConnect={() => void onConnect()}
           onOpenHistory={() => setHistoryOpen(true)}
           historyOpen={historyOpen}
+          onOpenWhyFlare={() => setWhyFlareOpen(true)}
           messages={messages}
           pending={chat.isPending}
           convState={convState}
@@ -414,8 +441,14 @@ export function FlowPage() {
             if (!activeExecution) return;
             setDismissedExecKey(`${activeExecution.msgId}:${activeExecution.cardIndex}`);
           }}
+          onNextSuggestion={(text) => {
+            setInput(text);
+          }}
         />
       </main>
+
+      <WhyFlareDrawer open={whyFlareOpen} onClose={() => setWhyFlareOpen(false)} />
+      <OnboardingWalkthrough open={onboardingOpen} onComplete={() => setOnboardingOpen(false)} />
     </div>
   );
 }

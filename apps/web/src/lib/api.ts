@@ -46,7 +46,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  health: () => request<{ ok: boolean; service: string }>("/health"),
+  health: () =>
+    request<{
+      ok: boolean;
+      service: string;
+      simulatedTee?: boolean;
+      fccMode?: "simulated" | "unavailable" | "verified";
+      honesty?: string;
+    }>("/health"),
+  getFccStatus: () =>
+    request<{
+      ok: boolean;
+      mode: "simulated" | "unavailable" | "verified";
+      simulatedTee: boolean;
+      localMode?: boolean;
+      proxyReachable: boolean;
+      extensionId?: string;
+      extProxyConfigured?: boolean;
+      honesty: string;
+    }>("/v1/fcc/status"),
   ready: () =>
     request<{ ready: boolean; checks: Record<string, { ok: boolean }> }>("/ready"),
   services: () => request<{ services: ServiceItem[] }>("/v1/services"),

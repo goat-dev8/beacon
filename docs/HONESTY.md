@@ -4,16 +4,10 @@ Beacon claims must match runtime flags.
 
 | Flag | Meaning |
 |---|---|
-| `SIMULATED_TEE=true` | Confidentiality demonstrated in simulation, **not** hardware-enforced |
-| `SIMULATED_TEE=false` + `MODE=0` | Hardware TEE path (requires devops Confidential Space) |
+| `SIMULATED_TEE=true` + `FCC_MODE=simulated` (default when TEE flag set) | SIMULATED_TEE on Coston2 (hackathon-accepted), **not** hardware-attested Confidential Space |
+| `SIMULATED_TEE=false` + `MODE=0` | Hardware TEE path (requires devops Confidential Space; not public yet) |
 
-`/health` returns:
-```json
-{
-  "simulatedTee": true,
-  "honesty": "Confidentiality is demonstrated in simulation mode, not hardware-enforced."
-}
-```
+`/health` and `GET /v1/fcc/status` return `simulatedTee`, `fccMode` / `mode`, and honesty copy.
 
 Never advertise hardware-sealed TEE while simulated.
 

@@ -205,9 +205,83 @@ export function requireEnv<K extends keyof BeaconEnv>(
   return value as NonNullable<BeaconEnv[K]>;
 }
 
+export type FccMode = "simulated" | "unavailable" | "verified";
+
+/**
+ * Resolve FCC honesty mode.
+ * Explicit FCC_MODE wins; otherwise default to `simulated` when SIMULATED_TEE=true
+ * (official Coston2 hackathon path), else `unavailable`.
+ */
+export function resolveFccMode(
+  source: NodeJS.ProcessEnv = process.env,
+  simulatedTee?: boolean,
+): FccMode {
+  const raw = (source.FCC_MODE ?? "").toLowerCase().trim();
+  if (raw === "verified") return "verified";
+  if (raw === "simulated") return "simulated";
+  if (raw === "unavailable") return "unavailable";
+  const tee =
+    simulatedTee ??
+    (typeof source.SIMULATED_TEE === "string"
+      ? source.SIMULATED_TEE.toLowerCase() === "true" || source.SIMULATED_TEE === "1"
+      : Boolean(source.SIMULATED_TEE));
+  return tee ? "simulated" : "unavailable";
+}
+
 export function honestyMessage(simulatedTee: boolean): string {
   if (simulatedTee) {
-    return "FCC / confidential compute is unavailable for this product path. Server policy only; not hardware-verified. Do not treat any TEE label as attestation.";
+    return "FCC path uses SIMULATED_TEE on Coston2 (hackathon-accepted), not hardware-attested Confidential Space. Spend policy and receipts remain server/on-chain enforceable.";
   }
   return "FCC / confidential compute is unavailable in this deployment. Spend policy and receipts are server and on-chain only.";
+}
+
+export type FccProxyProbe = {
+  proxyReachable: boolean;
+  extensionId?: string;
+  endpointTried?: string;
+  error?: string;
+};
+
+/** Probe EXT_PROXY_URL `/info` (preferred) or `/health` when configured. */
+export async function probeExtProxy(
+  extProxyUrl: string | undefined | null,
+  timeoutMs = 2500,
+): Promise<FccProxyProbe> {
+  const base = (extProxyUrl ?? "").replace(/\/$/, "");
+  if (!base) {
+    return { proxyReachable: false, error: "EXT_PROXY_URL not configured" };
+  }
+
+  const paths = ["/info", "/health"] as const;
+  for (const path of paths) {
+    const endpoint = `${base}${path}`;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      const response = await fetch(endpoint, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!response.ok) continue;
+      let extensionId: string | undefined;
+      try {
+        const json = (await response.json()) as Record<string, unknown>;
+        const id =
+          json.extensionId ??
+          (json.machineData as Record<string, unknown> | undefined)?.extensionId ??
+          json.id;
+        if (id != null && String(id).length > 0) extensionId = String(id);
+      } catch {
+        /* /health may be non-JSON */
+      }
+      return { proxyReachable: true, extensionId, endpointTried: endpoint };
+    } catch (err) {
+      if (path === "/health") {
+        return {
+          proxyReachable: false,
+          endpointTried: endpoint,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    }
+  }
+  return { proxyReachable: false, error: "EXT_PROXY_URL /info and /health unreachable" };
 }

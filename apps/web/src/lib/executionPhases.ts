@@ -64,6 +64,10 @@ export type ActiveExecution = {
   chainId: number;
   explorerLinks: { label: string; href: string }[];
   steps: { label: string; status: string; hash?: string | null }[];
+  /** Primary tx hash for copy / explorer shortcut. */
+  primaryHash?: string | null;
+  /** Suggested follow-up prompt after this run. */
+  nextSuggestion?: string;
   /** When true, inspector should hide (work finished + next step acknowledged). */
   dismissible: boolean;
 };
@@ -233,6 +237,37 @@ function summaryForCard(card: AgentCard, cardType: ActionableCardType): string {
   return String(card.title ?? "Execution");
 }
 
+function primaryHashFor(
+  type: ActionableCardType,
+  exec: CardExecutionState | undefined,
+  card: AgentCard,
+): string | null {
+  if (type === "swap_prepare" && exec?.swapHash) return exec.swapHash;
+  if (type === "bridge_prepare" && exec?.sendHash) return exec.sendHash;
+  if (exec?.approveHash) return exec.approveHash;
+  if (type === "media_result" && typeof card.paymentTxHint === "string") return card.paymentTxHint;
+  return null;
+}
+
+function nextSuggestionFor(type: ActionableCardType, phase: ExecutionPhaseId): string | undefined {
+  if (phase !== "destination_receipt" && phase !== "next_step") return undefined;
+  switch (type) {
+    case "swap_prepare":
+    case "swap_quote":
+      return "Bridge FXRP to Base";
+    case "bridge_prepare":
+    case "bridge_quote":
+      return "Analyze my Portfolio";
+    case "x402_quote":
+    case "media_result":
+      return "Find best yield";
+    case "authorization_receipt":
+      return "Explain risk";
+    default:
+      return "Research SparkDEX";
+  }
+}
+
 function toActive(
   msgId: string,
   cardIndex: number,
@@ -255,6 +290,8 @@ function toActive(
     chainId,
     explorerLinks: buildExplorerLinks(card, type, exec, chainId),
     steps: buildSteps(type, exec, card),
+    primaryHash: primaryHashFor(type, exec, card),
+    nextSuggestion: nextSuggestionFor(type, phase),
     dismissible: phase === "destination_receipt" || phase === "next_step",
   };
 }

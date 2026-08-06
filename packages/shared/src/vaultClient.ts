@@ -43,8 +43,11 @@ const ERC20_ABI = [
   "function approve(address spender,uint256 amount) returns (bool)",
 ];
 
+/** User-facing product name; on-chain contract remains BeaconAgentVault. */
+export const BEACON_SAFE_LABEL = "Beacon Safe";
+
 const DISTINCTION =
-  "Beacon Agent Vault is a prepaid pooled budget under owner policy. Bound Work uses BeaconEscrow for per-job locks — they are not the same rail.";
+  "Beacon Safe is a prepaid pooled budget under owner policy. Bound Work uses BeaconEscrow for per-job locks — they are not the same rail.";
 
 const NOT_CONFIGURED_NOTE =
   "Set BEACON_AGENT_VAULT_ADDRESS (or pass ?address=) after deploying BeaconAgentVault on Coston2. No fake balances are shown.";
@@ -73,7 +76,7 @@ export interface AgentVaultPrep {
 export type AgentVaultStatus =
   | {
       configured: false;
-      readiness: "Deploy vault on Coston2";
+      readiness: "Deploy Beacon Safe on Coston2";
       address: null;
       network: "coston2";
       chainId: number;
@@ -115,6 +118,10 @@ export type AgentVaultStatus =
       honesty: string;
       distinction: string;
     };
+
+/** Internal type aliases — UI copy uses Beacon Safe; contract stays BeaconAgentVault. */
+export type BeaconSafeStatus = AgentVaultStatus;
+export type BeaconSafePrep = AgentVaultPrep;
 
 function isAddress(value: string | undefined | null): value is string {
   return Boolean(value && /^0x[a-fA-F0-9]{40}$/.test(value));
@@ -187,12 +194,12 @@ export async function readAgentVaultStatus(opts?: {
   if (!address) {
     return {
       configured: false,
-      readiness: "Deploy vault on Coston2",
+      readiness: "Deploy Beacon Safe on Coston2",
       address: null,
       network: "coston2",
       chainId: COSTON2_CHAIN_ID_VAULT,
       note: NOT_CONFIGURED_NOTE,
-      honesty: "Vault address unset — readiness only, no invented balances.",
+      honesty: "Beacon Safe address unset — readiness only, no invented balances.",
       distinction: DISTINCTION,
     };
   }
@@ -305,7 +312,7 @@ export async function prepareAgentVaultDeposit(
     approveData: approveCalldata(address, amount),
     value: "0",
     ownerOnly: true,
-    note: "Owner: approve token then deposit into BeaconAgentVault pool.",
+    note: "Owner: approve token then deposit into Beacon Safe pool.",
     honesty: DISTINCTION,
   };
 }

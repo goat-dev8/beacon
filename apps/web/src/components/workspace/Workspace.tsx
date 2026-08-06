@@ -490,7 +490,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                   Bound Offer on Flare Coston2: EIP-3009 auth → BeaconEscrow lock → acceptance → release or refund.
                   Desk credit uses Beacon MockUSDT0 (not SparkDEX USDT0).{" "}
                   <Link to="/flow/security" className="text-signal-deep underline-offset-2 hover:underline">
-                    Security Center
+                    Beacon Safe
                   </Link>{" "}
                   enforces your daily / per-job budget.
                 </p>

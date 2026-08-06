@@ -1,14 +1,68 @@
-# Beacon ù Engineering History (memory)
+# Beacon Engineering History (memory)
 
 Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-06 - Beacon Safe product rethink (flagship AI OS)
+
+- Research: `PRODUCT_FLAGSHIP_RESEARCH_2026-08-06.md` (mentors + FCC SIMULATED_TEE path + Beacon Safe rename).
+- FCC: default `simulated` when `SIMULATED_TEE=true`; `GET /v1/fcc/status`; honest badge (not hardware).
+- UI: Agent Vault copy ? **Beacon Safe**; Apple-wallet Safe page; FeatureDiscovery + suggestion chips; onboarding; Why Flare; landing architecture story.
+- Nav: Policy ? Safe.
+
+## 2026-08-06 - Flagship product research + FCC honesty flip + Beacon Safe rename
+
+- Wrote `PRODUCT_FLAGSHIP_RESEARCH_2026-08-06.md` (mentor guidance, official FCC hackathon path, Beacon Safe rename, product story, UI judge weaknesses).
+- **FCC honesty:** default `FCC_MODE` to `simulated` when `SIMULATED_TEE=true` (else unavailable). Shared `resolveFccMode` + `probeExtProxy`; honesty message = SIMULATED_TEE on Coston2 (hackathon-accepted), not hardware Confidential Space.
+- **API:** `/health` uses resolveFccMode; new `GET /v1/fcc/status` `{ mode, simulatedTee, proxyReachable, extensionId? }`.
+- **UI:** Flow/Security stop hardcoding `fccMode=unavailable`; badge **Confidential policy (simulated TEE)** when simulated.
+- **Rename:** user-facing Agent Vault ? **Beacon Safe** (contract remains `BeaconAgentVault`). Landing, onboarding, vaultClient messages, Safe page.
+- **Env:** `.env.example` `FCC_MODE=simulated`, `SIMULATED_TEE=true`, `LOCAL_MODE=false`.
+- **No commit / no push.**
+
+---
+
+## 2026-08-06 - Product redesign (discovery, onboarding, landing, execution)
+
+### A. Feature discovery (empty Flow)
+- New `FeatureDiscovery` capability grid when `messages.length <= 1` (welcome only): Swap, Bridge, Portfolio, Research, Signals, Risk, Yield, Treasury, FAssets, x402, Cross-chain, Market Intelligence. Try now fills composer; Send submits. No video/image stubs.
+- Always-on `SuggestionChips` above composer (8 Flare prompts).
+- WELCOME copy in `flowTypes.ts` updated to product-story language.
+
+### B. Onboarding
+- New `OnboardingWalkthrough` (4 steps: Deposit ? Set policy ? Talk to Beacon ? Get receipt). localStorage `beacon_onboarded_v1`. Shown once on first `/flow` visit.
+
+### C. Why Flare
+- Landing `WhyFlareSection` + Flow `WhyFlareDrawer` (top bar + discovery link). FTSO, FAssets, FCC, x402, OFT, Beacon Safe in plain language.
+
+### D. Landing rethink
+- Hero cinematic center; What / Who / Why AI+Flare; interactive `ArchitectureStrip` (Deposit?Policy?Chat?Execute?Receipt); Why Flare; services; CTA to `/flow`. Emerald brand; Linear surface rhythm; no purple glow.
+
+### E. Execution polish
+- Evidence panel: premium timeline motion, copy tx hash, open explorer, next suggestion chip.
+
+### Files
+- New: `FeatureDiscovery.tsx`, `SuggestionChips.tsx`, `OnboardingWalkthrough.tsx`, `WhyFlare.tsx`, `ArchitectureStrip.tsx`
+- Updated: `flowTypes.ts`, `MessageList`, `Composer`, `ChatColumn`, `ChatTopBar`, `FlowPage`, `ExecutionDrawer`, `executionPhases`, `Hero`, `Sections`, `LandingPage`, `Navbar`, `VaultPassCard` (unused type)
+- Typecheck: `tsc -b` clean for `@beacon/web`.
+- **No commit / no push.**
+
+---
+
+## 2026-08-06 - Beacon Safe redesign (Security page)
+
+- Completely redesigned `/flow/security` as **Beacon Safe**: Apple Wallet / Stripe-grade Product OS surface (Linear-calm + emerald accent; variance 5 / motion 4 / density 3).
+- Sections: hero why-deposit, interactive Wallet?Safe?Policy?AI?Execution?Receipt?Wallet flow, protection story cards (honest Simulated TEE on Coston2), wallet-like pass card (Daily budget / Per trade / Session / Paused), deposit visual + `executeAgentVaultPrep`, spending policy with "Rolling period (hours)", emergency Pause/Unpause/Revoke with consequences, **App limits** (Flare agents only; image removed from defaults/options), Bound Work escrow footer line.
+- Extracted UI under `apps/web/src/components/safe/*`. Kept vault status/prepare/policy APIs and owner gating.
+- ProductShell rail label **Policy ? Safe**; Bound Work + ActionCards copy points to Safe.
+- **No commit/push.**
+
 ## 2026-08-06 - Production verify + hotfix
 
 - Pushed `ab5894c`; GitHub auto-deployed web to https://beacon-desk.vercel.app (READY).
 - Render API live with `agentVault=0x9bD5B894Da0a54B7649A4084d93D58df4f6182e0`, `fccMode=unavailable`.
-- Chrome: QuoterV2 quote `1 USD?0 ò 0.955428 FXRP` on Mainnet; model badge `deterministic fallback`; execution surface Mainnet phases; no pairs spam on quote turn.
+- Chrome: QuoterV2 quote `1 USD?0 ? 0.955428 FXRP` on Mainnet; model badge `deterministic fallback`; execution surface Mainnet phases; no pairs spam on quote turn.
 - Hotfix: landing Flare-rails catalog (no video/image stubs), meta title Flare AI OS, composer mentions, honesty string, vault default address on web.
 
 ## 2026-08-06 - FDC honesty + Summer Signal research baseline
@@ -17,7 +71,7 @@ Living log of what was done. No secrets in this file.
 - Applied Linear `DESIGN.md` for product UI tokens.
 - `packages/fdc`: refuse invented `requestId` UUIDs when verifier prepare omits id (fail closed).
 - Phase-scoped cards, QuoterV2, yield vaults, x402 domain-from-token, Flow UX, Agent Vault contract+UI shipped in parallel slices (see entries below).
-- **Coston2 deploy:** `BeaconAgentVault` at `0x9bD5B894Da0a54B7649A4084d93D58df4f6182e0` (token MockUSDT0 `0x6fd8Öe86c`, owner/executor deployer). Set `BEACON_AGENT_VAULT_ADDRESS` / `VITE_BEACON_AGENT_VAULT_ADDRESS`.
+- **Coston2 deploy:** `BeaconAgentVault` at `0x9bD5B894Da0a54B7649A4084d93D58df4f6182e0` (token MockUSDT0 `0x6fd8?e86c`, owner/executor deployer). Set `BEACON_AGENT_VAULT_ADDRESS` / `VITE_BEACON_AGENT_VAULT_ADDRESS`.
 
 ---
 
@@ -36,15 +90,15 @@ Living log of what was done. No secrets in this file.
 ## 2026-08-06 - Harden x402 + OFT destination + Redis fail-closed
 
 ### x402 / EIP-712
-- `packages/x402/src/eip3009.ts`: resolve EIP-712 domain **from `token.name()` / `version()`** ù never hardcode `"USD?0"` (MockUSDT0 uses `"USD0"`). `buildEip3009Domain` fail-closed without explicit name.
+- `packages/x402/src/eip3009.ts`: resolve EIP-712 domain **from `token.name()` / `version()`** ? never hardcode `"USD?0"` (MockUSDT0 uses `"USD0"`). `buildEip3009Domain` fail-closed without explicit name.
 - `assertX402PaymentFields`: network/token/payee/exact amount/validity window/nonce checks.
 - `paidResources.ts`: full settle validation + on-chain `authorizationState` check; idempotent receipt cache (Redis + memory); nonce in-flight lock; MockUSDT0 labeled **testnet/demo**.
 - Agent chat settle: same field checks + refuse double-settle; settler key fallback.
 
 ### LayerZero OFT destination
-- `oftBridge.ts`: peers from `peers(eid)` + `PeerSet` events; fallback routes status=`fallback-snapshot`, `live:false` ù never presented as live.
+- `oftBridge.ts`: peers from `peers(eid)` + `PeerSet` events; fallback routes status=`fallback-snapshot`, `live:false` ? never presented as live.
 - `prepareFxrpOftBridge` refuses fallback-only peers; re-reads `peers(eid)` before `quoteSend`.
-- `decodeOftGuidFromReceipt` / `observeOftSourceSend` / `trackOftDelivery` ù GUID from OFTSent, dest poll `OFTReceived`, UI phases source ? protocol ? dest.
+- `decodeOftGuidFromReceipt` / `observeOftSourceSend` / `trackOftDelivery` ? GUID from OFTSent, dest poll `OFTReceived`, UI phases source ? protocol ? dest.
 - API `GET /v1/agents/bridge/delivery`; Flow polls after source send; routes card labels snapshot vs live.
 
 ### Redis / policy / CORS
@@ -65,11 +119,11 @@ Living log of what was done. No secrets in this file.
 
 ### Design decisions
 - **Linear calm + emerald Beacon:** DESIGN.md surface ladder (`#010102` canvas, hairline borders, 8/12px radii) mapped onto existing `--p-*`; chromatic accent stays `#39e08a` (no purple AI glow).
-- **One history rail + one top bar:** ProductShell icon rail remains the only product nav (Flow / Work / Policy). Removed inner Flow/Bound Work/Security tabs and duplicate agent pickers (sidebar shortcuts + composer ùAll agentsù).
+- **One history rail + one top bar:** ProductShell icon rail remains the only product nav (Flow / Work / Policy). Removed inner Flow/Bound Work/Security tabs and duplicate agent pickers (sidebar shortcuts + composer ?All agents?).
 - **Centered chat column:** `max-w-[42rem]`, body/prose ~15.5px; auto-scroll to latest; mobile history via overlay + top-bar toggle.
-- **Cards for current phase only:** `cardsForDisplay` renders full interactive cards on the latest assistant turn; historical discovery catalogs are hidden; older live cards become compact ùpastù chips.
+- **Cards for current phase only:** `cardsForDisplay` renders full interactive cards on the latest assistant turn; historical discovery catalogs are hidden; older live cards become compact ?past? chips.
 - **One execution surface:** phases `quote ? authorization ? source tx ? protocol observe ? destination receipt ? next step`. Prefer `convState.phase` + tx/event status over inferred completion. Inspector mounts only when active; mobile sheet starts collapsed.
-- **Network-correct explorers:** `lib/explorers.ts` ù Coston2 vs flarescan.com (chain 14) for SparkDEX; bridge/x402 stay Coston2 + LayerZero Scan.
+- **Network-correct explorers:** `lib/explorers.ts` ? Coston2 vs flarescan.com (chain 14) for SparkDEX; bridge/x402 stay Coston2 + LayerZero Scan.
 
 ### Files
 - New: `apps/web/src/components/flow/{HistoryRail,ChatTopBar,ChatColumn,Composer,MessageList,ActionCards}.tsx`
@@ -95,18 +149,18 @@ cd apps/web && npm run build   # tsc -b && vite build
 
 ---
 
-## 2026-08-06 - Judge honesty fixes (cards ù stubs ù FCC ù models ù treasury)
+## 2026-08-06 - Judge honesty fixes (cards ? stubs ? FCC ? models ? treasury)
 
 - **Phase-scoped cards:** swap/bridge quote+prepare turns no longer also emit `swap_pairs` / `bridge_routes`; discovery cards only on clarify/catalog.
 - **Execution registry:** removed stub adapters (`media.image`, `research.report`, `bound_work`, `trade.signal_action`, `signals.deep`); only live `swap` + `bridge` prepare adapters registered.
 - **FCC:** default `FCC_MODE=unavailable` (never present simulated as verified); Security + Flow + `/health` copy neutralized.
 - **Model badges:** show exact Agent Router model id; local/heuristic paths labeled `deterministic fallback` (no fake Claude Opus 5 / GPT-5.6 marketing names).
-- **Treasury:** labeled as verified-read policy/budget lens over the same Portfolio desk ù not a separate vault product.
+- **Treasury:** labeled as verified-read policy/budget lens over the same Portfolio desk ? not a separate vault product.
 - Honesty: SparkDEX = Flare Mainnet only; Coston2 x402 = MockUSDT0.
 
 ---
 
-## 2026-08-06 - Flare AI OS ship ù SparkDEX honesty ù FAssets ù Market Intel
+## 2026-08-06 - Flare AI OS ship ? SparkDEX honesty ? FAssets ? Market Intel
 
 ### Research (mandatory)
 - DevHub MCP + FAssets reference: **Coston2 controller returns 1 manager** (Testnet XRP / FTestXRP). FBTC/FDOGE **not on Coston2**.
@@ -141,7 +195,7 @@ cd apps/web && npm run build   # tsc -b && vite build
 | FTSO / FAssets status / OFT / x402 | Coston2 (114) |
 | SparkDEX swap execute | Flare Mainnet (14) |
 
-**Live:** https://beacon-desk.vercel.app ù https://beacon-api-97gl.onrender.com
+**Live:** https://beacon-desk.vercel.app ? https://beacon-api-97gl.onrender.com
 
 ---
 
@@ -158,7 +212,7 @@ cd apps/web && npm run build   # tsc -b && vite build
 - Policy enforcement: daily 0.5 with spent 1.75 ? `Daily budget 0.5 USDT0 exceeded`
 - History: conversations list + activity strip
 - Bridge routes API: 4 on-chain peers including Base Sepolia
-- Balances API after fix: USDT0 10 ù FXRP 9 ù Mock ~3006
+- Balances API after fix: USDT0 10 ? FXRP 9 ? Mock ~3006
 
 ### Bugs found and fixed (pushed)
 1. `/v1/agents/balances` 500 ? MockUSDT0 `symbol()` CALL_EXCEPTION + bigint JSON ? tolerate symbol + serialize raw string (`9b36e68`)
@@ -172,7 +226,7 @@ cd apps/web && npm run build   # tsc -b && vite build
 
 ---
 
-## 2026-08-05 - Dynamic OFT peers ù FTSO strip ù refresh-safe execution ù win research refresh
+## 2026-08-05 - Dynamic OFT peers ? FTSO strip ? refresh-safe execution ? win research refresh
 
 **Research:** DevHub getOftPeers pattern + Polymarket Gamma overview. Decision: **no Polymarket betting UI** for Bounty 1; keep Flare asset rails as the hero. Documented in `WIN_RESEARCH_2026-08-05.md`.
 
@@ -187,7 +241,7 @@ cd apps/web && npm run build   # tsc -b && vite build
 
 ---
 
-## 2026-08-05 - x402 Settled is not a lock ù Pay again ù win research
+## 2026-08-05 - x402 Settled is not a lock ? Pay again ? win research
 
 **User question:** After FTSO / Research settle, UI showed "Settled for this service". Does that mean another pay is impossible?
 
@@ -254,7 +308,7 @@ cd apps/web && npm run build   # tsc -b && vite build
 
 ---
 
-## 2026-08-05 ? Flow OS UX ù Bound Work shell ù x402 Paid fix ù quote redesign
+## 2026-08-05 ? Flow OS UX ? Bound Work shell ? x402 Paid fix ? quote redesign
 
 **Goal:** Product shell that never abandons chat chrome; honest x402 Paid badges; premium bridge quotes (brand emerald, dark/light).
 
@@ -274,7 +328,7 @@ cd apps/web && npm run build   # tsc -b && vite build
 
 ---
 
-## 2026-08-05 ? Productization refactor ù Gates 0?4 in progress
+## 2026-08-05 ? Productization refactor ? Gates 0?4 in progress
 
 **Goal:** Universal execution engine; Bounty 1 Interoperable Asset Products; remove pay-loop and bridge-plan-only bugs.
 
@@ -297,7 +351,7 @@ cd apps/web && npm run build   # tsc -b && vite build
 
 ---
 
-## 2026-08-05 ? Hackathon win mode ù AI OS productization
+## 2026-08-05 ? Hackathon win mode ? AI OS productization
 
 **Goal:** Beacon feels like production Flare AI OS, not chatbot + demos.
 
@@ -397,7 +451,7 @@ cd apps/web && npm run build   # tsc -b && vite build
 **Product:** Beacon ? Finish AI work. Pay only when it passes.  
 **Production desk:** https://beacon-desk.vercel.app/  
 **Production API:** https://beacon-api-97gl.onrender.com/ (`pipeline` caps `2026-08-04-pro-media-v1`)  
-**Local desk:** `http://localhost:5173/` ù API: `http://127.0.0.1:3001`  
+**Local desk:** `http://localhost:5173/` ? API: `http://127.0.0.1:3001`  
 **Network:** Flare Testnet Coston2 (chain 114)  
 **Live contracts**
 | Contract | Address |
@@ -416,12 +470,12 @@ Explorer: https://coston2-explorer.flare.network
 - AgentRouter chat for prompt engineer / quote / judge (image models still 403 on AgentRouter)
 - SVG fallback only when Comfy + HF + Pollinations all fail
 - **`MEDIA_FAST=true`** on Render: skip Opus prompt eng + L2 judge hang; Flux still runs
-- Proven Render Image e2e: job `b133b5f7?` ? **CLOSED / Paid** ù `image/jpeg` ù escrow released `0x03d86bec?`
+- Proven Render Image e2e: job `b133b5f7?` ? **CLOSED / Paid** ? `image/jpeg` ? escrow released `0x03d86bec?`
 
 ### Proven end-to-end (real wallet + escrow + settle)
 | Job | Path | Result | Escrow | Lock / notes |
 |---|---|---|---|---|
-| `1de49605?` | **Vercel + MetaMask** Image | **Done / Paid $5.88** | released | SVG creative ù lock `0xe55379a3?` ù wallet `0x3be5?c794` |
+| `1de49605?` | **Vercel + MetaMask** Image | **Done / Paid $5.88** | released | SVG creative ? lock `0xe55379a3?` ? wallet `0x3be5?c794` |
 | `a0071b85?` | deep-api Image (Render) | **CLOSED** PASS | released | `image/svg+xml` artifact proven |
 | `517200e7?` | deep-api documents | **CLOSED** PASS | released | script |
 | `484e48d1?` | deep-api documents | **CLOSED** PASS | released | script |
@@ -463,7 +517,7 @@ Explorer: https://coston2-explorer.flare.network
 - Landing + `/app` Bound Work flow
 - MetaMask: Coston2 connect, EIP-3009, `BeaconEscrow.lockWithAuthorization`, mint MockUSDT0
 - Result panel: **agent-style transcript** (inline draft/document), artifact tabs, Flare rails timeline, receipt with lock/settle explorer links
-- Progress: consumer timeline + **Flare rails ù Coston2** (wallet ? EIP-3009 ? escrow lock ? generate ? acceptance ? release/refund ? receipt)
+- Progress: consumer timeline + **Flare rails ? Coston2** (wallet ? EIP-3009 ? escrow lock ? generate ? acceptance ? release/refund ? receipt)
 - `?job=<id>` restores Done/result view after refresh
 
 ### Contracts / Flare

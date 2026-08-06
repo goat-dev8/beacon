@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Loader2 } from "lucide-react";
 import { AgentText } from "@/components/AgentText";
 import { ActionCard } from "@/components/flow/ActionCards";
+import { FeatureDiscovery } from "@/components/flow/FeatureDiscovery";
 import { cardKey, type CardExecutionState, type AgentCard } from "@/lib/executionPhases";
 import { cardsForDisplay, type ChatMsg, type ConvState, type PaidResendMeta } from "@/lib/flowTypes";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,8 @@ type Props = {
   }) => void;
   onQuickReply: (text: string) => void;
   onPaidResend: (payment: Record<string, unknown>, meta: PaidResendMeta, card: AgentCard, msg: ChatMsg) => void;
+  onFillComposer: (text: string) => void;
+  onOpenWhyFlare?: () => void;
 };
 
 function CompactCard({ card }: { card: AgentCard }) {
@@ -54,9 +57,12 @@ export function MessageList({
   onTxConfirmed,
   onQuickReply,
   onPaidResend,
+  onFillComposer,
+  onOpenWhyFlare,
 }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion();
+  const showDiscovery = messages.length <= 1 && !pending;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
@@ -133,6 +139,16 @@ export function MessageList({
         )}
         <div ref={bottomRef} aria-hidden />
       </div>
+
+      {showDiscovery && (
+        <FeatureDiscovery
+          onTry={(prompt, mode) => {
+            if (mode === "send") onQuickReply(prompt);
+            else onFillComposer(prompt);
+          }}
+          onOpenWhyFlare={onOpenWhyFlare}
+        />
+      )}
     </div>
   );
 }

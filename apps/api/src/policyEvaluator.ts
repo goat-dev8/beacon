@@ -1,4 +1,5 @@
 import type { Redis } from "@upstash/redis";
+import { resolveFccMode as resolveFccModeFromEnv, type FccMode } from "@beacon/shared";
 import {
   getDailySpendUsdt0,
   isSessionExpired,
@@ -13,7 +14,7 @@ export type PolicyDecision = {
   reason: string;
   policyVersion: string;
   enforcement: "server";
-  fccMode: "simulated" | "unavailable" | "verified";
+  fccMode: FccMode;
   checks: Record<string, unknown>;
 };
 
@@ -28,10 +29,7 @@ export type PolicyEvaluateInput = {
 };
 
 function resolveFccMode(): PolicyDecision["fccMode"] {
-  const raw = (process.env.FCC_MODE ?? "unavailable").toLowerCase();
-  if (raw === "verified") return "verified";
-  if (raw === "simulated") return "simulated";
-  return "unavailable";
+  return resolveFccModeFromEnv(process.env);
 }
 
 function agentFromWorkflow(workflowType?: string): string | undefined {

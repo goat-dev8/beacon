@@ -16,6 +16,7 @@ type Props = {
   onConnect: () => void;
   onOpenHistory: () => void;
   historyOpen: boolean;
+  onOpenWhyFlare: () => void;
 };
 
 export function ChatTopBar({
@@ -27,6 +28,7 @@ export function ChatTopBar({
   onConnect,
   onOpenHistory,
   historyOpen,
+  onOpenWhyFlare,
 }: Props) {
   return (
     <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--p-border)] bg-[var(--p-bg)] px-4 py-2.5 md:px-6">
@@ -62,6 +64,13 @@ export function ChatTopBar({
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          onClick={onOpenWhyFlare}
+          className="hidden min-h-9 rounded-[var(--p-radius-sm)] border border-[var(--p-border)] bg-[var(--p-surface)] px-3 text-[12px] text-[var(--p-muted)] hover:text-[var(--p-fg)] sm:inline-flex sm:items-center"
+        >
+          Why Flare
+        </button>
         {wallet && balances && (
           <div className="hidden items-center gap-2 rounded-[var(--p-radius-sm)] border border-[var(--p-border)] bg-[var(--p-surface)] px-2.5 py-1.5 font-mono text-[10px] text-[var(--p-muted)] xl:flex">
             <span>

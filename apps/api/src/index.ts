@@ -11,6 +11,8 @@ import {
   transition,
   loadEnv,
   honestyMessage,
+  resolveFccMode,
+  probeExtProxy,
   isAppError,
   newId,
   assertFlareRequired,
@@ -169,16 +171,31 @@ app.get("/health", async () => ({
     "flare-fcc-skill",
   ],
   simulatedTee: env.SIMULATED_TEE,
-  fccMode: (process.env.FCC_MODE ?? "unavailable").toLowerCase() === "verified"
-    ? "verified"
-    : (process.env.FCC_MODE ?? "unavailable").toLowerCase() === "simulated"
-      ? "simulated"
-      : "unavailable",
+  fccMode: resolveFccMode(process.env, env.SIMULATED_TEE),
   honesty: honestyMessage(env.SIMULATED_TEE),
   service: "beacon-api",
   version: "0.1.0",
   pipeline: PIPELINE_CAPS,
 }));
+
+/** FCC honesty status — simulated TEE on Coston2 is the accepted hackathon path. */
+app.get("/v1/fcc/status", async () => {
+  const mode = resolveFccMode(process.env, env.SIMULATED_TEE);
+  const proxy = await probeExtProxy(env.EXT_PROXY_URL || undefined);
+  const extensionId =
+    proxy.extensionId ||
+    (env.EXTENSION_ID ? String(env.EXTENSION_ID) : undefined);
+  return {
+    ok: true,
+    mode,
+    simulatedTee: env.SIMULATED_TEE,
+    localMode: env.LOCAL_MODE,
+    proxyReachable: proxy.proxyReachable,
+    extensionId: extensionId || undefined,
+    extProxyConfigured: Boolean(env.EXT_PROXY_URL),
+    honesty: honestyMessage(env.SIMULATED_TEE),
+  };
+});
 
 app.post("/v1/debug/pipeline-smoke", async (req) => {
   if (process.env.ALLOW_PIPELINE_SMOKE !== "true") {
@@ -1250,7 +1267,7 @@ app.post("/v1/flow/activity", async (req) => {
 });
 
 /**
- * BeaconAgentVault status — on-chain reads when BEACON_AGENT_VAULT_ADDRESS
+ * Beacon Safe (BeaconAgentVault) status — on-chain reads when BEACON_AGENT_VAULT_ADDRESS
  * (or ?address=) is set. Unset → readiness only, never fake balances.
  * Distinct from Bound Work BeaconEscrow per-job locks.
  */

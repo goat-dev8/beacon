@@ -1,8 +1,7 @@
-import { motion } from "motion/react";
+import { motion, useReducedMotion } from "motion/react";
 import {
   AcceptanceDiagram,
   EscrowDiagram,
-  HowBeaconWorksDiagram,
   PreparingDiagram,
   ReceiptDiagram,
 } from "@/components/diagrams/BeaconDiagrams";
@@ -10,52 +9,133 @@ import { PixelWave, Ruler, SectionLabel } from "@/components/landing/PixelWave";
 import { FacetCtaPair } from "@/components/ui/Button";
 import { CONTRACTS, NETWORK } from "@/lib/chain";
 
-export function HowSection() {
+const AUDIENCES = [
+  {
+    id: "traders",
+    title: "Traders",
+    body: "Swap, bridge, and read FTSO signals without juggling five tabs. One Flow conversation, one receipt.",
+  },
+  {
+    id: "treasuries",
+    title: "Treasuries",
+    body: "Deposit into Beacon Safe, set spend policy, and keep every settle inside the budget you wrote.",
+  },
+  {
+    id: "builders",
+    title: "Builders",
+    body: "Ship agent workflows on Flare rails: x402 pay, OFT bridge, FAssets, and explorer-backed proof.",
+  },
+] as const;
+
+export function WhatIsBeacon() {
+  const reduce = useReducedMotion();
+
   return (
-    <section id="how" className="border-b border-line bg-surface py-24">
+    <section id="what" className="border-b border-line bg-surface py-28 md:py-36">
       <div className="mx-auto max-w-6xl px-5">
-        <SectionLabel>Workflow</SectionLabel>
+        <SectionLabel>Product</SectionLabel>
+        <div className="grid items-end gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.45 }}
+          >
+            <h2 className="max-w-xl font-display text-3xl font-extrabold tracking-tight text-ink md:text-5xl">
+              What Beacon is
+            </h2>
+            <p className="mt-5 max-w-lg text-lg leading-relaxed text-ink-muted">
+              Beacon is Flare AI OS: a conversation that turns market intent into quote, policy, payment, execution, and an explorer receipt.
+            </p>
+          </motion.div>
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.08, duration: 0.45 }}
+            className="rounded-[12px] border border-line bg-paper p-6 md:p-8"
+          >
+            <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-faint">Honest loop</p>
+            <p className="mt-3 font-display text-xl font-medium tracking-tight text-ink md:text-2xl">
+              Signal → Quote → Policy → Pay → Execute → Receipt
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+              No invented proofs. No blank void. Every step stays visible before you sign.
+            </p>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function WhoUsesSection() {
+  const reduce = useReducedMotion();
+
+  return (
+    <section id="who" className="border-b border-line bg-paper py-28 md:py-36">
+      <div className="mx-auto max-w-6xl px-5">
+        <SectionLabel>Audience</SectionLabel>
         <h2 className="mx-auto max-w-3xl text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-5xl">
-          From signal to receipt
+          Who uses Beacon
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-center text-ink-muted">
-          One Flare AI OS path. Every step is visible before you sign.
+          Same OS. Different jobs. Traders move. Treasuries govern. Builders ship.
         </p>
-        <div className="mt-12 rounded-none border border-dashed border-line bg-paper p-6 md:p-10">
-          <HowBeaconWorksDiagram />
-        </div>
-        <ol className="mt-14 grid gap-10 md:grid-cols-3">
-          {[
-            {
-              step: "01",
-              title: "Signal & quote",
-              body: "FTSO, pairs, and routes become a priced quote before anything moves.",
-            },
-            {
-              step: "02",
-              title: "Policy & pay",
-              body: "Spend limits gate the run. x402 or wallet confirm only when allowed.",
-            },
-            {
-              step: "03",
-              title: "Execute & receipt",
-              body: "Source tx, protocol observe, destination receipt. Explorer links, not claims.",
-            },
-          ].map((item, i) => (
-            <motion.li
-              key={item.step}
-              initial={{ opacity: 0, y: 16 }}
+        <div className="mt-14 grid grid-flow-dense gap-0 border border-line md:grid-cols-3">
+          {AUDIENCES.map((a, i) => (
+            <motion.article
+              key={a.id}
+              initial={reduce ? false : { opacity: 0, y: 14 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: i * 0.08 }}
+              transition={{ delay: reduce ? 0 : i * 0.07, duration: 0.4 }}
+              className="border-b border-r border-line bg-surface p-7 md:border-b-0"
             >
-              <p className="font-mono text-xs text-signal-deep">{item.step}</p>
-              <h3 className="mt-2 font-display text-xl font-bold">{item.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-ink-muted">{item.body}</p>
-            </motion.li>
+              <h3 className="font-display text-xl font-bold tracking-tight text-ink">{a.title}</h3>
+              <p className="mt-3 text-sm leading-relaxed text-ink-muted">{a.body}</p>
+            </motion.article>
           ))}
-        </ol>
-        <Ruler />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export function WhyAiFlareSection() {
+  return (
+    <section id="why-ai" className="border-b border-line bg-surface py-28 md:py-36">
+      <div className="mx-auto max-w-6xl px-5">
+        <SectionLabel>Why AI + Flare</SectionLabel>
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink md:text-5xl">
+            Language meets rails that settle
+          </h2>
+          <p className="mt-5 text-lg leading-relaxed text-ink-muted">
+            AI is good at intent. Flare is good at proof. Beacon joins them so a sentence can become a quote, a policy check, a payment, and a receipt you can open on an explorer.
+          </p>
+        </div>
+        <div className="mt-14 grid gap-4 md:grid-cols-3">
+          {[
+            {
+              title: "Intent stays clear",
+              body: "You describe the move. Beacon clarifies amount, route, and risk before signing.",
+            },
+            {
+              title: "Policy stays first",
+              body: "Spend limits gate every settle. Allowed or blocked, you get a receipt either way.",
+            },
+            {
+              title: "Proof stays on-chain",
+              body: "Source tx, protocol observe, destination. Links over claims.",
+            },
+          ].map((item) => (
+            <div key={item.title} className="rounded-[12px] border border-line bg-paper p-6">
+              <h3 className="font-display text-lg font-bold text-ink">{item.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-ink-muted">{item.body}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -68,20 +148,20 @@ export function ServicesSection() {
     { id: "oft", title: "FXRP OFT Bridge", body: "LayerZero peers, quoteSend, source tx to destination receipt." },
     { id: "fassets", title: "FAssets / XRPFi", body: "Coston2 FTestXRP status, redeem prepare, documented mint handoff." },
     { id: "x402", title: "x402 Payments", body: "MockUSDT0 EIP-3009 settle on Coston2 with idempotent receipts." },
-    { id: "vault", title: "Agent Vault", body: "Deposit once, policy budgets, owner pause. Escrow stays per-job." },
+    { id: "vault", title: "Beacon Safe", body: "Deposit once, policy budgets, owner pause. Escrow stays per-job." },
   ];
 
   return (
-    <section id="services" className="border-b border-line bg-paper py-24">
+    <section id="services" className="border-b border-line bg-paper py-28 md:py-36">
       <div className="mx-auto max-w-6xl px-5">
         <SectionLabel>Services</SectionLabel>
         <h2 className="mx-auto max-w-3xl text-center font-display text-3xl font-extrabold tracking-tight md:text-5xl">
           Agents on Flare rails
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-center text-ink-muted">
-          Live catalog from Beacon Flow. Swap, bridge, signals, vault, and Bound Work in one OS.
+          Live catalog from Beacon Flow. Swap, bridge, signals, Beacon Safe, and Bound Work in one OS.
         </p>
-        <div className="mt-12 grid gap-0 border border-line sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-12 grid grid-flow-dense gap-0 border border-line sm:grid-cols-2 lg:grid-cols-3">
           {rails.map((s) => (
             <a
               key={s.id}
@@ -204,7 +284,7 @@ export function ContractsSection() {
 
 export function FinalCta() {
   return (
-    <section className="bg-dusk py-24 text-paper">
+    <section className="bg-dusk py-28 text-paper md:py-36">
       <div className="mx-auto max-w-6xl px-5 text-center">
         <h2 className="font-display text-3xl font-extrabold tracking-tight md:text-5xl">
           Open Beacon Flow
@@ -213,7 +293,7 @@ export function FinalCta() {
           Talk to Flare AI OS. Quotes, policy, payments, and explorer receipts on production rails.
         </p>
         <div className="mt-8 flex justify-center">
-          <FacetCtaPair left="See the path" right="Open Flow" leftTo="#how" rightTo="/flow" />
+          <FacetCtaPair left="Open Flow" right="Why Flare" leftTo="/flow" rightTo="#why-flare" />
         </div>
       </div>
     </section>

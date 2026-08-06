@@ -1,16 +1,21 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "motion/react";
-import { ChevronDown, ChevronUp, ExternalLink, Workflow, X } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Copy, ExternalLink, Workflow, X } from "lucide-react";
 import {
   EXECUTION_PHASES,
   type ActiveExecution,
   type ExecutionPhaseId,
 } from "@/lib/executionPhases";
-import { explorerLabel } from "@/lib/explorers";
+import { explorerLabel, explorerTx } from "@/lib/explorers";
 import { cn } from "@/lib/utils";
 
 function phaseIndex(id: ExecutionPhaseId) {
   return EXECUTION_PHASES.findIndex((p) => p.id === id);
+}
+
+function shortHash(hash: string) {
+  if (hash.length < 14) return hash;
+  return `${hash.slice(0, 8)}…${hash.slice(-6)}`;
 }
 
 /**
@@ -21,22 +26,36 @@ function phaseIndex(id: ExecutionPhaseId) {
 export function ExecutionDrawer({
   active,
   onDismiss,
+  onNextSuggestion,
 }: {
   active: ActiveExecution | null;
   onDismiss?: () => void;
+  onNextSuggestion?: (text: string) => void;
 }) {
   const reducedMotion = useReducedMotion();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const currentIdx = active ? phaseIndex(active.phase) : -1;
 
-  // Reset mobile sheet closed when work changes; user opens intentionally.
   useEffect(() => {
     setMobileOpen(false);
+    setCopied(false);
   }, [active?.msgId, active?.cardIndex]);
 
-  const transition = reducedMotion ? { duration: 0 } : { duration: 0.22, ease: [0.16, 1, 0.3, 1] as const };
+  const transition = reducedMotion ? { duration: 0 } : { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const };
 
   if (!active) return null;
+
+  async function copyHash() {
+    if (!active?.primaryHash) return;
+    try {
+      await navigator.clipboard.writeText(active.primaryHash);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard blocked */
+    }
+  }
 
   const panel = (
     <div className="flex h-full flex-col">
@@ -76,25 +95,45 @@ export function ExecutionDrawer({
                 key={phase.id}
                 layout={!reducedMotion}
                 initial={false}
-                animate={{ opacity: upcoming ? 0.4 : 1 }}
+                animate={{
+                  opacity: upcoming ? 0.38 : 1,
+                  x: reducedMotion ? 0 : current ? 2 : 0,
+                }}
                 transition={transition}
                 className="relative flex gap-3 pb-4 last:pb-0"
               >
                 {i < EXECUTION_PHASES.length - 1 && (
-                  <span
-                    className={cn(
-                      "absolute left-[7px] top-4 h-[calc(100%-4px)] w-px",
-                      done ? "bg-signal/60" : "bg-[var(--p-border)]",
-                    )}
+                  <motion.span
+                    className="absolute left-[7px] top-4 w-px origin-top"
+                    style={{ height: "calc(100% - 4px)" }}
+                    initial={false}
+                    animate={{
+                      backgroundColor: done
+                        ? "color-mix(in oklab, var(--color-signal) 65%, transparent)"
+                        : "var(--p-border)",
+                      scaleY: done || current ? 1 : 0.85,
+                    }}
+                    transition={transition}
                   />
                 )}
-                <span
+                <motion.span
+                  layout={!reducedMotion}
                   className={cn(
                     "relative z-10 mt-0.5 size-3.5 shrink-0 rounded-full border-2",
-                    current && "border-signal bg-signal",
+                    current && "border-signal bg-signal shadow-[0_0_0_3px_var(--p-accent-soft)]",
                     done && !current && "border-signal bg-signal/30",
                     upcoming && "border-[var(--p-border-strong)] bg-transparent",
                   )}
+                  animate={
+                    reducedMotion || !current
+                      ? undefined
+                      : { scale: [1, 1.12, 1] }
+                  }
+                  transition={
+                    current && !reducedMotion
+                      ? { duration: 1.6, repeat: Infinity, ease: "easeInOut" }
+                      : transition
+                  }
                 />
                 <div className="min-w-0 flex-1">
                   <p
@@ -108,7 +147,7 @@ export function ExecutionDrawer({
                   {current && active.steps.length > 0 && (
                     <motion.ul
                       key={active.phase}
-                      initial={reducedMotion ? false : { opacity: 0, y: 4 }}
+                      initial={reducedMotion ? false : { opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={transition}
                       className="mt-2 space-y-1.5"
@@ -132,6 +171,32 @@ export function ExecutionDrawer({
           })}
         </ol>
 
+        {active.primaryHash && (
+          <div className="mt-4 rounded-[var(--p-radius)] border border-[var(--p-border)] bg-[var(--p-surface)] p-3">
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--p-faint)]">Tx hash</p>
+            <p className="mt-1 font-mono text-[12px] text-[var(--p-fg)]">{shortHash(active.primaryHash)}</p>
+            <div className="mt-2.5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void copyHash()}
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--p-radius-sm)] border border-[var(--p-border)] bg-[var(--p-card)] px-2.5 text-[12px] text-[var(--p-fg)] hover:bg-[var(--p-hover)]"
+              >
+                {copied ? <Check className="size-3.5 text-[var(--p-accent-text)]" /> : <Copy className="size-3.5" />}
+                {copied ? "Copied" : "Copy hash"}
+              </button>
+              <a
+                href={explorerTx(active.primaryHash, active.chainId)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-9 items-center gap-1.5 rounded-[var(--p-radius-sm)] bg-signal px-2.5 text-[12px] font-medium text-[var(--p-on-accent)]"
+              >
+                Open explorer
+                <ExternalLink className="size-3" />
+              </a>
+            </div>
+          </div>
+        )}
+
         {active.explorerLinks.length > 0 && (
           <div className="mt-4 border-t border-[var(--p-border)] pt-3">
             <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--p-faint)]">Explorer</p>
@@ -151,6 +216,19 @@ export function ExecutionDrawer({
             </div>
           </div>
         )}
+
+        {active.nextSuggestion && onNextSuggestion && (
+          <div className="mt-4 border-t border-[var(--p-border)] pt-3">
+            <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--p-faint)]">Next</p>
+            <button
+              type="button"
+              onClick={() => onNextSuggestion(active.nextSuggestion!)}
+              className="mt-2 w-full rounded-[var(--p-radius-sm)] border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2.5 text-left text-[13px] text-[var(--p-fg)] hover:border-[var(--p-border-strong)]"
+            >
+              {active.nextSuggestion}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -160,9 +238,9 @@ export function ExecutionDrawer({
       <AnimatePresence mode="wait">
         <motion.aside
           key={`${active.msgId}:${active.cardIndex}`}
-          initial={reducedMotion ? false : { opacity: 0, x: 12 }}
+          initial={reducedMotion ? false : { opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
-          exit={reducedMotion ? undefined : { opacity: 0, x: 12 }}
+          exit={reducedMotion ? undefined : { opacity: 0, x: 16 }}
           transition={transition}
           className="hidden w-72 shrink-0 flex-col border-l border-[var(--p-border)] bg-[var(--p-rail)] lg:flex xl:w-80"
           aria-label="Execution surface"
@@ -171,7 +249,6 @@ export function ExecutionDrawer({
         </motion.aside>
       </AnimatePresence>
 
-      {/* Mobile: collapsed by default; expands above composer without replacing it permanently */}
       <div className="shrink-0 border-t border-[var(--p-border)] bg-[var(--p-rail)] lg:hidden">
         <button
           type="button"
@@ -201,7 +278,7 @@ export function ExecutionDrawer({
               transition={transition}
               className="overflow-hidden border-t border-[var(--p-border)]"
             >
-              <div className="max-h-48 overflow-y-auto">{panel}</div>
+              <div className="max-h-56 overflow-y-auto">{panel}</div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -214,11 +291,15 @@ export function ExecutionDrawer({
 export function EvidencePanel({
   active,
   onDismiss,
+  onNextSuggestion,
 }: {
   active: ActiveExecution | null;
   onDismiss?: () => void;
+  onNextSuggestion?: (text: string) => void;
 }) {
-  return <ExecutionDrawer active={active} onDismiss={onDismiss} />;
+  return (
+    <ExecutionDrawer active={active} onDismiss={onDismiss} onNextSuggestion={onNextSuggestion} />
+  );
 }
 
 /** Product name for the single mutable phase surface. */

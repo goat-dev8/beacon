@@ -12,7 +12,7 @@ export function AnnouncementBar() {
       <p className="flex items-center gap-2 text-center font-mono text-sm font-medium tracking-[0.35px] text-ink max-md:text-[0.6875rem]">
         <span className="max-md:hidden">Beacon: Flare AI OS. Signal → Quote → Policy → Pay → Execute → Receipt.</span>
         <span className="hidden max-md:inline">Signal to receipt on Flare.</span>
-        <a href="#how" className="underline hover:opacity-80">
+        <a href="#architecture" className="underline hover:opacity-80">
           Learn more →
         </a>
       </p>
@@ -35,17 +35,17 @@ export function Navbar() {
             <Link to="/flow" className="hover:text-ink">
               Flow
             </Link>
-            <a href="#how" className="hover:text-ink">
-              How it works
+            <a href="#what" className="hover:text-ink">
+              Product
+            </a>
+            <a href="#architecture" className="hover:text-ink">
+              Path
+            </a>
+            <a href="#why-flare" className="hover:text-ink">
+              Why Flare
             </a>
             <a href="#services" className="hover:text-ink">
               Services
-            </a>
-            <a href="#quality" className="hover:text-ink">
-              Quality
-            </a>
-            <a href="#receipts" className="hover:text-ink">
-              Receipts
             </a>
           </nav>
 

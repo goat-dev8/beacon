@@ -1,4 +1,5 @@
 import { Send } from "lucide-react";
+import { SuggestionChips } from "@/components/flow/SuggestionChips";
 
 type Props = {
   input: string;
@@ -6,12 +7,14 @@ type Props = {
   onSend: () => void;
   pending: boolean;
   agentHint?: string;
+  onSuggestion: (text: string) => void;
 };
 
-export function Composer({ input, onChange, onSend, pending, agentHint }: Props) {
+export function Composer({ input, onChange, onSend, pending, agentHint, onSuggestion }: Props) {
   return (
     <div className="shrink-0 border-t border-[var(--p-border)] bg-[var(--p-rail)] px-4 py-3 md:px-6">
       <div className="mx-auto w-full max-w-[42rem]">
+        <SuggestionChips onSelect={onSuggestion} disabled={pending} />
         {agentHint && (
           <p className="mb-2 font-mono text-[11px] text-[var(--p-faint)]">
             Active · {agentHint}
