@@ -4,6 +4,15 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-06 - Safe deposit EIP-3009 fix + feature rail arrows
+
+- **Root cause of deposit revert:** Coston2 MockUSDT0 at `0x6fd8…` has **no** `approve` / `transferFrom` / `allowance` (EIP-3009 + transfer/mint only). Approve+deposit path always reverted.
+- **Fix:** Beacon Safe deposit uses `depositWithAuthorization` (EIP-3009 sign → Safe pulls). Error copy says Safe, not Vault. Mint test USDT0 button on Safe page. Wallet balance shown.
+- **UX:** Feature chips get left/right scroll arrows. Yield blurb no longer says "vault".
+- Proved on-chain with deployer EIP-3009 deposit into `0xc7C6…AF33`.
+
+---
+
 ## 2026-08-06 - Open deposit + slim composer + feature rail
 
 - **Root cause:** `BeaconAgentVault.deposit` was `onlyOwner`, so MetaMask users who were not the Safe owner could not fund.

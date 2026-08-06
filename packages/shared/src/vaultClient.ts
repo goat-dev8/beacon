@@ -27,6 +27,7 @@ const VAULT_ABI = [
   "function allowedTargets(address) view returns (bool)",
   "function allowedSelectors(bytes4) view returns (bool)",
   "function deposit(uint256 amount)",
+  "function depositWithAuthorization(address from,uint256 amount,uint256 validAfter,uint256 validBefore,bytes32 nonce,bytes signature)",
   "function withdraw(uint256 amount)",
   "function setPolicy(uint256 maxSpendPerTx_,uint256 rollingWindowBudget_,uint256 rollingWindowSeconds_,uint256 sessionExpiresAt_)",
   "function setExecutor(address newExecutor)",
@@ -67,6 +68,10 @@ export interface AgentVaultPrep {
   data: string;
   approveTo?: string;
   approveData?: string;
+  /** EIP-3009 deposit fields (MockUSDT0 has no approve/transferFrom on Coston2). */
+  token?: string;
+  amount?: string;
+  mode?: "eip3009" | "approve";
   value: "0";
   ownerOnly: boolean;
   note: string;
@@ -299,20 +304,22 @@ export async function prepareAgentVaultDeposit(
   params: { amountUsdt0: string; address?: string | null },
   env: BeaconEnv = loadEnv(),
 ): Promise<AgentVaultPrep> {
-  const { address, token, decimals, iface } = await resolveVaultAndDecimals(env, params.address);
+  const { address, token, decimals } = await resolveVaultAndDecimals(env, params.address);
   const amount = parseUnits(params.amountUsdt0, decimals);
   if (amount <= 0n) throw new Error("amount must be > 0");
+  // Coston2 MockUSDT0 is EIP-3009 only (no approve/transferFrom). Deposit uses authorization.
   return {
     action: "deposit",
     chainId: COSTON2_CHAIN_ID_VAULT,
     network: "Flare Testnet Coston2",
     to: address,
-    data: iface.encodeFunctionData("deposit", [amount]),
-    approveTo: token,
-    approveData: approveCalldata(address, amount),
+    data: "0x",
+    token,
+    amount: amount.toString(),
+    mode: "eip3009",
     value: "0",
     ownerOnly: false,
-    note: "Any wallet: approve token then deposit into Beacon Safe pool.",
+    note: "Any wallet: sign EIP-3009 TransferWithAuthorization, then Beacon Safe pulls USDT0.",
     honesty: DISTINCTION,
   };
 }

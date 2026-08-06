@@ -448,6 +448,9 @@ export type AgentVaultPrep = {
   data: string;
   approveTo?: string;
   approveData?: string;
+  token?: string;
+  amount?: string;
+  mode?: "eip3009" | "approve";
   value: "0";
   ownerOnly: boolean;
   note: string;

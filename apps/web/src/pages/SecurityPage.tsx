@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { api, type AgentVaultStatus, type SecurityPolicy } from "@/lib/api";
-import { shortAddress, executeAgentVaultPrep } from "@/lib/wallet";
+import { shortAddress, executeAgentVaultPrep, mintTestUsdt0, getUsdt0Balance } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
 import { CONTRACTS, NETWORK } from "@/lib/chain";
 import type { Address, Hex } from "viem";
+import { formatUnits } from "viem";
 import {
   AppLimitsSection,
   DEFAULT_SAFE_POLICY,
@@ -37,6 +38,7 @@ export function SecurityPage() {
   const [savedNote, setSavedNote] = useState<string | null>(null);
   const [txNote, setTxNote] = useState<string | null>(null);
   const [amount, setAmount] = useState("10");
+  const [walletBalance, setWalletBalance] = useState<string | null>(null);
   const [maxSpend, setMaxSpend] = useState("5");
   const [windowBudget, setWindowBudget] = useState("50");
   const [windowHours, setWindowHours] = useState(24);
@@ -110,6 +112,34 @@ export function SecurityPage() {
     },
   });
 
+  useEffect(() => {
+    if (!wallet) {
+      setWalletBalance(null);
+      return;
+    }
+    let cancelled = false;
+    void getUsdt0Balance(wallet as Address)
+      .then((bal) => {
+        if (!cancelled) setWalletBalance(formatUnits(bal, 6));
+      })
+      .catch(() => {
+        if (!cancelled) setWalletBalance(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [wallet, txNote]);
+
+  const mintTx = useMutation({
+    mutationFn: () => mintTestUsdt0("100"),
+    onSuccess: (hash) => {
+      setTxNote(`Minted 100 USDT0 · ${shortAddress(hash)}`);
+    },
+    onError: (err) => {
+      setTxNote(err instanceof Error ? err.message : String(err));
+    },
+  });
+
   const vaultTx = useMutation({
     mutationFn: async (body: Parameters<typeof api.prepareVault>[0]) => {
       const { prep } = await api.prepareVault({
@@ -118,9 +148,13 @@ export function SecurityPage() {
       });
       const result = await executeAgentVaultPrep({
         to: prep.to as Address,
-        data: prep.data as Hex,
+        data: (prep.data || "0x") as Hex,
         approveTo: prep.approveTo as Address | undefined,
         approveData: prep.approveData as Hex | undefined,
+        mode: prep.mode,
+        token: prep.token as Address | undefined,
+        amount: prep.amount,
+        action: prep.action,
       });
       return { prep, result };
     },
@@ -223,13 +257,16 @@ export function SecurityPage() {
                 onAmountChange={setAmount}
                 onDeposit={() => vaultTx.mutate({ action: "deposit", amountUsdt0: amount })}
                 onWithdraw={() => vaultTx.mutate({ action: "withdraw", amountUsdt0: amount })}
+                onMint={() => mintTx.mutate()}
                 pending={vaultTx.isPending}
+                minting={mintTx.isPending}
                 wallet={wallet}
                 isOwner={isOwner}
                 onConnect={() => void onConnect()}
                 connecting={connecting}
                 txNote={txNote}
                 tokenSymbol={live.tokenSymbol}
+                walletBalance={walletBalance}
               />
             </SafeReveal>
 

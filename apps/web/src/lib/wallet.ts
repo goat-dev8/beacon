@@ -420,18 +420,89 @@ export async function approveJobOnChain(params: {
   };
 }
 
-/** Approve (optional) + Beacon Safe (BeaconAgentVault) call on Coston2. Anyone may deposit; owner-only for withdraw/policy. */
+/** EIP-3009 deposit into Beacon Safe (MockUSDT0 has no approve/transferFrom on Coston2). */
 export async function executeAgentVaultPrep(params: {
   to: Address;
   data: Hex;
   approveTo?: Address;
   approveData?: Hex;
+  mode?: "eip3009" | "approve";
+  token?: Address;
+  amount?: string;
+  action?: string;
 }): Promise<{ approveHash?: Hex; txHash: Hex }> {
   await ensureCoston2Network();
   const wallet = walletClient();
   const pub = publicClient();
   const [account] = await wallet.getAddresses();
   if (!account) throw new Error("Connect a wallet first.");
+
+  if (params.mode === "eip3009" || (params.action === "deposit" && params.token && params.amount)) {
+    const token = (params.token || params.approveTo) as Address;
+    const amount = BigInt(params.amount || "0");
+    if (!token || amount <= 0n) throw new Error("Invalid Safe deposit amount.");
+
+    const balance = await getUsdt0Balance(account);
+    if (balance < amount) {
+      throw new Error(
+        `Not enough USDT0. Balance ${Number(balance) / 1e6}. Mint test USDT0 on the Safe page, then try again.`,
+      );
+    }
+
+    const { name, version } = await getTokenMeta();
+    const validAfter = BigInt(Math.floor(Date.now() / 1000) - 60);
+    const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600);
+    const nonce = (`0x${crypto.getRandomValues(new Uint8Array(32)).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "")}`) as Hex;
+
+    const signature = await wallet.signTypedData({
+      account,
+      domain: {
+        name,
+        version,
+        chainId: NETWORK.chainId,
+        verifyingContract: token,
+      },
+      types: {
+        TransferWithAuthorization: [
+          { name: "from", type: "address" },
+          { name: "to", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "validAfter", type: "uint256" },
+          { name: "validBefore", type: "uint256" },
+          { name: "nonce", type: "bytes32" },
+        ],
+      },
+      primaryType: "TransferWithAuthorization",
+      message: {
+        from: account,
+        to: params.to,
+        value: amount,
+        validAfter,
+        validBefore,
+        nonce,
+      },
+    });
+
+    const data = encodeFunctionData({
+      abi: parseAbi([
+        "function depositWithAuthorization(address from,uint256 amount,uint256 validAfter,uint256 validBefore,bytes32 nonce,bytes signature)",
+      ]),
+      functionName: "depositWithAuthorization",
+      args: [account, amount, validAfter, validBefore, nonce, signature],
+    });
+
+    const txHash = await wallet.sendTransaction({
+      account,
+      to: params.to,
+      data,
+      chain: coston2,
+    });
+    const receipt = await pub.waitForTransactionReceipt({ hash: txHash });
+    if (receipt.status === "reverted") {
+      throw new Error("Safe deposit reverted on Coston2. Check USDT0 balance and try again.");
+    }
+    return { txHash };
+  }
 
   let approveHash: Hex | undefined;
   if (params.approveTo && params.approveData) {
@@ -444,6 +515,10 @@ export async function executeAgentVaultPrep(params: {
     await pub.waitForTransactionReceipt({ hash: approveHash });
   }
 
+  if (!params.data || params.data === "0x") {
+    throw new Error("Missing Safe transaction data.");
+  }
+
   const txHash = await wallet.sendTransaction({
     account,
     to: params.to,
@@ -452,9 +527,33 @@ export async function executeAgentVaultPrep(params: {
   });
   const receipt = await pub.waitForTransactionReceipt({ hash: txHash });
   if (receipt.status === "reverted") {
-    throw new Error("Vault transaction reverted on Coston2.");
+    throw new Error("Safe transaction reverted on Coston2.");
   }
   return { approveHash, txHash };
+}
+
+/** Mint MockUSDT0 test credit to the connected wallet (public mint on Coston2). */
+export async function mintTestUsdt0(amountDisplay = "100"): Promise<Hex> {
+  await ensureCoston2Network();
+  const wallet = walletClient();
+  const pub = publicClient();
+  const [account] = await wallet.getAddresses();
+  if (!account) throw new Error("Connect a wallet first.");
+  const amount = parsePriceDisplay(amountDisplay);
+  const data = encodeFunctionData({
+    abi: parseAbi(["function mint(address to,uint256 amount)"]),
+    functionName: "mint",
+    args: [account, amount],
+  });
+  const txHash = await wallet.sendTransaction({
+    account,
+    to: CONTRACTS.token,
+    data,
+    chain: coston2,
+  });
+  const receipt = await pub.waitForTransactionReceipt({ hash: txHash });
+  if (receipt.status === "reverted") throw new Error("Mint reverted on Coston2.");
+  return txHash;
 }
 
 export function shortAddress(addr: string): string {

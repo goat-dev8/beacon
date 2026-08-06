@@ -6,25 +6,31 @@ export function DepositSection({
   onAmountChange,
   onDeposit,
   onWithdraw,
+  onMint,
   pending,
+  minting,
   wallet,
   isOwner,
   onConnect,
   connecting,
   txNote,
   tokenSymbol = "USDT0",
+  walletBalance,
 }: {
   amount: string;
   onAmountChange: (v: string) => void;
   onDeposit: () => void;
   onWithdraw: () => void;
+  onMint?: () => void;
   pending: boolean;
+  minting?: boolean;
   wallet: string | null;
   isOwner: boolean;
   onConnect: () => void;
   connecting: boolean;
   txNote: string | null;
   tokenSymbol?: string;
+  walletBalance?: string | null;
 }) {
   const canDeposit = Boolean(wallet) && !pending;
 
@@ -39,8 +45,8 @@ export function DepositSection({
             Fund the Safe
           </h2>
           <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[var(--p-muted)]">
-            Any connected MetaMask can approve and deposit {tokenSymbol} into Beacon Safe. The AI
-            spends only from this pool. Withdraw and policy stay owner-only.
+            Sign once in MetaMask to move {tokenSymbol} into Beacon Safe (EIP-3009). The AI spends
+            only from this pool. Withdraw and policy stay owner-only.
           </p>
         </div>
       </div>
@@ -51,7 +57,9 @@ export function DepositSection({
             <Wallet className="size-4" />
             <span className="font-mono text-[10px] uppercase tracking-wider">Your wallet</span>
           </div>
-          <p className="mt-2 text-sm text-[var(--p-fg)]">Connected balance stays yours</p>
+          <p className="mt-2 text-sm text-[var(--p-fg)]">
+            {walletBalance != null ? `${walletBalance} ${tokenSymbol}` : "Connected balance stays yours"}
+          </p>
         </div>
         <div className="flex justify-center">
           <span className="inline-flex size-9 items-center justify-center rounded-full bg-[var(--p-accent-soft)] text-[var(--p-accent-text)]">
@@ -70,7 +78,7 @@ export function DepositSection({
       {!wallet ? (
         <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[var(--p-radius-sm)] border border-dashed border-[var(--p-border-strong)] bg-[var(--p-surface-2)] px-4 py-3">
           <p className="flex-1 text-sm text-[var(--p-muted)]">
-            Connect MetaMask to approve {tokenSymbol} and fund Beacon Safe.
+            Connect MetaMask to fund Beacon Safe with {tokenSymbol}.
           </p>
           <button
             type="button"
@@ -83,7 +91,7 @@ export function DepositSection({
         </div>
       ) : !isOwner ? (
         <p className="mt-4 rounded-[var(--p-radius-sm)] border border-[var(--p-accent)]/30 bg-[var(--p-accent-soft)] px-4 py-3 text-sm text-[var(--p-fg)]">
-          You can deposit from this wallet. Withdraw and policy controls stay with the Safe owner.
+          You can deposit from this wallet. Withdraw and policy stay with the Safe owner.
         </p>
       ) : null}
 
@@ -94,9 +102,19 @@ export function DepositSection({
           onChange={(v) => onAmountChange(String(v))}
           string
           disabled={!wallet || pending}
-          hint="Approve + deposit in one MetaMask flow"
+          hint="One MetaMask signature moves funds into the Safe"
         />
         <div className="flex flex-wrap gap-2">
+          {onMint && (
+            <button
+              type="button"
+              disabled={!wallet || minting || pending}
+              onClick={onMint}
+              className="rounded-full border border-[var(--p-border-strong)] px-4 py-2.5 text-sm disabled:opacity-40"
+            >
+              {minting ? "Minting…" : `Get test ${tokenSymbol}`}
+            </button>
+          )}
           <button
             type="button"
             disabled={!canDeposit}
@@ -117,7 +135,17 @@ export function DepositSection({
           </button>
         </div>
       </div>
-      {txNote && <p className="mt-3 text-sm text-[var(--p-accent-text)]">{txNote}</p>}
+      {txNote && (
+        <p
+          className={`mt-3 text-sm ${
+            /fail|revert|error|not enough/i.test(txNote)
+              ? "text-[var(--p-danger)]"
+              : "text-[var(--p-accent-text)]"
+          }`}
+        >
+          {txNote}
+        </p>
+      )}
     </SafeSection>
   );
 }

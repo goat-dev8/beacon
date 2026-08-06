@@ -80,7 +80,7 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
   {
     id: "yield",
     title: "Yield",
-    blurb: "Find vault and liquidity paths that fit your size and risk posture.",
+    blurb: "Find yield and liquidity paths that fit your size and risk posture.",
     prompt: "Find best yield",
     icon: BarChart3,
   },
