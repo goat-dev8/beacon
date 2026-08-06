@@ -488,8 +488,10 @@ function pickModel(intent: BeaconAgentId, env: BeaconEnv): string {
 
 /** Beacon Safe deposit / spend-policy help — must win over sticky swap state. */
 function wantsSafeHelp(message: string): boolean {
-  const m = message.toLowerCase();
-  return /@safe\b|\bsafe\b|beacon safe|open safe|spend policy|fund (the )?safe|deposit (into |to )?(beacon )?safe|agent vault|prepaid (ai )?budget/.test(
+  const m = message.toLowerCase().trim();
+  // Bare chip-style "Safe" / "@safe" — avoid matching "is it safe to swap".
+  if (/^@?safe$/.test(m)) return true;
+  return /@safe\b|beacon safe|open safe|spend policy|fund (the )?safe|deposit (into |to )?(beacon )?safe|from (the )?(beacon )?safe|agent vault|prepaid (ai )?budget/.test(
     m,
   );
 }
