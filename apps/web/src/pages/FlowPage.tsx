@@ -161,13 +161,14 @@ export function FlowPage() {
       setMessages([WELCOME]);
       return;
     }
-    const { conversation } = await api.createFlowConversation(wallet, "New chat", agentId);
-    setConversationId(conversation.id);
+    setAgentId("general");
     setConvState(null);
     setSettledServiceIds(new Set());
     setExecutionStates({});
     setDismissedExecKey(null);
     setMessages([WELCOME]);
+    const { conversation } = await api.createFlowConversation(wallet, "New chat", "general");
+    setConversationId(conversation.id);
     void qc.invalidateQueries({ queryKey: ["flow-conversations", wallet] });
   }
 
