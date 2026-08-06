@@ -420,7 +420,7 @@ export async function approveJobOnChain(params: {
   };
 }
 
-/** Approve (optional) + Beacon Safe (BeaconAgentVault) owner call on Coston2. */
+/** Approve (optional) + Beacon Safe (BeaconAgentVault) call on Coston2. Anyone may deposit; owner-only for withdraw/policy. */
 export async function executeAgentVaultPrep(params: {
   to: Address;
   data: Hex;

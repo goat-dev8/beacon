@@ -21,6 +21,7 @@ export type DiscoveryFeature = {
   blurb: string;
   prompt: string;
   icon: LucideIcon;
+  accent?: boolean;
 };
 
 export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
@@ -30,6 +31,7 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
     blurb: "Quote and execute SparkDEX pairs with live pricing before you sign.",
     prompt: "Swap 50 USDT0 to FXRP",
     icon: ArrowLeftRight,
+    accent: true,
   },
   {
     id: "bridge",
@@ -37,6 +39,15 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
     blurb: "Move FXRP across chains with LayerZero OFT quotes and explorer receipts.",
     prompt: "Bridge FXRP to Base",
     icon: Network,
+    accent: true,
+  },
+  {
+    id: "x402",
+    title: "x402",
+    blurb: "Pay for agent work with EIP-3009 settle and an on-chain receipt.",
+    prompt: "Pay using x402",
+    icon: Wallet,
+    accent: true,
   },
   {
     id: "portfolio",
@@ -74,11 +85,12 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
     icon: BarChart3,
   },
   {
-    id: "treasury",
-    title: "Treasury",
-    blurb: "Deposit into Beacon Safe, set spend policy, and keep agent actions inside budget.",
-    prompt: "Help me set up treasury policy",
+    id: "safe",
+    title: "Safe",
+    blurb: "Fund Beacon Safe from MetaMask, then set spend policy for the agent.",
+    prompt: "Help me fund Beacon Safe and set spend policy",
     icon: Landmark,
+    accent: true,
   },
   {
     id: "fassets",
@@ -86,13 +98,6 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
     blurb: "Mint, redeem, and track FAssets status with documented Flare steps.",
     prompt: "Redeem FAssets",
     icon: Boxes,
-  },
-  {
-    id: "x402",
-    title: "x402",
-    blurb: "Pay for agent work with EIP-3009 settle and an on-chain receipt.",
-    prompt: "Pay using x402",
-    icon: Wallet,
   },
   {
     id: "crosschain",
@@ -103,7 +108,7 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
   },
   {
     id: "intel",
-    title: "Market Intelligence",
+    title: "Intel",
     blurb: "Surface pair depth, route quality, and market context for the next decision.",
     prompt: "Give me market intelligence on FXRP",
     icon: Crosshair,
@@ -122,10 +127,7 @@ export function FeatureDiscovery({ onTry, onOpenWhyFlare }: Props) {
     <div className="mx-auto w-full max-w-[42rem] px-4 pb-2 pt-1 md:px-6">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-[var(--p-faint)]">
-            Capabilities
-          </p>
-          <h2 className="mt-1 font-display text-[18px] font-semibold tracking-tight text-[var(--p-fg)]">
+          <h2 className="font-display text-[18px] font-semibold tracking-tight text-[var(--p-fg)]">
             What Beacon can do
           </h2>
           <p className="mt-1 max-w-md text-[13px] leading-relaxed text-[var(--p-muted)]">
@@ -152,10 +154,14 @@ export function FeatureDiscovery({ onTry, onOpenWhyFlare }: Props) {
               initial={reduce ? false : { opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.28, delay: reduce ? 0 : i * 0.03, ease: [0.16, 1, 0.3, 1] }}
-              className="group flex flex-col rounded-[var(--p-radius)] border border-[var(--p-border)] bg-[var(--p-card)] p-3.5 transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-surface)]"
+              className={
+                feature.accent
+                  ? "group flex flex-col rounded-[var(--p-radius)] border border-[var(--p-accent)]/35 bg-[var(--p-accent-soft)] p-3.5 transition-colors hover:border-[var(--p-accent)]/60"
+                  : "group flex flex-col rounded-[var(--p-radius)] border border-[var(--p-border)] bg-[var(--p-card)] p-3.5 transition-colors hover:border-[var(--p-border-strong)] hover:bg-[var(--p-surface)]"
+              }
             >
               <div className="flex items-start gap-3">
-                <span className="grid size-9 shrink-0 place-items-center rounded-[var(--p-radius-sm)] bg-[var(--p-accent-soft)] text-[var(--p-accent-text)]">
+                <span className="grid size-9 shrink-0 place-items-center rounded-[var(--p-radius-sm)] bg-[var(--p-card)] text-[var(--p-accent-text)] ring-1 ring-[var(--p-border)]">
                   <Icon className="size-4" strokeWidth={1.75} />
                 </span>
                 <div className="min-w-0 flex-1">

@@ -85,16 +85,18 @@ contract BeaconAgentVault {
         emit ExecutorUpdated(address(0), executor_);
     }
 
-    // ─── Owner funds ─────────────────────────────────────────────────────────
+    // ─── Funds ───────────────────────────────────────────────────────────────
 
-    /// @notice Pull `amount` of `token` from the owner into the vault pool.
-    function deposit(uint256 amount) external onlyOwner nonReentrant {
+    /// @notice Anyone may fund the Safe pool with `token` (approve + deposit from MetaMask).
+    /// @dev Owner still alone controls policy, pause, executor, and withdraw.
+    function deposit(uint256 amount) external nonReentrant {
         require(amount > 0, "zero amount");
         require(token.transferFrom(msg.sender, address(this), amount), "deposit failed");
         emit Deposited(msg.sender, amount, token.balanceOf(address(this)));
     }
 
     /// @notice Deposit via EIP-3009 (MockUSDT0 / USDT0 authorization pattern).
+    /// @dev `from` must be the authorizer; any caller may submit the signed auth.
     function depositWithAuthorization(
         address from,
         uint256 amount,
@@ -102,9 +104,9 @@ contract BeaconAgentVault {
         uint256 validBefore,
         bytes32 nonce,
         bytes calldata signature
-    ) external onlyOwner nonReentrant {
+    ) external nonReentrant {
         require(amount > 0, "zero amount");
-        require(from == owner, "from must be owner");
+        require(from != address(0), "zero from");
         bool ok = IEIP3009(address(token)).transferWithAuthorization(
             from, address(this), amount, validAfter, validBefore, nonce, signature
         );

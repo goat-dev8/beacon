@@ -49,12 +49,19 @@ contract BeaconAgentVaultTest is Test {
         assertEq(token.balanceOf(owner), 7_000_000);
     }
 
-    function testNonOwnerCannotDepositOrWithdraw() public {
-        vm.prank(stranger);
-        vm.expectRevert("not owner");
-        vault.deposit(1);
+    function testAnyoneCanDeposit_NonOwnerCannotWithdraw() public {
+        token.mint(stranger, 1_000_000);
+        vm.startPrank(stranger);
+        token.approve(address(vault), type(uint256).max);
+        vault.deposit(500_000);
+        vm.stopPrank();
+        assertEq(vault.balance(), 5_500_000);
 
         vm.prank(executor);
+        vm.expectRevert("not owner");
+        vault.withdraw(1);
+
+        vm.prank(stranger);
         vm.expectRevert("not owner");
         vault.withdraw(1);
     }

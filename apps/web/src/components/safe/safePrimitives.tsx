@@ -99,7 +99,7 @@ export function OwnerGate({
     return (
       <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[var(--p-radius-sm)] border border-dashed border-[var(--p-border-strong)] bg-[var(--p-surface-2)] px-4 py-3">
         <p className="flex-1 text-sm text-[var(--p-muted)]">
-          Connect as the Safe owner to deposit, set limits, or pause.
+          Connect as the Safe owner to set limits, withdraw, or pause.
         </p>
         <button
           type="button"
@@ -115,7 +115,7 @@ export function OwnerGate({
   if (!isOwner) {
     return (
       <p className="mt-4 rounded-[var(--p-radius-sm)] border border-[var(--p-border)] bg-[var(--p-surface-2)] px-4 py-3 text-sm text-[var(--p-muted)]">
-        Connected wallet is not the Safe owner. Status is readable; owner actions stay locked.
+        Connected wallet is not the Safe owner. Anyone can deposit above; policy, withdraw, and pause stay locked.
       </p>
     );
   }

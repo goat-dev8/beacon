@@ -4,6 +4,18 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-06 - Open deposit + slim composer + feature rail
+
+- **Root cause:** `BeaconAgentVault.deposit` was `onlyOwner`, so MetaMask users who were not the Safe owner could not fund.
+- **Contract:** `deposit` / `depositWithAuthorization` now public (anyone funds the pool). Withdraw / policy / pause / executor remain owner-only.
+- **Redeploy Coston2:** `BeaconAgentVault` `0xc7C6C06Dd59173dBAf8382627d6A483Ca53AAF33` (token MockUSDT0 `0x6fd8…e86c`, owner/executor deployer). Updated `BEACON_AGENT_VAULT_ADDRESS` / `VITE_BEACON_AGENT_VAULT_ADDRESS`.
+- **Safe UI:** Deposit enabled for any connected wallet; Withdraw still owner-gated; clearer MetaMask fund copy.
+- **Composer:** single-line pill input (`rows={1}`, shorter padding).
+- **Chips:** long sentence prompts replaced with icon feature rail (Swap, Bridge, x402, FAssets, Portfolio, Signals, Yield, Research, Risk, Safe).
+- **Discovery:** accent tiles for Swap / Bridge / x402 / Safe; removed Capabilities eyebrow.
+
+---
+
 ## 2026-08-06 - Beacon Safe product rethink (flagship AI OS)
 
 - Research: `PRODUCT_FLAGSHIP_RESEARCH_2026-08-06.md` (mentors + FCC SIMULATED_TEE path + Beacon Safe rename).

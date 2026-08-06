@@ -19,5 +19,5 @@ export const CONTRACTS = {
     "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034") as `0x${string}`,
   /** Coston2 BeaconAgentVault — empty only if deliberately cleared. */
   agentVault: (import.meta.env.VITE_BEACON_AGENT_VAULT_ADDRESS ||
-    "0x9bD5B894Da0a54B7649A4084d93D58df4f6182e0") as `0x${string}`,
+    "0xc7C6C06Dd59173dBAf8382627d6A483Ca53AAF33") as `0x${string}`,
 } as const;

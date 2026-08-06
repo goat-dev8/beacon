@@ -311,8 +311,8 @@ export async function prepareAgentVaultDeposit(
     approveTo: token,
     approveData: approveCalldata(address, amount),
     value: "0",
-    ownerOnly: true,
-    note: "Owner: approve token then deposit into Beacon Safe pool.",
+    ownerOnly: false,
+    note: "Any wallet: approve token then deposit into Beacon Safe pool.",
     honesty: DISTINCTION,
   };
 }

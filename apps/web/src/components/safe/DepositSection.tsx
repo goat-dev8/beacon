@@ -1,5 +1,5 @@
 import { ArrowDownToLine, Loader2, Wallet } from "lucide-react";
-import { OwnerGate, SafeField, SafeSection } from "./safePrimitives";
+import { SafeField, SafeSection } from "./safePrimitives";
 
 export function DepositSection({
   amount,
@@ -26,6 +26,8 @@ export function DepositSection({
   txNote: string | null;
   tokenSymbol?: string;
 }) {
+  const canDeposit = Boolean(wallet) && !pending;
+
   return (
     <SafeSection>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -37,8 +39,8 @@ export function DepositSection({
             Fund the Safe
           </h2>
           <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[var(--p-muted)]">
-            Move {tokenSymbol} from your wallet into Beacon Safe. The AI spends only from this pool,
-            never from your full balance.
+            Any connected MetaMask can approve and deposit {tokenSymbol} into Beacon Safe. The AI
+            spends only from this pool. Withdraw and policy stay owner-only.
           </p>
         </div>
       </div>
@@ -65,12 +67,25 @@ export function DepositSection({
         </div>
       </div>
 
-      <OwnerGate
-        wallet={wallet}
-        isOwner={isOwner}
-        onConnect={onConnect}
-        connecting={connecting}
-      />
+      {!wallet ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[var(--p-radius-sm)] border border-dashed border-[var(--p-border-strong)] bg-[var(--p-surface-2)] px-4 py-3">
+          <p className="flex-1 text-sm text-[var(--p-muted)]">
+            Connect MetaMask to approve {tokenSymbol} and fund Beacon Safe.
+          </p>
+          <button
+            type="button"
+            onClick={onConnect}
+            disabled={connecting}
+            className="rounded-full bg-[var(--p-accent)] px-4 py-2 text-sm font-medium text-[var(--p-on-accent)] disabled:opacity-50"
+          >
+            {connecting ? "Connecting…" : "Connect wallet"}
+          </button>
+        </div>
+      ) : !isOwner ? (
+        <p className="mt-4 rounded-[var(--p-radius-sm)] border border-[var(--p-accent)]/30 bg-[var(--p-accent-soft)] px-4 py-3 text-sm text-[var(--p-fg)]">
+          You can deposit from this wallet. Withdraw and policy controls stay with the Safe owner.
+        </p>
+      ) : null}
 
       <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
         <SafeField
@@ -78,13 +93,13 @@ export function DepositSection({
           value={amount}
           onChange={(v) => onAmountChange(String(v))}
           string
-          disabled={!isOwner}
-          hint="Approve + deposit in one wallet flow"
+          disabled={!wallet || pending}
+          hint="Approve + deposit in one MetaMask flow"
         />
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            disabled={!isOwner || pending}
+            disabled={!canDeposit}
             onClick={onDeposit}
             className="inline-flex items-center justify-center gap-2 rounded-full bg-[var(--p-accent)] px-5 py-2.5 text-sm font-medium text-[var(--p-on-accent)] transition-transform active:scale-[0.98] disabled:opacity-40"
           >
@@ -95,6 +110,7 @@ export function DepositSection({
             type="button"
             disabled={!isOwner || pending}
             onClick={onWithdraw}
+            title={isOwner ? "Withdraw to owner" : "Owner only"}
             className="rounded-full border border-[var(--p-border-strong)] px-5 py-2.5 text-sm disabled:opacity-40"
           >
             Withdraw
