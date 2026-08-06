@@ -337,7 +337,7 @@ export async function readYieldVaultDesk(opts?: {
     upshift,
     honesty: `${NO_APY} Contracts documented on DevHub for Coston2 only.`,
     docs: [...firelightDocs(), ...upshiftDocs()],
-    flarePrimitive: "FXRP vault rails (Coston2)",
+    flarePrimitive: "FXRP yield rails (Coston2)",
   };
 }
 

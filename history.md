@@ -37,6 +37,12 @@ Living log of what was done. No secrets in this file.
 - Swap / Bridge / Portfolio / bare Safe OK; vault **14.0**; prep `eip3009`.
 - **Render + Vercel:** both live/success on `fe6cf9d`.
 
+### Full feature pass (2026-08-07)
+- API: **25/25** chip + agent intents green (Swap/Bridge/x402/FAssets/Portfolio/Signals/Yield/Research/Risk/Safe + @intel/@liquidity/@crosschain/@treasury/@xrpfi/@trade/@desk/@pay/@general/@image + Bridge Base + edge Safe phrases).
+- prep0 → 400 VALIDATION; deposit prep `eip3009`; FCC `simulated`; Safe balance **14.0 USDT0**.
+- UI: Flow chips+arrows, New chat→General, Safe Deposit, WORK Bound Work, SIMULATED_TEE OK.
+- **Fixes:** Safe pass warns when funded but spend caps are 0; Deposit disabled for amount ≤0; WORK quote disabled until brief ≥8 chars; user-facing Yield “vault rails” → “yield rails”.
+
 ---
 
 ## 2026-08-06 - Safe deposit EIP-3009 fix + feature rail arrows
