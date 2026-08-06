@@ -99,6 +99,10 @@ Living log of what was done. No secrets in this file.
 - Bridge / Cross-chain / Yield rails / Desk OK; vault **14.0**; prep `eip3009`.
 - **Render + Vercel:** live/success on `e71aab7`.
 
+### Loop tick 68
+- Safe / Swap / Portfolio / Treasury OK; vault **14.0**; prep `eip3009`.
+- **Render + Vercel:** live/success on `79aa990`.
+
 ---
 
 ## 2026-08-06 - Safe deposit EIP-3009 fix + feature rail arrows
