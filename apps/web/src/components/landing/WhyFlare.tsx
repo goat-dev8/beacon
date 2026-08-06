@@ -16,8 +16,13 @@ export const WHY_FLARE_ITEMS = [
   },
   {
     id: "fcc",
-    title: "Contracts that stay accountable",
-    body: "Flare Contract Connections keep on-chain steps tied to real state. Beacon refuses invented proofs.",
+    title: "Private policy checks",
+    body: "Flare Confidential Compute can evaluate spend rules away from a hot key. On Coston2 Beacon uses SIMULATED_TEE (hackathon-accepted), not hardware-attested Confidential Space.",
+  },
+  {
+    id: "fdc",
+    title: "Proofs from outside Flare",
+    body: "Flare Data Connector attests external facts so Beacon can refuse invented hashes and fake receipts.",
   },
   {
     id: "x402",
