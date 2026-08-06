@@ -28,6 +28,11 @@ Living log of what was done. No secrets in this file.
 ### Ops note
 - Always update this file after fix + test + each loop cycle; show Render + Vercel status; push with token.
 
+### Loop ticks 49–51 (2026-08-07 ~01:27 UTC+3)
+- Bare `Safe` → `desk_link`; `is it safe to swap` → swap; prep0 → 400 VALIDATION; prep deposit `eip3009`.
+- Safe balance **14.0 USDT0**.
+- **Render:** live `7098008`. **Vercel desk/beacon:** success on code `6fe0f25` (history-only commit skipped web rebuild).
+
 ---
 
 ## 2026-08-06 - Safe deposit EIP-3009 fix + feature rail arrows
