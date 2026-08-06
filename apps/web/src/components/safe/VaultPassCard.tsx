@@ -118,6 +118,16 @@ export function VaultPassCard({
             />
           </div>
 
+          {Number(live.balanceDisplay) > 0 &&
+            (Number(live.maxSpendPerTxDisplay) <= 0 ||
+              Number(live.rollingWindowBudgetDisplay) <= 0) && (
+              <p className="rounded-[var(--p-radius-sm)] border border-amber-500/35 bg-amber-500/10 px-3.5 py-3 text-sm text-amber-100">
+                Funds are in Beacon Safe, but spend caps are still{" "}
+                <span className="font-mono">0</span>. The owner must set per-trade and daily
+                limits below before AI can spend this pool.
+              </p>
+            )}
+
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-[var(--p-border)] pt-4 font-mono text-[11px] text-[var(--p-faint)]">
             <span>Owner {shortAddress(live.owner)}</span>
             <span>

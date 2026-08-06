@@ -144,7 +144,7 @@ export interface YieldVaultDesk {
   upshift: UpshiftVaultStatus | { error: string; vault: string };
   honesty: string;
   docs: string[];
-  flarePrimitive: "FXRP vault rails (Coston2)";
+  flarePrimitive: "FXRP yield rails (Coston2)";
 }
 
 function firelightDocs() {
@@ -164,7 +164,7 @@ function upshiftDocs() {
 }
 
 const NO_APY =
-  "On-chain vault status only. Beacon never invents APY — verify rewards and risk yourself.";
+  "On-chain yield-rail status only. Beacon never invents APY — verify rewards and risk yourself.";
 
 export async function readFirelightVaultStatus(
   opts?: { wallet?: string; env?: BeaconEnv },

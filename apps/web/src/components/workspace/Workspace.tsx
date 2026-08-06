@@ -450,7 +450,11 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 {form.formState.errors.briefText && (
                   <p className="text-sm text-danger">{form.formState.errors.briefText.message}</p>
                 )}
-                <Button type="submit" size="lg" disabled={createAndQuote.isPending}>
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={createAndQuote.isPending || (form.watch("briefText")?.trim().length ?? 0) < 8}
+                >
                   {createAndQuote.isPending ? (
                     <>
                       <Loader2 className="size-4 animate-spin" /> Getting quote…

@@ -62,7 +62,7 @@ export const BEACON_AGENTS: AgentDef[] = [
   { id: "bridge", name: "Bridge", blurb: "LayerZero FXRP OFT peers.", builtIn: true, x402PriceUsdt0: 0, mention: "@bridge", flarePrimitive: "LayerZero + FAssets" },
   { id: "crosschain", name: "Cross-chain", blurb: "OFT routes + honesty.", builtIn: true, x402PriceUsdt0: 0, mention: "@crosschain", flarePrimitive: "LayerZero" },
   { id: "xrpfi", name: "XRPFi", blurb: "FXRP rails: swap · bridge · FAssets.", builtIn: true, x402PriceUsdt0: 0, mention: "@xrpfi", flarePrimitive: "FAssets + SparkDEX + LZ" },
-  { id: "yield", name: "Yield", blurb: "On-chain vault status only — never invents APY.", builtIn: true, x402PriceUsdt0: 0, mention: "@yield", flarePrimitive: "FXRP vault rails" },
+  { id: "yield", name: "Yield", blurb: "On-chain yield rails only — never invents APY.", builtIn: true, x402PriceUsdt0: 0, mention: "@yield", flarePrimitive: "FXRP yield rails" },
   { id: "risk", name: "Risk", blurb: "FTSO bias + policy posture.", builtIn: true, x402PriceUsdt0: 0, mention: "@risk", flarePrimitive: "FTSO" },
   { id: "treasury", name: "Treasury", blurb: "Verified-read policy budget view (same Coston2 desk as Portfolio).", builtIn: true, x402PriceUsdt0: 0, mention: "@treasury", flarePrimitive: "x402 + FTSO" },
   { id: "pay", name: "Pay x402", blurb: "EIP-3009 micropay.", builtIn: true, x402PriceUsdt0: 0, mention: "@pay", flarePrimitive: "x402" },
@@ -385,7 +385,7 @@ const AGENT_SYSTEM: Record<BeaconAgentId, string> = {
   bridge: "You are Beacon Bridge. LayerZero FXRP OFT peers from on-chain discovery. Never invent fills.",
   crosschain: "You are Beacon Cross-chain. Same OFT truth as bridge. Never invent destinations.",
   xrpfi: "You are Beacon XRPFi. FXRP rails: FAssets status, SparkDEX, LayerZero OFT.",
-  yield: "You are Beacon Yield. Show Coston2 vault on-chain status (shares/assets). Never invent APY.",
+  yield: "You are Beacon Yield. Show Coston2 yield-rail on-chain status (shares/assets). Never invent APY.",
   risk: "You are Beacon Risk. FTSO bias + honest posture. Not financial advice.",
   treasury: "You are Beacon Treasury — a verified-read policy/budget lens over the same Coston2 portfolio desk as @portfolio, not a separate vault product. Explain spend rails honestly.",
   pay: "You are Beacon Payment. Every charge names provider, price, reason, ETA.",
@@ -1287,11 +1287,11 @@ export async function runBeaconAgentChat(opts: {
       const desk = await readFassetsDesk(env);
       cards.push({
         type: "fassets_desk",
-        title: intent === "yield" ? "Yield · FAssets + vault rails" : intent === "xrpfi" ? "XRPFi · FXRP rails" : "FAssets desk · Coston2",
+        title: intent === "yield" ? "Yield · FAssets + yield rails" : intent === "xrpfi" ? "XRPFi · FXRP rails" : "FAssets desk · Coston2",
         flarePrimitive: desk.flarePrimitive,
         honesty:
           intent === "yield"
-            ? `${desk.honesty} Beacon does not invent APY. Vault rails below are on-chain status only.`
+            ? `${desk.honesty} Beacon does not invent APY. Yield rails below are on-chain status only.`
             : desk.honesty,
         managers: desk.managers.map((m) => ({
           symbol: m.symbol,
@@ -1350,7 +1350,7 @@ export async function runBeaconAgentChat(opts: {
         }
         cards.push({
           type: "yield_vaults",
-          title: "Yield vaults · Coston2 (no APY invented)",
+          title: "Yield rails · Coston2 (no APY invented)",
           flarePrimitive: vaults.flarePrimitive,
           honesty: vaults.honesty,
           network: vaults.network,
@@ -1398,11 +1398,11 @@ export async function runBeaconAgentChat(opts: {
         userMessage: opts.message,
         situation:
           intent === "yield"
-            ? `Yield: FAssets live=${desk.managers.map((m) => m.symbol).join(",")}. Vault rails on Coston2 (no APY). Mint=${desk.managers[0]?.actions.mint ?? "n/a"} (docs handoff).`
+            ? `Yield: FAssets live=${desk.managers.map((m) => m.symbol).join(",")}. Yield rails on Coston2 (no APY). Mint=${desk.managers[0]?.actions.mint ?? "n/a"} (docs handoff).`
             : `FAssets managers live=${desk.managers.map((m) => m.symbol).join(",")}. Unavailable=${desk.documentedElsewhere.map((d) => d.symbol).join(",")}. Mint=docs_handoff (no fake button). Redeem=${desk.managers[0]?.actions.redeem ?? "n/a"}. XRP/USD=${desk.xrpUsd}. Lot USD=${desk.lotValueUsd}.`,
         fallback:
           intent === "yield"
-            ? `Coston2 vault rails + FAssets status loaded. **No APY invented** — share balances and contract links only. Mint FXRP is a documented XRPL/Xaman handoff.`
+            ? `Coston2 yield rails + FAssets status loaded. **No APY invented** — share balances and contract links only. Mint FXRP is a documented XRPL/Xaman handoff.`
             : `Coston2 FAssets: **${desk.managers.map((m) => m.symbol).join(", ") || "none"}** live. Mint = documented XRPL handoff (not an in-app mint button). Redeem lots can be prepared for wallet. FBTC/FDOGE not on this controller. XRP/USD ≈ $${desk.xrpUsd.toFixed(4)}.`,
         env,
       });

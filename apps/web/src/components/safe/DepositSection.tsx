@@ -35,7 +35,8 @@ export function DepositSection({
   tokenSymbol?: string;
   walletBalance?: string | null;
 }) {
-  const canDeposit = Boolean(wallet) && !pending;
+  const amountOk = Number(amount) > 0;
+  const canDeposit = Boolean(wallet) && !pending && amountOk;
 
   return (
     <SafeSection>
