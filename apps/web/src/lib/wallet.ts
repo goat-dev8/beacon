@@ -437,9 +437,19 @@ export async function executeAgentVaultPrep(params: {
   const [account] = await wallet.getAddresses();
   if (!account) throw new Error("Connect a wallet first.");
 
-  if (params.mode === "eip3009" || (params.action === "deposit" && params.token && params.amount)) {
-    const token = (params.token || params.approveTo) as Address;
-    const amount = BigInt(params.amount || "0");
+  // Coston2 MockUSDT0 has no approve/transferFrom — always EIP-3009 for deposits.
+  if (
+    params.mode === "eip3009" ||
+    params.action === "deposit" ||
+    (params.token && params.amount)
+  ) {
+    const token = (params.token || params.approveTo || CONTRACTS.token) as Address;
+    const amount = params.amount
+      ? BigInt(params.amount)
+      : params.approveData
+        ? // decode amount from approve(spender, amount) last 32 bytes if present
+          BigInt(`0x${params.approveData.slice(-64)}`)
+        : 0n;
     if (!token || amount <= 0n) throw new Error("Invalid Safe deposit amount.");
 
     const balance = await getUsdt0Balance(account);
