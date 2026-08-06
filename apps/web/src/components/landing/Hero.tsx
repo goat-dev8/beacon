@@ -4,25 +4,26 @@ import { FacetCtaPair } from "@/components/ui/Button";
 export function Hero() {
   return (
     <section className="relative overflow-hidden crosshair-grid border-b border-line">
-      {/* dashed side rails */}
       <div className="pointer-events-none absolute inset-y-0 left-8 hidden w-px border-l border-dashed border-line md:block" />
       <div className="pointer-events-none absolute inset-y-0 right-8 hidden w-px border-r border-dashed border-line md:block" />
 
       <div className="relative mx-auto flex min-h-[min(70vh,42rem)] max-w-7xl flex-col justify-between px-6 pb-16 pt-20 md:px-16 md:pb-24 md:pt-28">
-        <motion.h1
-          className="font-display text-[clamp(3rem,8vw,6rem)] font-extrabold leading-[0.95] tracking-[-0.04em] text-ink"
+        <motion.div
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55 }}
         >
-          Finish AI work.
-          <br />
-          Pay only when
-          <br />
-          it passes.
-        </motion.h1>
+          <p className="font-mono text-[13px] font-medium uppercase tracking-[0.4px] text-signal-deep">
+            Flare AI OS
+          </p>
+          <h1 className="mt-3 font-display text-[clamp(3rem,8vw,5.5rem)] font-extrabold leading-[0.95] tracking-[-0.04em] text-ink">
+            Beacon
+          </h1>
+          <p className="mt-4 max-w-xl font-display text-2xl font-medium tracking-tight text-ink md:text-3xl">
+            Signal to receipt on Flare.
+          </p>
+        </motion.div>
 
-        {/* Halftone beacon with mint glow — original Beacon art */}
         <div className="pointer-events-none absolute right-0 top-8 hidden w-[min(44vw,30rem)] md:block lg:right-4 lg:top-0">
           <div
             className="float-soft aspect-square w-full"
@@ -49,16 +50,16 @@ export function Hero() {
           transition={{ delay: 0.12, duration: 0.5 }}
         >
           <p className="text-xl leading-8 tracking-tight text-ink-muted md:text-2xl">
-            Describe the job. Approve once. Watch it finish. Charged only after quality checks pass.
+            Intent becomes quote, policy, pay, execute, and an explorer-backed receipt. One conversation for Flare rails.
           </p>
           <div className="mt-6">
-            <FacetCtaPair left="See how" right="Start now" leftTo="#how" rightTo="/app" />
+            <FacetCtaPair left="See the path" right="Open Flow" leftTo="#how" rightTo="/flow" />
           </div>
           <a
-            href="/app"
-            className="mt-4 inline-flex items-center gap-1 font-mono text-sm tracking-[0.35px] text-ink-muted underline decoration-ink-faint underline-offset-4 hover:text-ink"
+            href="/flow"
+            className="mt-4 inline-flex min-h-11 items-center gap-1 font-mono text-sm tracking-[0.35px] text-ink-muted underline decoration-ink-faint underline-offset-4 hover:text-ink"
           >
-            open your desk →
+            open Flare AI OS →
           </a>
         </motion.div>
       </div>

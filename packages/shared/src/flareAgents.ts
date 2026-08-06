@@ -1,4 +1,4 @@
-import { chatCompletion, isAiConfigured } from "./ai.js";
+import { chatCompletion, displayModelName, isAiConfigured } from "./ai.js";
 import { loadEnv, type BeaconEnv } from "./env.js";
 import {
   buildTradeSignal,
@@ -15,6 +15,7 @@ import {
 } from "./oftBridge.js";
 import { discoverSparkDexPools, prepareSparkDexSwap } from "./sparkDex.js";
 import { readFassetsDesk } from "./fassetsStatus.js";
+import { readYieldVaultDesk } from "./yieldVaults.js";
 import { buildMarketIntelligence } from "./marketIntel.js";
 import { readPortfolioDesk } from "./portfolioDesk.js";
 
@@ -61,9 +62,9 @@ export const BEACON_AGENTS: AgentDef[] = [
   { id: "bridge", name: "Bridge", blurb: "LayerZero FXRP OFT peers.", builtIn: true, x402PriceUsdt0: 0, mention: "@bridge", flarePrimitive: "LayerZero + FAssets" },
   { id: "crosschain", name: "Cross-chain", blurb: "OFT routes + honesty.", builtIn: true, x402PriceUsdt0: 0, mention: "@crosschain", flarePrimitive: "LayerZero" },
   { id: "xrpfi", name: "XRPFi", blurb: "FXRP rails: swap · bridge · FAssets.", builtIn: true, x402PriceUsdt0: 0, mention: "@xrpfi", flarePrimitive: "FAssets + SparkDEX + LZ" },
-  { id: "yield", name: "Yield", blurb: "Real opportunities only.", builtIn: true, x402PriceUsdt0: 0, mention: "@yield", flarePrimitive: "FAssets" },
+  { id: "yield", name: "Yield", blurb: "On-chain vault status only — never invents APY.", builtIn: true, x402PriceUsdt0: 0, mention: "@yield", flarePrimitive: "FXRP vault rails" },
   { id: "risk", name: "Risk", blurb: "FTSO bias + policy posture.", builtIn: true, x402PriceUsdt0: 0, mention: "@risk", flarePrimitive: "FTSO" },
-  { id: "treasury", name: "Treasury", blurb: "Desk balances + spend rails.", builtIn: true, x402PriceUsdt0: 0, mention: "@treasury", flarePrimitive: "x402 + FTSO" },
+  { id: "treasury", name: "Treasury", blurb: "Verified-read policy budget view (same Coston2 desk as Portfolio).", builtIn: true, x402PriceUsdt0: 0, mention: "@treasury", flarePrimitive: "x402 + FTSO" },
   { id: "pay", name: "Pay x402", blurb: "EIP-3009 micropay.", builtIn: true, x402PriceUsdt0: 0, mention: "@pay", flarePrimitive: "x402" },
   { id: "trade", name: "Trade", blurb: "Signals → swap.", builtIn: true, x402PriceUsdt0: 0, mention: "@trade", flarePrimitive: "FTSO + SparkDEX" },
   { id: "desk", name: "Bound Work", blurb: "Escrow creative jobs.", builtIn: true, x402PriceUsdt0: 0, mention: "@desk", flarePrimitive: "x402 escrow" },
@@ -129,6 +130,12 @@ export type AgentCard =
       honesty?: string;
       flarePrimitive?: string;
       pairsHint?: string[];
+      quoteSource?: "QuoterV2";
+      estimateBasis?: string;
+      slippageBps?: number;
+      priceImpactVsFtsoBps?: number | null;
+      ftsoMidOut?: string;
+      amountOutMinimum?: string;
     }
   | {
       type: "swap_prepare";
@@ -156,6 +163,31 @@ export type AgentCard =
       honesty?: string;
       requiresChainSwitch?: boolean;
       flarePrimitive?: string;
+      quoteSource?: "QuoterV2";
+      estimateBasis?: string;
+      slippageBps?: number;
+      priceImpactVsFtsoBps?: number | null;
+      ftsoMidOut?: string;
+      quoter?: string;
+    }
+  | {
+      type: "yield_vaults";
+      title: string;
+      flarePrimitive: string;
+      honesty: string;
+      network: string;
+      chainId: number;
+      vaults: Array<{
+        id: string;
+        vault: string;
+        assetSymbol?: string;
+        totalAssetsDisplay?: string;
+        sharePriceDisplay?: string | null;
+        userSharesDisplay?: string;
+        explorer?: string;
+        error?: string;
+      }>;
+      docs: string[];
     }
   | {
       type: "swap_pairs";
@@ -186,6 +218,7 @@ export type AgentCard =
         mint: string;
         redeem: string;
         bridge: string;
+        mintHandoffSummary?: string;
       }>;
       unavailable: Array<{ symbol: string; note: string }>;
       xrpUsd: number;
@@ -249,6 +282,7 @@ export type AgentCard =
       docs: string[];
       warning: string;
       layerZeroScanBase: string;
+      deliveryHint?: string;
     }
   | {
       type: "bridge_routes";
@@ -340,16 +374,6 @@ export interface AgentChatResult {
   state: ConversationState;
 }
 
-/** Human-facing model label, never expose provider brand; never invent GPT-3.5/4.0. */
-export function displayModelName(model: string): string {
-  const m = (model || "").toLowerCase();
-  if (m.includes("claude-opus-5") || m.includes("opus-5")) return "Claude Opus 5";
-  if (m.includes("claude-opus-4") || m.includes("opus-4") || m.includes("claude")) return "Claude Opus 5";
-  if (m.includes("gpt-5.6") || m.includes("gpt-5") || m.includes("gpt")) return "GPT-5.6";
-  if (m.includes("beacon") || m.includes("local") || m.includes("heuristic") || m.includes("x402")) return "Beacon";
-  return "Beacon";
-}
-
 const AGENT_SYSTEM: Record<BeaconAgentId, string> = {
   general: "You are Beacon, the Flare AI OS. Route to FTSO, SparkDEX, FAssets, LayerZero OFT, x402, Bound Work.",
   signals: "You are Beacon Signals. Explain live FTSO feeds and bias. Never invent prices.",
@@ -361,9 +385,9 @@ const AGENT_SYSTEM: Record<BeaconAgentId, string> = {
   bridge: "You are Beacon Bridge. LayerZero FXRP OFT peers from on-chain discovery. Never invent fills.",
   crosschain: "You are Beacon Cross-chain. Same OFT truth as bridge. Never invent destinations.",
   xrpfi: "You are Beacon XRPFi. FXRP rails: FAssets status, SparkDEX, LayerZero OFT.",
-  yield: "You are Beacon Yield. Only state real, labeled opportunities. Never invent APY.",
+  yield: "You are Beacon Yield. Show Coston2 vault on-chain status (shares/assets). Never invent APY.",
   risk: "You are Beacon Risk. FTSO bias + honest posture. Not financial advice.",
-  treasury: "You are Beacon Treasury. Desk balances + x402 spend rails.",
+  treasury: "You are Beacon Treasury — a verified-read policy/budget lens over the same Coston2 portfolio desk as @portfolio, not a separate vault product. Explain spend rails honestly.",
   pay: "You are Beacon Payment. Every charge names provider, price, reason, ETA.",
   trade: "You are Beacon Trade. FTSO first; SparkDEX only when user confirms on Mainnet.",
   desk: "You are Bound Work. Escrow creative jobs with acceptance.",
@@ -409,7 +433,7 @@ export const PAID_RESOURCES: PaidResourceDef[] = [
   {
     id: "research-brief",
     title: "Research brief",
-    provider: "Beacon · GPT-5.6",
+    provider: "Beacon Research",
     priceUsdt0: "0.75",
     reason: "Scoped written brief with sources checklist",
     etaSeconds: 40,
@@ -503,6 +527,20 @@ function wantsConfirm(message: string): boolean {
   return /\b(confirm|yes|proceed|do it|execute|go ahead|approve|bridge now)\b/i.test(message);
 }
 
+/** Explicit pairs/catalog discovery — not a quote turn. */
+function wantsSwapDiscovery(message: string): boolean {
+  return /\b(pairs?|pools?|catalog|discover|what can i swap|available pairs|list pairs|show pairs)\b/i.test(
+    message,
+  );
+}
+
+/** Explicit routes/catalog discovery — not a quote turn. */
+function wantsBridgeDiscovery(message: string): boolean {
+  return /\b(routes?|destinations?|peers?|catalog|discover|where can i bridge|list routes|show routes)\b/i.test(
+    message,
+  );
+}
+
 function sanitizeAssistantText(text: string): string {
   if (!text) return "Something went wrong on my side. Please try again.";
   if (/<!doctype|<html|<meta |AI provider|stack|ECONNREFUSED/i.test(text)) {
@@ -521,12 +559,15 @@ async function narrate(opts: {
   env: BeaconEnv;
 }): Promise<{ text: string; model: string; displayModel: string }> {
   const model = pickModel(opts.intent, opts.env);
-  const displayModel = displayModelName(model);
   const safeFallback =
     opts.fallback ??
     "Sure, I'm with you. Tell me the next detail you want, and I'll keep this conversational.";
   if (!isAiConfigured(opts.env)) {
-    return { text: safeFallback, model: "beacon-local", displayModel: "Beacon" };
+    return {
+      text: safeFallback,
+      model: "beacon-local",
+      displayModel: displayModelName("beacon-local", { fallback: true }),
+    };
   }
   try {
     const result = await chatCompletion(
@@ -550,13 +591,18 @@ Situation for this turn:\n${opts.situation}`,
       },
       opts.env,
     );
+    const returnedModel = result.model ?? model;
     return {
       text: sanitizeAssistantText(result.content),
-      model: result.model ?? model,
-      displayModel,
+      model: returnedModel,
+      displayModel: displayModelName(returnedModel),
     };
   } catch {
-    return { text: sanitizeAssistantText(safeFallback), model, displayModel };
+    return {
+      text: sanitizeAssistantText(safeFallback),
+      model: "beacon-local",
+      displayModel: displayModelName("beacon-local", { fallback: true }),
+    };
   }
 }
 
@@ -664,7 +710,7 @@ export async function fulfillPaidResource(opts: {
           : "Payment settled. Here’s your image.",
         cards,
         model: "beacon-media",
-        displayModel: "Beacon",
+        displayModel: displayModelName("beacon-media"),
         paid: true,
         state: idleState,
       };
@@ -680,7 +726,7 @@ export async function fulfillPaidResource(opts: {
         text: "Payment settled but generation is saturated, try Bound Work for a retry with escrow.",
         cards,
         model: "beacon-media",
-        displayModel: "Beacon",
+        displayModel: displayModelName("beacon-media", { fallback: true }),
         paid: true,
         state: idleState,
       };
@@ -810,35 +856,60 @@ export async function runBeaconAgentChat(opts: {
     const wallet = opts.wallet;
     const discovered = await discoverSparkDexPools(env);
     const dep = discovered.deployment;
+    const discoveryOnly = wantsSwapDiscovery(opts.message) && !extractAmount(opts.message);
 
-    cards.push({
-      type: "swap_pairs",
-      title: "SparkDEX liquid pairs",
-      network: dep.network === "flare" ? "Flare Mainnet" : "unavailable",
-      chainId: dep.chainId || 14,
-      pairs: discovered.pairs.map((p) => ({
-        pairKey: p.pairKey,
-        symbolA: p.symbolA,
-        symbolB: p.symbolB,
-        bestFee: p.bestFee,
-        liquidity: p.liquidity,
-      })),
-      honesty: dep.honesty,
-      flarePrimitive: "SparkDEX",
-    });
+    const pushSwapPairs = () => {
+      cards.push({
+        type: "swap_pairs",
+        title: "SparkDEX liquid pairs",
+        network: dep.network === "flare" ? "Flare Mainnet" : "unavailable",
+        chainId: dep.chainId || 14,
+        pairs: discovered.pairs.map((p) => ({
+          pairKey: p.pairKey,
+          symbolA: p.symbolA,
+          symbolB: p.symbolB,
+          bestFee: p.bestFee,
+          liquidity: p.liquidity,
+        })),
+        honesty: dep.honesty,
+        flarePrimitive: "SparkDEX",
+      });
+    };
+
+    // Discovery/catalog-only: pairs card, no quote spam
+    if (discoveryOnly) {
+      pushSwapPairs();
+      const narr = await narrate({
+        intent: "swap",
+        userMessage: opts.message,
+        situation: `User asked for SparkDEX pair discovery only. Network=${dep.network}. ${dep.honesty}`,
+        fallback: `SparkDEX liquid pairs are on **Flare Mainnet** only. Coston2 x402 uses **MockUSDT0** (pay/escrow), not SparkDEX. ${dep.honesty}`,
+        env,
+      });
+      return {
+        agentId: "swap",
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent: "swap", phase: "clarify" },
+      };
+    }
 
     if (!wallet) {
+      pushSwapPairs();
       cards.push({
         type: "insufficient",
         title: "Connect your wallet",
-        summary: "Connect MetaMask. SparkDEX execute requires Flare Mainnet (chain 14). Coston2 is for FTSO / OFT / x402.",
+        summary: "Connect MetaMask. SparkDEX execute requires Flare Mainnet (chain 14). Coston2 is for FTSO / OFT / x402 (MockUSDT0).",
         faucetHref: "https://faucet.flare.network/coston2",
       });
       const narr = await narrate({
         intent: "swap",
         userMessage: opts.message,
-        situation: "Wallet missing. Explain SparkDEX is Mainnet; show discovered pairs.",
-        fallback: `SparkDEX live pairs are on **Flare Mainnet**. Connect your wallet, then say e.g. **swap 1 USDT0 to FXRP**.`,
+        situation: "Wallet missing. Explain SparkDEX is Mainnet; show discovered pairs. MockUSDT0 is Coston2 x402 only.",
+        fallback: `SparkDEX live pairs are on **Flare Mainnet**. Connect your wallet, then say e.g. **swap 1 USDT0 to FXRP**. Coston2 **MockUSDT0** is for Beacon pay/escrow only.`,
         env,
       });
       return {
@@ -853,6 +924,7 @@ export async function runBeaconAgentChat(opts: {
     }
 
     if (dep.network === "none" || !discovered.pairs.length) {
+      pushSwapPairs();
       const narr = await narrate({
         intent: "swap",
         userMessage: opts.message,
@@ -901,6 +973,8 @@ export async function runBeaconAgentChat(opts: {
     }
 
     if (!amount) {
+      // Clarify phase: discovery pairs allowed
+      pushSwapPairs();
       cards.push({
         type: "swap_clarify",
         title: "How much should we swap?",
@@ -913,7 +987,7 @@ export async function runBeaconAgentChat(opts: {
       const narr = await narrate({
         intent: "swap",
         userMessage: opts.message,
-        situation: `Ask amount + direction. Liquid pairs: ${pairNames}. Honesty: execute on Flare Mainnet. Coston2 balances shown for desk context only.`,
+        situation: `Ask amount + direction. Liquid pairs: ${pairNames}. Honesty: execute on Flare Mainnet. Coston2 MockUSDT0 for x402 only.`,
         fallback: `Liquid SparkDEX pairs: **${pairNames}**.\n\nSay e.g. **swap 1 USDT0 to FXRP** (execute on **Flare Mainnet**). Coston2 desk: ${usdtBal.formatted} USDT0 · ${fxrpBal.formatted} FXRP.`,
         env,
       });
@@ -934,6 +1008,7 @@ export async function runBeaconAgentChat(opts: {
       Boolean(state.amountInUnits || amount);
 
     if (!confirmed) {
+      // Quote phase: DO NOT emit swap_pairs alongside swap_quote
       const prepPreview = await prepareSparkDexSwap(
         { tokenIn, tokenOut, amountInUnits: amount, recipient: wallet },
         env,
@@ -950,14 +1025,14 @@ export async function runBeaconAgentChat(opts: {
           text: `${prepPreview.error}. ${prepPreview.honesty}`,
           cards,
           model: "beacon-local",
-          displayModel: "Beacon",
+          displayModel: displayModelName("beacon-local", { fallback: true }),
           paid: true,
           state: { intent: "swap", phase: "clarify" },
         };
       }
       cards.push({
         type: "swap_quote",
-        title: "Swap quote · SparkDEX",
+        title: "Swap quote · SparkDEX QuoterV2",
         amountInDisplay: amount,
         estimatedFxrp: prepPreview.symbolOut.toUpperCase().includes("FXRP")
           ? prepPreview.estimatedOut
@@ -970,16 +1045,22 @@ export async function runBeaconAgentChat(opts: {
         usdt0Balance: usdtBal.formatted,
         network: prepPreview.network,
         chainId: prepPreview.chainId,
-        note: `${prepPreview.estimateBasis}. ${prepPreview.requiresChainSwitch ? "MetaMask must switch to Flare Mainnet (14) before Approve+Swap." : ""}`,
+        note: `${prepPreview.estimateBasis}. Slippage ${prepPreview.slippageBps} bps → minOut. Price impact vs FTSO mid: ${prepPreview.priceImpactVsFtsoBps ?? "n/a"} bps (FTSO is narrative only). ${prepPreview.requiresChainSwitch ? "MetaMask must switch to Flare Mainnet (14) before Approve+Swap." : ""}`,
         honesty: prepPreview.honesty,
-        flarePrimitive: "SparkDEX + FTSO",
+        flarePrimitive: "SparkDEX QuoterV2",
         pairsHint: discovered.pairs.map((p) => `${p.symbolA}/${p.symbolB}@${p.bestFee}`),
+        quoteSource: prepPreview.quoteSource,
+        estimateBasis: prepPreview.estimateBasis,
+        slippageBps: prepPreview.slippageBps,
+        priceImpactVsFtsoBps: prepPreview.priceImpactVsFtsoBps,
+        ftsoMidOut: prepPreview.ftsoMidOut,
+        amountOutMinimum: prepPreview.amountOutMinimum,
       });
       const narr = await narrate({
         intent: "swap",
         userMessage: opts.message,
-        situation: `Quote ${amount} ${prepPreview.symbolIn} → ~${prepPreview.estimatedOut} ${prepPreview.symbolOut} on Flare Mainnet SparkDEX. Ask confirm. Mention chain switch if needed.`,
-        fallback: `Quote: **${amount} ${prepPreview.symbolIn} ≈ ${prepPreview.estimatedOut} ${prepPreview.symbolOut}** on **Flare Mainnet** SparkDEX.\n\n${prepPreview.honesty}\n\nReply **confirm** to prepare Approve + Swap.`,
+        situation: `QuoterV2 quote ${amount} ${prepPreview.symbolIn} → ~${prepPreview.estimatedOut} ${prepPreview.symbolOut} on Flare Mainnet SparkDEX (not FTSO). Slippage ${prepPreview.slippageBps}bps. Ask confirm. Mention chain switch if needed.`,
+        fallback: `QuoterV2: **${amount} ${prepPreview.symbolIn} ≈ ${prepPreview.estimatedOut} ${prepPreview.symbolOut}** on **Flare Mainnet** SparkDEX (minOut after ${prepPreview.slippageBps} bps slippage).\n\n${prepPreview.honesty}\n\nReply **confirm** to prepare Approve + Swap.`,
         env,
       });
       return {
@@ -999,6 +1080,7 @@ export async function runBeaconAgentChat(opts: {
       };
     }
 
+    // Prepare phase: DO NOT emit swap_pairs alongside swap_prepare
     const finalAmount = amount || state.amountInUnits || "1";
     const prep = await prepareSparkDexSwap(
       {
@@ -1015,7 +1097,7 @@ export async function runBeaconAgentChat(opts: {
         text: prep.error,
         cards,
         model: "beacon-local",
-        displayModel: "Beacon",
+        displayModel: displayModelName("beacon-local", { fallback: true }),
         paid: true,
         state: { intent: "swap", phase: "clarify" },
       };
@@ -1038,14 +1120,20 @@ export async function runBeaconAgentChat(opts: {
       approveData: prep.approveData,
       swapData: prep.swapData,
       docs: prep.docs,
-      warning: `${prep.symbolIn}→${prep.symbolOut} on SparkDEX (${prep.network}). Pool fee ${prep.fee}. ${prep.honesty}`,
+      warning: `${prep.symbolIn}→${prep.symbolOut} on SparkDEX (${prep.network}). Pool fee ${prep.fee}. QuoterV2 minOut (slippage ${prep.slippageBps} bps). ${prep.honesty}`,
       chainId: prep.chainId,
       network: prep.network,
       pool: prep.pool,
       fee: prep.fee,
       honesty: prep.honesty,
       requiresChainSwitch: prep.requiresChainSwitch,
-      flarePrimitive: "SparkDEX",
+      flarePrimitive: "SparkDEX QuoterV2",
+      quoteSource: prep.quoteSource,
+      estimateBasis: prep.estimateBasis,
+      slippageBps: prep.slippageBps,
+      priceImpactVsFtsoBps: prep.priceImpactVsFtsoBps,
+      ftsoMidOut: prep.ftsoMidOut,
+      quoter: prep.quoter,
     });
     const narr = await narrate({
       intent: "swap",
@@ -1090,15 +1178,21 @@ export async function runBeaconAgentChat(opts: {
         cards.push({
           type: "insufficient",
           title: "Connect your wallet",
-          summary: "Portfolio reads live Coston2 balances.",
+          summary:
+            intent === "treasury"
+              ? "Treasury is a verified-read policy/budget view of your Coston2 desk balances."
+              : "Portfolio reads live Coston2 balances.",
           faucetHref: "https://faucet.flare.network/coston2",
         });
         return {
           agentId: intent,
-          text: "Connect your wallet so I can value your Coston2 balances with FTSO.",
+          text:
+            intent === "treasury"
+              ? "Connect your wallet for a verified-read treasury/policy budget view of the same Coston2 desk as Portfolio."
+              : "Connect your wallet so I can value your Coston2 balances with FTSO.",
           cards,
           model: "beacon-local",
-          displayModel: "Beacon",
+          displayModel: displayModelName("beacon-local", { fallback: true }),
           paid: true,
           state: { intent, phase: "clarify" },
         };
@@ -1106,9 +1200,15 @@ export async function runBeaconAgentChat(opts: {
       const desk = await readPortfolioDesk(opts.wallet, env);
       cards.push({
         type: "portfolio_desk",
-        title: intent === "treasury" ? "Treasury · desk balances" : "Portfolio · FTSO marked",
+        title:
+          intent === "treasury"
+            ? "Treasury · verified-read policy budget (same desk as Portfolio)"
+            : "Portfolio · FTSO marked",
         flarePrimitive: desk.flarePrimitive,
-        honesty: desk.honesty,
+        honesty:
+          intent === "treasury"
+            ? `${desk.honesty} Treasury is not a separate vault product — it is a verified-read policy/budget lens over the same Coston2 balances as Portfolio.`
+            : desk.honesty,
         totalUsd: desk.totalUsd,
         positions: desk.positions.map((p) => ({
           symbol: p.symbol,
@@ -1120,8 +1220,14 @@ export async function runBeaconAgentChat(opts: {
       const narr = await narrate({
         intent,
         userMessage: opts.message,
-        situation: `Portfolio totalUsd≈$${desk.totalUsd}. Positions: ${desk.positions.map((p) => `${p.symbol}=${p.balance}`).join(", ")}. ${desk.recommended.join(" ")}`,
-        fallback: `Marked ~**$${desk.totalUsd}** on Coston2 (FTSO). ${desk.recommended[0] ?? ""}`,
+        situation:
+          intent === "treasury"
+            ? `Treasury (policy budget lens, same desk as Portfolio). totalUsd≈$${desk.totalUsd}. Positions: ${desk.positions.map((p) => `${p.symbol}=${p.balance}`).join(", ")}. ${desk.recommended.join(" ")}`
+            : `Portfolio totalUsd≈$${desk.totalUsd}. Positions: ${desk.positions.map((p) => `${p.symbol}=${p.balance}`).join(", ")}. ${desk.recommended.join(" ")}`,
+        fallback:
+          intent === "treasury"
+            ? `Treasury (verified-read budget view of the Portfolio desk): ~**$${desk.totalUsd}** on Coston2 (FTSO). ${desk.recommended[0] ?? ""}`
+            : `Marked ~**$${desk.totalUsd}** on Coston2 (FTSO). ${desk.recommended[0] ?? ""}`,
         env,
       });
       return {
@@ -1139,11 +1245,11 @@ export async function runBeaconAgentChat(opts: {
       const desk = await readFassetsDesk(env);
       cards.push({
         type: "fassets_desk",
-        title: intent === "yield" ? "Yield · FAssets honesty" : intent === "xrpfi" ? "XRPFi · FXRP rails" : "FAssets desk · Coston2",
+        title: intent === "yield" ? "Yield · FAssets + vault rails" : intent === "xrpfi" ? "XRPFi · FXRP rails" : "FAssets desk · Coston2",
         flarePrimitive: desk.flarePrimitive,
         honesty:
           intent === "yield"
-            ? `${desk.honesty} Beacon does not invent APY. External yield venues are labeled — verify before depositing.`
+            ? `${desk.honesty} Beacon does not invent APY. Vault rails below are on-chain status only.`
             : desk.honesty,
         managers: desk.managers.map((m) => ({
           symbol: m.symbol,
@@ -1154,12 +1260,64 @@ export async function runBeaconAgentChat(opts: {
           mint: m.actions.mint,
           redeem: m.actions.redeem,
           bridge: m.actions.bridge,
+          mintHandoffSummary: m.mintHandoff?.summary,
         })),
         unavailable: desk.documentedElsewhere.map((d) => ({ symbol: d.symbol, note: d.note })),
         xrpUsd: desk.xrpUsd,
         lotValueUsd: desk.lotValueUsd,
         docs: desk.docs,
       });
+
+      if (intent === "yield") {
+        const vaults = await readYieldVaultDesk({ wallet: opts.wallet, env });
+        const vaultRows: Array<{
+          id: string;
+          vault: string;
+          assetSymbol?: string;
+          totalAssetsDisplay?: string;
+          sharePriceDisplay?: string | null;
+          userSharesDisplay?: string;
+          explorer?: string;
+          error?: string;
+        }> = [];
+        if ("error" in vaults.firelight) {
+          vaultRows.push({ id: "firelight", vault: vaults.firelight.vault, error: vaults.firelight.error });
+        } else {
+          vaultRows.push({
+            id: "firelight",
+            vault: vaults.firelight.vault,
+            assetSymbol: vaults.firelight.assetSymbol,
+            totalAssetsDisplay: vaults.firelight.totalAssetsDisplay,
+            sharePriceDisplay: vaults.firelight.sharePriceDisplay,
+            userSharesDisplay: vaults.firelight.user?.sharesDisplay,
+            explorer: vaults.firelight.explorer,
+          });
+        }
+        if ("error" in vaults.upshift) {
+          vaultRows.push({ id: "upshift", vault: vaults.upshift.vault, error: vaults.upshift.error });
+        } else {
+          vaultRows.push({
+            id: "upshift",
+            vault: vaults.upshift.vault,
+            assetSymbol: vaults.upshift.assetSymbol,
+            totalAssetsDisplay: undefined,
+            sharePriceDisplay: null,
+            userSharesDisplay: vaults.upshift.user?.lpBalanceDisplay,
+            explorer: vaults.upshift.explorer,
+          });
+        }
+        cards.push({
+          type: "yield_vaults",
+          title: "Yield vaults · Coston2 (no APY invented)",
+          flarePrimitive: vaults.flarePrimitive,
+          honesty: vaults.honesty,
+          network: vaults.network,
+          chainId: vaults.chainId,
+          vaults: vaultRows,
+          docs: vaults.docs,
+        });
+      }
+
       if (intent === "xrpfi" || intent === "yield") {
         const pools = await discoverSparkDexPools(env);
         cards.push({
@@ -1188,14 +1346,22 @@ export async function runBeaconAgentChat(opts: {
           discoveredAt: br.discoveredAt,
           unavailable: [],
           docs: [{ label: "OFT peers", href: "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes" }],
-          honesty: "LayerZero peers discovered on-chain. Destination fill only via LayerZero Scan.",
+          honesty: br.source === "onchain"
+            ? "LayerZero peers discovered on-chain. Destination fill only via LayerZero Scan / dest receipt."
+            : "FALLBACK SNAPSHOT — not live peers. Re-sync before bridging.",
         });
       }
       const narr = await narrate({
         intent,
         userMessage: opts.message,
-        situation: `FAssets managers live=${desk.managers.map((m) => m.symbol).join(",")}. Unavailable=${desk.documentedElsewhere.map((d) => d.symbol).join(",")}. XRP/USD=${desk.xrpUsd}. Lot USD=${desk.lotValueUsd}.`,
-        fallback: `Coston2 FAssets: **${desk.managers.map((m) => m.symbol).join(", ") || "none"}** live. FBTC/FDOGE not on this controller. XRP/USD ≈ $${desk.xrpUsd.toFixed(4)}.`,
+        situation:
+          intent === "yield"
+            ? `Yield: FAssets live=${desk.managers.map((m) => m.symbol).join(",")}. Vault rails on Coston2 (no APY). Mint=${desk.managers[0]?.actions.mint ?? "n/a"} (docs handoff).`
+            : `FAssets managers live=${desk.managers.map((m) => m.symbol).join(",")}. Unavailable=${desk.documentedElsewhere.map((d) => d.symbol).join(",")}. Mint=docs_handoff (no fake button). Redeem=${desk.managers[0]?.actions.redeem ?? "n/a"}. XRP/USD=${desk.xrpUsd}. Lot USD=${desk.lotValueUsd}.`,
+        fallback:
+          intent === "yield"
+            ? `Coston2 vault rails + FAssets status loaded. **No APY invented** — share balances and contract links only. Mint FXRP is a documented XRPL/Xaman handoff.`
+            : `Coston2 FAssets: **${desk.managers.map((m) => m.symbol).join(", ") || "none"}** live. Mint = documented XRPL handoff (not an in-app mint button). Redeem lots can be prepared for wallet. FBTC/FDOGE not on this controller. XRP/USD ≈ $${desk.xrpUsd.toFixed(4)}.`,
         env,
       });
       return {
@@ -1291,13 +1457,15 @@ export async function runBeaconAgentChat(opts: {
           { label: "OFT peers", href: "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes" },
         ],
         honesty:
-          "Only FXRP OFT adapter peers on Coston2. Say @bridge with destination + amount to quoteSend + prepare.",
+          discovered.source === "onchain"
+            ? "Only FXRP OFT adapter peers on Coston2. Say @bridge with destination + amount to quoteSend + prepare."
+            : "FALLBACK SNAPSHOT — not live peers. Re-query when Coston2 RPC is healthy.",
       });
       const narr = await narrate({
         intent: "crosschain",
         userMessage: opts.message,
         situation: `Routes: ${discovered.routes.map((r) => r.chain).join(", ")}. Source=${discovered.source}.`,
-        fallback: `Live FXRP OFT peers (${discovered.source}): ${discovered.routes.map((r) => r.chain).join(", ")}. Use **@bridge** to execute.`,
+        fallback: `Live FXRP OFT peers (${discovered.source}): ${discovered.routes.map((r) => `${r.chain}${r.live ? "" : " [snapshot]"}`).join(", ")}. Use **@bridge** to execute.`,
         env,
       });
       return {
@@ -1324,26 +1492,52 @@ export async function runBeaconAgentChat(opts: {
       : /bsc|bnb/.test(m) ? "BSC Testnet"
       : state.bridgeTo;
     let amount = extractAmount(opts.message) ?? state.amountInUnits ?? null;
+    const discoveryOnly = wantsBridgeDiscovery(opts.message) && !amount && !dest;
 
-    cards.push({
-      type: "bridge_routes",
-      title: "FXRP OFT routes · Coston2",
-      source: "Flare Testnet Coston2",
-      oftAdapter: COSTON2_FXRP_OFT_ADAPTER,
-      routes: oftRoutes,
-      routesSource: discovered.source,
-      discoveredAt: discovered.discoveredAt,
-      unavailable: ["Arbitrary EVM chains without OFT peer", "Fake fee quotes without quoteSend"],
-      docs: [
-        { label: "OFT peers discovery", href: "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes" },
-        { label: "LayerZero · Flare Testnet", href: "https://docs.layerzero.network/v2/deployments/chains/flare-testnet" },
-        { label: "FXRP automint + bridge", href: "https://dev.flare.network/fxrp/oft/fxrp-automint" },
-      ],
-      honesty:
-        "Peers discovered live via OFT Adapter peers() on Coston2 (DevHub getOftPeers pattern). Beacon will not claim a bridge filled without an OFT send receipt. Fees require an on-chain quoteSend.",
-    });
+    const pushBridgeRoutes = () => {
+      cards.push({
+        type: "bridge_routes",
+        title: "FXRP OFT routes · Coston2",
+        source: "Flare Testnet Coston2",
+        oftAdapter: COSTON2_FXRP_OFT_ADAPTER,
+        routes: oftRoutes,
+        routesSource: discovered.source,
+        discoveredAt: discovered.discoveredAt,
+        unavailable: ["Arbitrary EVM chains without OFT peer", "Fake fee quotes without quoteSend"],
+        docs: [
+          { label: "OFT peers discovery", href: "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes" },
+          { label: "LayerZero · Flare Testnet", href: "https://docs.layerzero.network/v2/deployments/chains/flare-testnet" },
+          { label: "FXRP automint + bridge", href: "https://dev.flare.network/fxrp/oft/fxrp-automint" },
+        ],
+        honesty:
+          discovered.source === "onchain"
+            ? "Peers discovered live via OFT Adapter peers() on Coston2. Beacon will not claim a bridge filled without dest receipt / LayerZero Scan. Fees require on-chain quoteSend."
+            : "FALLBACK SNAPSHOT — peers(eid) unavailable. These are NOT live routes. Re-sync before bridging.",
+      });
+    };
+
+    if (discoveryOnly) {
+      pushBridgeRoutes();
+      const narr = await narrate({
+        intent: "bridge",
+        userMessage: opts.message,
+        situation: `User asked for OFT route discovery only. Peers: ${oftRoutes.map((r) => r.chain).join(", ")}.`,
+        fallback: `Live FXRP OFT peers from Coston2: ${oftRoutes.map((r) => r.chain).join(", ")}. Say destination + amount to quote.`,
+        env,
+      });
+      return {
+        agentId: "bridge",
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent: "bridge", phase: "clarify" },
+      };
+    }
 
     if (!wallet) {
+      pushBridgeRoutes();
       cards.push({
         type: "insufficient",
         title: "Connect your wallet",
@@ -1377,13 +1571,16 @@ export async function runBeaconAgentChat(opts: {
 
     if (dest && amount) {
       const route = resolveOftRouteByChain(dest, oftRoutes);
-      if (!route) {
-        const names = oftRoutes.map((r) => r.chain).join(", ");
+      if (!route || !route.live) {
+        pushBridgeRoutes();
+        const names = oftRoutes.filter((r) => r.live).map((r) => r.chain).join(", ") || oftRoutes.map((r) => r.chain).join(", ");
         const narr = await narrate({
           intent: "bridge",
           userMessage: opts.message,
-          situation: `Unknown destination ${dest}. Live peers: ${names}.`,
-          fallback: `That destination is not a configured FXRP OFT peer. Pick one of: ${names}.`,
+          situation: `Destination ${dest} missing or not a live peer. Live peers: ${names}. source=${discovered.source}.`,
+          fallback: !route
+            ? `That destination is not a configured FXRP OFT peer. Pick one of: ${names}.`
+            : `**${dest}** is only a fallback snapshot (not a live peers() route). Re-sync peers or pick: ${names}.`,
           env,
         });
         return {
@@ -1403,6 +1600,7 @@ export async function runBeaconAgentChat(opts: {
         Boolean(state.amountInUnits || amount);
 
       if (!confirmed) {
+        // Quote phase: DO NOT emit bridge_routes alongside bridge_quote
         let quotePreview;
         try {
           quotePreview = await prepareFxrpOftBridge(
@@ -1422,7 +1620,7 @@ export async function runBeaconAgentChat(opts: {
             text: `I couldn’t get an on-chain **quoteSend** fee for **${amount} FXRP → ${dest}**: ${msg}`,
             cards,
             model: "beacon-local",
-            displayModel: "Beacon",
+            displayModel: displayModelName("beacon-local", { fallback: true }),
             paid: true,
             state: { intent: "bridge", phase: "clarify", bridgeTo: dest, amountInUnits: amount },
           };
@@ -1458,6 +1656,7 @@ export async function runBeaconAgentChat(opts: {
         };
       }
 
+      // Prepare phase: DO NOT emit bridge_routes alongside bridge_prepare
       const finalAmount = amount || state.amountInUnits || "1";
       if (parseFloat(fxrpBal.formatted) + 1e-9 < parseFloat(finalAmount)) {
         cards.push({
@@ -1471,7 +1670,7 @@ export async function runBeaconAgentChat(opts: {
           text: `You only have **${fxrpBal.formatted} FXRP** on Coston2. Fund FXRP first, then tell me the amount again.`,
           cards,
           model: "beacon-local",
-          displayModel: "Beacon",
+          displayModel: displayModelName("beacon-local", { fallback: true }),
           paid: true,
           state: { intent: "bridge", phase: "clarify", bridgeTo: dest },
         };
@@ -1498,8 +1697,9 @@ export async function runBeaconAgentChat(opts: {
         sendData: prep.sendData,
         docs: prep.docs,
         warning:
-          `Bridge ${finalAmount} FXRP to ${dest}. Approve FXRP if needed, then OFT send. Fee ≈ ${prep.nativeFeeDisplay}. Destination fill tracked on LayerZero Scan after source confirms.`,
+          `Bridge ${finalAmount} FXRP to ${dest}. Approve FXRP if needed, then OFT send. Fee ≈ ${prep.nativeFeeDisplay}. After source confirms: decode GUID → LayerZero Scan → dest OFTReceived (Beacon never invents fills).`,
         layerZeroScanBase: prep.layerZeroScanBase,
+        deliveryHint: prep.deliveryHint,
       });
       const narr = await narrate({
         intent: "bridge",
@@ -1520,6 +1720,7 @@ export async function runBeaconAgentChat(opts: {
     }
 
     if (dest && !amount) {
+      pushBridgeRoutes();
       const narr = await narrate({
         intent: "bridge",
         userMessage: opts.message,
@@ -1538,6 +1739,8 @@ export async function runBeaconAgentChat(opts: {
       };
     }
 
+    // Discovery / open clarify: routes card only
+    pushBridgeRoutes();
     const narr = await narrate({
       intent: "bridge",
       userMessage: opts.message,
@@ -1554,7 +1757,7 @@ export async function runBeaconAgentChat(opts: {
       model: narr.model,
       displayModel: narr.displayModel,
       paid: true,
-      state: { intent: "bridge", phase: "quote" },
+      state: { intent: "bridge", phase: "clarify" },
     };
   }
 

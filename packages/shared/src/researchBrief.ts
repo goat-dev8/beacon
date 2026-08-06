@@ -1,4 +1,4 @@
-import { chatForRole, isAiConfigured } from "./ai.js";
+import { chatForRole, displayModelName, isAiConfigured } from "./ai.js";
 import type { BeaconEnv } from "./env.js";
 import { readFtsoFeeds } from "./ftso.js";
 
@@ -93,7 +93,7 @@ export async function generateResearchBrief(opts: {
       summary,
       content: local,
       model: "beacon-local",
-      displayModel: "Beacon",
+      displayModel: displayModelName("beacon-local", { fallback: true }),
     };
   }
 
@@ -143,7 +143,7 @@ Hard rules:
         summary,
         content: local,
         model: result.model,
-        displayModel: "Beacon",
+        displayModel: displayModelName("beacon-local", { fallback: true }),
       };
     }
 
@@ -152,11 +152,7 @@ Hard rules:
       summary,
       content,
       model: result.model,
-      displayModel: result.model.toLowerCase().includes("gpt")
-        ? "GPT-5.6"
-        : result.model.toLowerCase().includes("claude")
-          ? "Claude Opus 5"
-          : "Beacon",
+      displayModel: displayModelName(result.model),
     };
   } catch {
     return {
@@ -164,7 +160,7 @@ Hard rules:
       summary,
       content: local,
       model: "beacon-local",
-      displayModel: "Beacon",
+      displayModel: displayModelName("beacon-local", { fallback: true }),
     };
   }
 }

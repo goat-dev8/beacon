@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "motion/react";
 import {
   Clapperboard,
   Image,
-  Mic,
   Presentation,
   Code2,
   Search,

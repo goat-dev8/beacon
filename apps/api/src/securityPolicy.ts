@@ -11,6 +11,9 @@ export type BeaconSecurityPolicy = {
   maxVideoSeconds: number;
   emergencyPause: boolean;
   sessionExpiryHours: number;
+  /** ISO timestamp when policy/session was last established (for expiry). */
+  sessionStartedAt?: string;
+  updatedAt?: string;
 };
 
 export const DEFAULT_SECURITY_POLICY: BeaconSecurityPolicy = {
@@ -69,16 +72,45 @@ const OS_AGENT_ROLLOUT = [
 ] as const;
 
 function migrateStoredPolicy(stored: BeaconSecurityPolicy): BeaconSecurityPolicy {
-  const allowedAgents = [...new Set([...stored.allowedAgents.filter((a) => a !== "video"), ...OS_AGENT_ROLLOUT])];
+  const allowedAgents = [
+    ...new Set([...stored.allowedAgents.filter((a) => a !== "video"), ...OS_AGENT_ROLLOUT]),
+  ];
   const allowedChains = [...new Set([...(stored.allowedChains ?? [114]), 14])];
   return { ...stored, allowedAgents, allowedChains };
+}
+
+/**
+ * Spend accounting and session policy require Redis.
+ * Without Redis we fail closed for any monetary / delegated spend path.
+ */
+export function redisRequiredForSpend(redis: Redis | null): asserts redis is Redis {
+  if (!redis) {
+    throw new AppError("VALIDATION", {
+      message:
+        "Security policy spend accounting requires Redis. Refusing spend while Redis is unavailable (fail closed).",
+      statusCode: 503,
+    });
+  }
+}
+
+export function isSessionExpired(policy: BeaconSecurityPolicy, now = Date.now()): boolean {
+  const started =
+    policy.sessionStartedAt ?? policy.updatedAt ?? null;
+  if (!started) return false;
+  const startMs = Date.parse(started);
+  if (!Number.isFinite(startMs)) return false;
+  const hours = policy.sessionExpiryHours ?? DEFAULT_SECURITY_POLICY.sessionExpiryHours;
+  return now - startMs > hours * 60 * 60 * 1000;
 }
 
 export async function loadPolicy(
   redis: Redis | null,
   wallet: string,
-): Promise<{ policy: BeaconSecurityPolicy; source: "redis" | "default" }> {
-  if (!redis) return { policy: DEFAULT_SECURITY_POLICY, source: "default" };
+): Promise<{ policy: BeaconSecurityPolicy; source: "redis" | "default" | "unavailable" }> {
+  if (!redis) {
+    // Defaults only — spend paths fail closed in evaluatePolicy when source is unavailable.
+    return { policy: { ...DEFAULT_SECURITY_POLICY }, source: "unavailable" };
+  }
   const stored = await redis.get<BeaconSecurityPolicy>(policyKey(wallet));
   if (!stored) return { policy: DEFAULT_SECURITY_POLICY, source: "default" };
   return { policy: migrateStoredPolicy(stored), source: "redis" };
@@ -95,7 +127,8 @@ export async function recordSpendUsdt0(
   wallet: string,
   amountUsdt0: number,
 ): Promise<number> {
-  if (!redis || amountUsdt0 <= 0) return amountUsdt0;
+  if (amountUsdt0 <= 0) return 0;
+  redisRequiredForSpend(redis);
   const key = spendKey(wallet);
   const next = (await getDailySpendUsdt0(redis, wallet)) + amountUsdt0;
   await redis.set(key, next, { ex: 60 * 60 * 36 });

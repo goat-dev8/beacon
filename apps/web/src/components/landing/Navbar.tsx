@@ -10,8 +10,8 @@ export function AnnouncementBar() {
       aria-label="Announcement"
     >
       <p className="flex items-center gap-2 text-center font-mono text-sm font-medium tracking-[0.35px] text-ink max-md:text-[0.6875rem]">
-        <span className="max-md:hidden">Beacon: finish AI work. Pay only when it passes.</span>
-        <span className="hidden max-md:inline">Pay only when it passes.</span>
+        <span className="max-md:hidden">Beacon: Flare AI OS. Signal → Quote → Policy → Pay → Execute → Receipt.</span>
+        <span className="hidden max-md:inline">Signal to receipt on Flare.</span>
         <a href="#how" className="underline hover:opacity-80">
           Learn more →
         </a>

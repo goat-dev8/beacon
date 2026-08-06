@@ -38,10 +38,10 @@ export function HowSection() {
       <div className="mx-auto max-w-6xl px-5">
         <SectionLabel>Workflow</SectionLabel>
         <h2 className="mx-auto max-w-3xl text-center font-display text-3xl font-extrabold tracking-tight text-ink md:text-5xl">
-          How Beacon finishes every job
+          From signal to receipt
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-center text-ink-muted">
-          One path. Quote locks price and quality before work starts.
+          One Flare AI OS path. Every step is visible before you sign.
         </p>
         <div className="mt-12 rounded-none border border-dashed border-line bg-paper p-6 md:p-10">
           <HowBeaconWorksDiagram />
@@ -50,18 +50,18 @@ export function HowSection() {
           {[
             {
               step: "01",
-              title: "Describe once",
-              body: "Pick a service and write the brief. Beacon checks it can finish the job.",
+              title: "Signal & quote",
+              body: "FTSO, pairs, and routes become a priced quote before anything moves.",
             },
             {
               step: "02",
-              title: "Approve the quote",
-              body: "See price, ETA, and what’s included. One approve starts the desk.",
+              title: "Policy & pay",
+              body: "Spend limits gate the run. x402 or wallet confirm only when allowed.",
             },
             {
               step: "03",
-              title: "Pay only on pass",
-              body: "Live progress, then quality checks. Fail means you are not charged.",
+              title: "Execute & receipt",
+              body: "Source tx, protocol observe, destination receipt. Explorer links, not claims.",
             },
           ].map((item, i) => (
             <motion.li
@@ -94,10 +94,10 @@ export function ServicesSection() {
       <div className="mx-auto max-w-6xl px-5">
         <SectionLabel>Services</SectionLabel>
         <h2 className="mx-auto max-w-3xl text-center font-display text-3xl font-extrabold tracking-tight md:text-5xl">
-          Everything from one desk
+          Agents on Flare rails
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-center text-ink-muted">
-          Live catalog from Beacon. You never bring API keys.
+          Live catalog from Beacon Flow. Swap, bridge, signals, and Bound Work in one OS.
         </p>
         <div className="mt-12 grid gap-0 border border-line sm:grid-cols-2 lg:grid-cols-3">
           {isLoading &&
@@ -114,7 +114,7 @@ export function ServicesSection() {
             return (
               <a
                 key={s.id}
-                href="/app"
+                href="/flow"
                 className="group border-b border-r border-line bg-surface p-5 transition-opacity hover:opacity-90"
               >
                 <Icon className="size-5 text-ink transition-transform group-hover:scale-110" />
@@ -141,10 +141,10 @@ export function QualityBand() {
       <div className="mx-auto max-w-4xl px-5 pb-0 pt-10 text-center">
         <SectionLabel className="text-white/45">Quality</SectionLabel>
         <h2 className="font-display text-3xl font-extrabold tracking-tight text-paper md:text-5xl">
-          Checks before charge
+          Policy before pay
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-white/65">
-          Objective gates, a second opinion, brand rules, and a human look when confidence is low.
+          Spend limits gate every settle. Quotes stay visible. Receipts stay on-chain.
         </p>
       </div>
       <PixelWave className="mt-10 h-28 w-full md:h-40" />
@@ -238,13 +238,13 @@ export function FinalCta() {
     <section className="bg-dusk py-24 text-paper">
       <div className="mx-auto max-w-6xl px-5 text-center">
         <h2 className="font-display text-3xl font-extrabold tracking-tight md:text-5xl">
-          Open Beacon. Finish the work.
+          Open Beacon Flow
         </h2>
         <p className="mx-auto mt-4 max-w-md text-white/65">
-          Start a job on the live desk. Quotes, wallets, and progress hit production APIs and contracts.
+          Talk to Flare AI OS. Quotes, policy, payments, and explorer receipts on production rails.
         </p>
         <div className="mt-8 flex justify-center">
-          <FacetCtaPair left="See pricing" right="Start now" leftTo="#how" rightTo="/app" />
+          <FacetCtaPair left="See the path" right="Open Flow" leftTo="#how" rightTo="/flow" />
         </div>
       </div>
     </section>
@@ -256,7 +256,7 @@ export function Footer() {
     <footer className="border-t border-line bg-surface py-10">
       <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-4 px-5 text-sm text-ink-faint md:flex-row md:items-center">
         <p>© {new Date().getFullYear()} Beacon</p>
-        <p className="font-mono text-xs">Finish AI work. Pay only when it passes.</p>
+        <p className="font-mono text-xs">Flare AI OS. Signal to receipt.</p>
       </div>
     </footer>
   );

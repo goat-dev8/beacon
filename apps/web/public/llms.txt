@@ -1,0 +1,18 @@
+# Beacon · Flare AI OS
+
+> Conversation product for Flare rails: signal → quote → policy → pay → execute → receipt.
+
+## Product
+- Flow: chat agents for FTSO signals, SparkDEX (Flare Mainnet), LayerZero OFT bridge (Coston2 source), x402 pay, Bound Work
+- Policy: server-enforced spend limits
+- Networks: Coston2 (114) for FTSO / FAssets / OFT / x402; Flare Mainnet (14) for SparkDEX execute
+
+## Links
+- App: /flow
+- Bound Work: /flow/desk
+- Policy: /flow/security
+
+## Honesty
+- No simulated FCC attestation presented as verified
+- Explorer links are network-correct (Coston2 vs flarescan.com)
+- Model badges show exact Agent Router ids or "deterministic fallback"

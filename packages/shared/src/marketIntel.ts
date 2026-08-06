@@ -5,7 +5,7 @@
  * Never invents odds markets. Labels confidence as model+oracle derived.
  */
 
-import { chatCompletion, isAiConfigured } from "./ai.js";
+import { chatCompletion, displayModelName, isAiConfigured } from "./ai.js";
 import { loadEnv, type BeaconEnv } from "./env.js";
 import { buildTradeSignal, readErc20Balance, readFtsoFeeds, resolveFxrpAddress, COSTON2_USDT0 } from "./ftso.js";
 import { discoverSparkDexPools } from "./sparkDex.js";
@@ -82,8 +82,8 @@ export async function buildMarketIntelligence(opts?: {
 
   const liquidityNote =
     liquidPools > 0
-      ? `SparkDEX Mainnet: ${liquidPools} liquid pool(s) across discovered pairs (${pools!.pairs.map((p) => `${p.symbolA}/${p.symbolB}`).join(", ")}).`
-      : "SparkDEX liquidity discovery unavailable — quotes use FTSO only.";
+      ? `SparkDEX Mainnet: ${liquidPools} liquid pool(s) across discovered pairs (${pools!.pairs.map((p) => `${p.symbolA}/${p.symbolB}`).join(", ")}). Executable quotes use QuoterV2 (not FTSO mid).`
+      : "SparkDEX liquidity discovery unavailable — FTSO remains narrative/portfolio only; no executable DEX quote.";
 
   const rationale = [
     `FTSO bias=${signal.bias}: ${signal.summary}`,
@@ -100,7 +100,7 @@ export async function buildMarketIntelligence(opts?: {
         : "No strong directional edge — wait or use @signals for another FTSO read.";
 
   let model = "beacon-local";
-  let displayModel = "Beacon";
+  let displayModel = displayModelName("beacon-local", { fallback: true });
   let narrativeExtra = "";
 
   if (isAiConfigured(env)) {
@@ -130,16 +130,13 @@ Heuristic probabilityRiskOn=${probabilityRiskOn.toFixed(2)} confidence=${confide
       );
       narrativeExtra = result.content.trim();
       model = result.model ?? modelId;
-      displayModel = model.toLowerCase().includes("claude")
-        ? "Claude Opus 5"
-        : model.toLowerCase().includes("gpt")
-          ? "GPT-5.6"
-          : "Beacon";
+      displayModel = displayModelName(model);
       if (narrativeExtra) {
         recommendedAction = narrativeExtra.split("\n").filter(Boolean).slice(-1)[0] || recommendedAction;
       }
     } catch {
-      /* keep heuristic */
+      /* keep heuristic — label deterministic fallback */
+      displayModel = displayModelName("beacon-local", { fallback: true });
     }
   }
 

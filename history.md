@@ -1,10 +1,105 @@
-# Beacon ? Engineering History (memory)
+# Beacon ù Engineering History (memory)
 
 Living log of what was done. No secrets in this file.
 
 ---
 
-## 2026-08-06 - Flare AI OS ship ∑ SparkDEX honesty ∑ FAssets ∑ Market Intel
+## 2026-08-06 - FDC honesty + Summer Signal research baseline
+
+- Wrote `SUMMER_SIGNAL_RESEARCH_2026-08-06.md` (constraints, competitor benchmark without private names, audit gaps, ship list).
+- Applied Linear `DESIGN.md` for product UI tokens.
+- `packages/fdc`: refuse invented `requestId` UUIDs when verifier prepare omits id (fail closed).
+- Phase-scoped cards, QuoterV2, yield vaults, x402 domain-from-token, Flow UX, Agent Vault contract+UI shipped in parallel slices (see entries below).
+- **Coston2 deploy:** `BeaconAgentVault` at `0x9bD5B894Da0a54B7649A4084d93D58df4f6182e0` (token MockUSDT0 `0x6fd8Öe86c`, owner/executor deployer). Set `BEACON_AGENT_VAULT_ADDRESS` / `VITE_BEACON_AGENT_VAULT_ADDRESS`.
+
+---
+
+## 2026-08-06 - Beacon Agent Vault into Security UI + API
+
+- **Contract:** `BeaconAgentVault` (deposit / withdraw / setPolicy / setExecutor / execute / pause) already in `packages/contracts`; JobRegistry authorizer/closer roles noted.
+- **Shared:** `packages/shared/src/vaultClient.ts` - ABI reads + prepare calldata; unset address -> readiness only (no fake balances). Explicit copy: vault pool != Bound Work `BeaconEscrow` per-job lock.
+- **API:** `GET /v1/vault/status?address=` ; `POST /v1/vault/prepare` (deposit/withdraw/setPolicy/setPaused/setExecutor). Health `flareRails.agentVault`.
+- **UI:** Security page reframed as **Agent Vault & Policy** - on-chain status panel + owner actions; API spend gates kept secondary.
+- **Env:** `BEACON_AGENT_VAULT_ADDRESS` / `VITE_BEACON_AGENT_VAULT_ADDRESS` (+ `VAULT_EXECUTOR`) in `.env.example`s.
+- **Forge:** `Deploy.s.sol` already deploys vault in full stack; added `DeployAgentVault.s.sol` for vault-only onto existing `X402_TOKEN_ADDRESS` on Coston2.
+- **No mainnet deploy / no secrets commit / no push.**
+
+---
+
+## 2026-08-06 - Harden x402 + OFT destination + Redis fail-closed
+
+### x402 / EIP-712
+- `packages/x402/src/eip3009.ts`: resolve EIP-712 domain **from `token.name()` / `version()`** ù never hardcode `"USD?0"` (MockUSDT0 uses `"USD0"`). `buildEip3009Domain` fail-closed without explicit name.
+- `assertX402PaymentFields`: network/token/payee/exact amount/validity window/nonce checks.
+- `paidResources.ts`: full settle validation + on-chain `authorizationState` check; idempotent receipt cache (Redis + memory); nonce in-flight lock; MockUSDT0 labeled **testnet/demo**.
+- Agent chat settle: same field checks + refuse double-settle; settler key fallback.
+
+### LayerZero OFT destination
+- `oftBridge.ts`: peers from `peers(eid)` + `PeerSet` events; fallback routes status=`fallback-snapshot`, `live:false` ù never presented as live.
+- `prepareFxrpOftBridge` refuses fallback-only peers; re-reads `peers(eid)` before `quoteSend`.
+- `decodeOftGuidFromReceipt` / `observeOftSourceSend` / `trackOftDelivery` ù GUID from OFTSent, dest poll `OFTReceived`, UI phases source ? protocol ? dest.
+- API `GET /v1/agents/bridge/delivery`; Flow polls after source send; routes card labels snapshot vs live.
+
+### Redis / policy / CORS
+- Spend accounting + delegated workflow amounts **fail closed** without Redis.
+- Policy PUT requires Redis; stores `sessionStartedAt` / `updatedAt`; `isSessionExpired` enforced in evaluator.
+- CORS: prefer `WEB_ORIGIN` / `ALLOWED_ORIGINS` when set.
+
+### Verification (local smoke)
+- Domain without name throws; name `USD0` OK
+- Payment field assert OK; OFTSent GUID decode OK; fallback peers all `live:false`
+- Session expiry after `sessionExpiryHours` returns expired
+
+**No commit/push** (per request).
+
+---
+
+## 2026-08-06 - Flow conversation UX redesign (Flare Summer Signal)
+
+### Design decisions
+- **Linear calm + emerald Beacon:** DESIGN.md surface ladder (`#010102` canvas, hairline borders, 8/12px radii) mapped onto existing `--p-*`; chromatic accent stays `#39e08a` (no purple AI glow).
+- **One history rail + one top bar:** ProductShell icon rail remains the only product nav (Flow / Work / Policy). Removed inner Flow/Bound Work/Security tabs and duplicate agent pickers (sidebar shortcuts + composer ùAll agentsù).
+- **Centered chat column:** `max-w-[42rem]`, body/prose ~15.5px; auto-scroll to latest; mobile history via overlay + top-bar toggle.
+- **Cards for current phase only:** `cardsForDisplay` renders full interactive cards on the latest assistant turn; historical discovery catalogs are hidden; older live cards become compact ùpastù chips.
+- **One execution surface:** phases `quote ? authorization ? source tx ? protocol observe ? destination receipt ? next step`. Prefer `convState.phase` + tx/event status over inferred completion. Inspector mounts only when active; mobile sheet starts collapsed.
+- **Network-correct explorers:** `lib/explorers.ts` ù Coston2 vs flarescan.com (chain 14) for SparkDEX; bridge/x402 stay Coston2 + LayerZero Scan.
+
+### Files
+- New: `apps/web/src/components/flow/{HistoryRail,ChatTopBar,ChatColumn,Composer,MessageList,ActionCards}.tsx`
+- New: `apps/web/src/lib/{flowTypes,explorers}.ts`
+- Reworked: `executionPhases.ts`, `ExecutionDrawer.tsx`, `FlowPage.tsx`, `index.css`
+- Landing: Hero/Navbar/Sections ? Flare AI OS story; `public/robots.txt`, `public/llms.txt`
+- Policy UI: FCC wording neutralized further
+
+### Typecheck
+```bash
+cd apps/web && npm run build   # tsc -b && vite build
+# or: npx tsc -b --pretty false
+```
+
+---
+
+## 2026-08-06 - QuoterV2 + vault rails + FAssets redeem prepare
+
+- **SparkDEX:** QuoterV2 `0x5B5513c55fd06e2658010c121c37b07fC8e8B705` on Mainnet only; `prepareSparkDexSwap` minOut/estimatedOut from `quoteExactInputSingle` (never FTSO). Slippage + price-impact-vs-FTSO surfaced. Pool discovery prefers `PoolCreated` logs + `getPool` harden. Coston2 empty bytecode gate unchanged.
+- **Yield vaults:** Coston2 Firelight `0xC90D6847747b85d1fa2E07859869fb9fB72c0361` + Upshift `0x24c1a47cD5e8473b64EAB2a94515a196E10C7C81` status/prepare module (`yieldVaults.ts`); wired `@yield` + `/v1/agents/yield` (+ deposit prepare). **No APY invented.**
+- **FAssets:** keep `lotSize()`; mint = `docs_handoff` (XRPL/Xaman, no fake button); `prepareFassetsRedeemLots` + event watch helper; API `/v1/agents/fassets/redeem/prepare`.
+- Tests: Quoter path unit test asserts minOut is not FTSO mid.
+
+---
+
+## 2026-08-06 - Judge honesty fixes (cards ù stubs ù FCC ù models ù treasury)
+
+- **Phase-scoped cards:** swap/bridge quote+prepare turns no longer also emit `swap_pairs` / `bridge_routes`; discovery cards only on clarify/catalog.
+- **Execution registry:** removed stub adapters (`media.image`, `research.report`, `bound_work`, `trade.signal_action`, `signals.deep`); only live `swap` + `bridge` prepare adapters registered.
+- **FCC:** default `FCC_MODE=unavailable` (never present simulated as verified); Security + Flow + `/health` copy neutralized.
+- **Model badges:** show exact Agent Router model id; local/heuristic paths labeled `deterministic fallback` (no fake Claude Opus 5 / GPT-5.6 marketing names).
+- **Treasury:** labeled as verified-read policy/budget lens over the same Portfolio desk ù not a separate vault product.
+- Honesty: SparkDEX = Flare Mainnet only; Coston2 x402 = MockUSDT0.
+
+---
+
+## 2026-08-06 - Flare AI OS ship ù SparkDEX honesty ù FAssets ù Market Intel
 
 ### Research (mandatory)
 - DevHub MCP + FAssets reference: **Coston2 controller returns 1 manager** (Testnet XRP / FTestXRP). FBTC/FDOGE **not on Coston2**.
@@ -39,7 +134,7 @@ Living log of what was done. No secrets in this file.
 | FTSO / FAssets status / OFT / x402 | Coston2 (114) |
 | SparkDEX swap execute | Flare Mainnet (14) |
 
-**Live:** https://beacon-desk.vercel.app ∑ https://beacon-api-97gl.onrender.com
+**Live:** https://beacon-desk.vercel.app ù https://beacon-api-97gl.onrender.com
 
 ---
 
@@ -56,7 +151,7 @@ Living log of what was done. No secrets in this file.
 - Policy enforcement: daily 0.5 with spent 1.75 ? `Daily budget 0.5 USDT0 exceeded`
 - History: conversations list + activity strip
 - Bridge routes API: 4 on-chain peers including Base Sepolia
-- Balances API after fix: USDT0 10 ∑ FXRP 9 ∑ Mock ~3006
+- Balances API after fix: USDT0 10 ù FXRP 9 ù Mock ~3006
 
 ### Bugs found and fixed (pushed)
 1. `/v1/agents/balances` 500 ? MockUSDT0 `symbol()` CALL_EXCEPTION + bigint JSON ? tolerate symbol + serialize raw string (`9b36e68`)
@@ -70,7 +165,7 @@ Living log of what was done. No secrets in this file.
 
 ---
 
-## 2026-08-05 - Dynamic OFT peers ∑ FTSO strip ∑ refresh-safe execution ∑ win research refresh
+## 2026-08-05 - Dynamic OFT peers ù FTSO strip ù refresh-safe execution ù win research refresh
 
 **Research:** DevHub getOftPeers pattern + Polymarket Gamma overview. Decision: **no Polymarket betting UI** for Bounty 1; keep Flare asset rails as the hero. Documented in `WIN_RESEARCH_2026-08-05.md`.
 
@@ -85,7 +180,7 @@ Living log of what was done. No secrets in this file.
 
 ---
 
-## 2026-08-05 - x402 Settled is not a lock ∑ Pay again ∑ win research
+## 2026-08-05 - x402 Settled is not a lock ù Pay again ù win research
 
 **User question:** After FTSO / Research settle, UI showed "Settled for this service". Does that mean another pay is impossible?
 
@@ -152,7 +247,7 @@ Living log of what was done. No secrets in this file.
 
 ---
 
-## 2026-08-05 ? Flow OS UX ∑ Bound Work shell ∑ x402 Paid fix ∑ quote redesign
+## 2026-08-05 ? Flow OS UX ù Bound Work shell ù x402 Paid fix ù quote redesign
 
 **Goal:** Product shell that never abandons chat chrome; honest x402 Paid badges; premium bridge quotes (brand emerald, dark/light).
 
@@ -172,7 +267,7 @@ Living log of what was done. No secrets in this file.
 
 ---
 
-## 2026-08-05 ? Productization refactor ∑ Gates 0?4 in progress
+## 2026-08-05 ? Productization refactor ù Gates 0?4 in progress
 
 **Goal:** Universal execution engine; Bounty 1 Interoperable Asset Products; remove pay-loop and bridge-plan-only bugs.
 
@@ -195,7 +290,7 @@ Living log of what was done. No secrets in this file.
 
 ---
 
-## 2026-08-05 ? Hackathon win mode ∑ AI OS productization
+## 2026-08-05 ? Hackathon win mode ù AI OS productization
 
 **Goal:** Beacon feels like production Flare AI OS, not chatbot + demos.
 
@@ -295,7 +390,7 @@ Living log of what was done. No secrets in this file.
 **Product:** Beacon ? Finish AI work. Pay only when it passes.  
 **Production desk:** https://beacon-desk.vercel.app/  
 **Production API:** https://beacon-api-97gl.onrender.com/ (`pipeline` caps `2026-08-04-pro-media-v1`)  
-**Local desk:** `http://localhost:5173/` ∑ API: `http://127.0.0.1:3001`  
+**Local desk:** `http://localhost:5173/` ù API: `http://127.0.0.1:3001`  
 **Network:** Flare Testnet Coston2 (chain 114)  
 **Live contracts**
 | Contract | Address |
@@ -314,12 +409,12 @@ Explorer: https://coston2-explorer.flare.network
 - AgentRouter chat for prompt engineer / quote / judge (image models still 403 on AgentRouter)
 - SVG fallback only when Comfy + HF + Pollinations all fail
 - **`MEDIA_FAST=true`** on Render: skip Opus prompt eng + L2 judge hang; Flux still runs
-- Proven Render Image e2e: job `b133b5f7?` ? **CLOSED / Paid** ∑ `image/jpeg` ∑ escrow released `0x03d86bec?`
+- Proven Render Image e2e: job `b133b5f7?` ? **CLOSED / Paid** ù `image/jpeg` ù escrow released `0x03d86bec?`
 
 ### Proven end-to-end (real wallet + escrow + settle)
 | Job | Path | Result | Escrow | Lock / notes |
 |---|---|---|---|---|
-| `1de49605?` | **Vercel + MetaMask** Image | **Done / Paid $5.88** | released | SVG creative ∑ lock `0xe55379a3?` ∑ wallet `0x3be5?c794` |
+| `1de49605?` | **Vercel + MetaMask** Image | **Done / Paid $5.88** | released | SVG creative ù lock `0xe55379a3?` ù wallet `0x3be5?c794` |
 | `a0071b85?` | deep-api Image (Render) | **CLOSED** PASS | released | `image/svg+xml` artifact proven |
 | `517200e7?` | deep-api documents | **CLOSED** PASS | released | script |
 | `484e48d1?` | deep-api documents | **CLOSED** PASS | released | script |
@@ -361,7 +456,7 @@ Explorer: https://coston2-explorer.flare.network
 - Landing + `/app` Bound Work flow
 - MetaMask: Coston2 connect, EIP-3009, `BeaconEscrow.lockWithAuthorization`, mint MockUSDT0
 - Result panel: **agent-style transcript** (inline draft/document), artifact tabs, Flare rails timeline, receipt with lock/settle explorer links
-- Progress: consumer timeline + **Flare rails ∑ Coston2** (wallet ? EIP-3009 ? escrow lock ? generate ? acceptance ? release/refund ? receipt)
+- Progress: consumer timeline + **Flare rails ù Coston2** (wallet ? EIP-3009 ? escrow lock ? generate ? acceptance ? release/refund ? receipt)
 - `?job=<id>` restores Done/result view after refresh
 
 ### Contracts / Flare

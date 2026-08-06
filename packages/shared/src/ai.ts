@@ -93,6 +93,22 @@ export function isAiConfigured(env: BeaconEnv = loadEnv()): boolean {
   return Boolean(resolveAiApiKey(env) && resolveAiBaseUrl(env));
 }
 
+/**
+ * Product-facing model label: exact Agent Router model id when live;
+ * never invent marketing names (e.g. "Claude Opus 5" / "GPT-5.6").
+ */
+export function displayModelName(model: string, opts?: { fallback?: boolean }): string {
+  const m = (model || "").trim();
+  if (
+    opts?.fallback ||
+    !m ||
+    /beacon-local|local-heuristic|heuristic|deterministic/i.test(m)
+  ) {
+    return "deterministic fallback";
+  }
+  return m;
+}
+
 function normalizeOpenAiBase(baseUrl: string): string {
   const trimmed = baseUrl.replace(/\/$/, "");
   if (trimmed.endsWith("/v1")) return trimmed;

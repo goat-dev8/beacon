@@ -158,6 +158,8 @@ export const envSchema = z.object({
   BEACON_JOB_REGISTRY: optionalString,
   BEACON_ESCROW: optionalString,
   BEACON_CREDIT: optionalString,
+  /** Optional until BeaconAgentVault is deployed on Coston2. */
+  BEACON_AGENT_VAULT_ADDRESS: optionalString,
 
   S3_ENDPOINT: optionalString,
   S3_BUCKET: optionalString,
@@ -205,7 +207,7 @@ export function requireEnv<K extends keyof BeaconEnv>(
 
 export function honestyMessage(simulatedTee: boolean): string {
   if (simulatedTee) {
-    return "Confidentiality is demonstrated in simulation mode, not hardware-enforced.";
+    return "FCC / confidential compute is unavailable for this product path — server policy only; not hardware-verified. Do not treat any TEE label as attestation.";
   }
   return "Confidentiality uses attested hardware where configured.";
 }

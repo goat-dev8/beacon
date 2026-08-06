@@ -1,6 +1,7 @@
 import type { Redis } from "@upstash/redis";
 import {
   getDailySpendUsdt0,
+  isSessionExpired,
   loadPolicy,
   type BeaconSecurityPolicy,
 } from "./securityPolicy.js";
@@ -27,10 +28,10 @@ export type PolicyEvaluateInput = {
 };
 
 function resolveFccMode(): PolicyDecision["fccMode"] {
-  const raw = (process.env.FCC_MODE ?? "simulated").toLowerCase();
+  const raw = (process.env.FCC_MODE ?? "unavailable").toLowerCase();
   if (raw === "verified") return "verified";
-  if (raw === "unavailable") return "unavailable";
-  return "simulated";
+  if (raw === "simulated") return "simulated";
+  return "unavailable";
 }
 
 function agentFromWorkflow(workflowType?: string): string | undefined {
@@ -60,6 +61,11 @@ export async function evaluatePolicy(
   const fccMode = resolveFccMode();
   const agentId = input.agentId ?? agentFromWorkflow(input.workflowType);
   const serviceId = input.serviceId ?? serviceFromWorkflow(input.workflowType);
+  const needsSpendAccounting =
+    (input.amountUsdt0 != null && input.amountUsdt0 > 0) ||
+    Boolean(input.workflowType) ||
+    serviceId === "image" ||
+    serviceId === "video";
 
   if (!input.wallet) {
     return {
@@ -69,6 +75,19 @@ export async function evaluatePolicy(
       enforcement: "server",
       fccMode,
       checks: { walletRequired: false },
+    };
+  }
+
+  // Fail closed: delegated execution / spend accounting requires Redis.
+  if (!redis && needsSpendAccounting) {
+    return {
+      allowed: false,
+      reason:
+        "Security policy spend accounting requires Redis. Refusing spend while Redis is unavailable (fail closed).",
+      policyVersion: POLICY_VERSION,
+      enforcement: "server",
+      fccMode,
+      checks: { redisRequired: true, redisAvailable: false },
     };
   }
 
@@ -83,7 +102,33 @@ export async function evaluatePolicy(
     amountUsdt0: input.amountUsdt0,
     chainId: input.chainId,
     allowedChains: policy.allowedChains,
+    sessionExpiryHours: policy.sessionExpiryHours,
+    sessionStartedAt: policy.sessionStartedAt ?? policy.updatedAt ?? null,
   };
+
+  if (source === "unavailable" && needsSpendAccounting) {
+    return {
+      allowed: false,
+      reason:
+        "Security policy store unavailable — spend denied (fail closed). Configure Upstash Redis.",
+      policyVersion: POLICY_VERSION,
+      enforcement: "server",
+      fccMode,
+      checks,
+    };
+  }
+
+  if (isSessionExpired(policy)) {
+    return {
+      allowed: false,
+      reason: `Security session expired after ${policy.sessionExpiryHours}h. Refresh policy in Security Center.`,
+      policyVersion: POLICY_VERSION,
+      enforcement: "server",
+      fccMode,
+      checks: { ...checks, sessionExpired: true },
+    };
+  }
+  checks.sessionExpired = false;
 
   if (input.chainId != null && policy.allowedChains.length > 0) {
     if (!policy.allowedChains.includes(input.chainId)) {
@@ -123,6 +168,16 @@ export async function evaluatePolicy(
   checks.agentAllowed = agentId ? true : undefined;
 
   if (input.amountUsdt0 != null && input.amountUsdt0 > 0) {
+    if (!redis) {
+      return {
+        allowed: false,
+        reason: "Cannot verify daily spend without Redis (fail closed).",
+        policyVersion: POLICY_VERSION,
+        enforcement: "server",
+        fccMode,
+        checks: { ...checks, redisRequired: true },
+      };
+    }
     if (input.amountUsdt0 > policy.perJobLimitUsdt0) {
       return {
         allowed: false,

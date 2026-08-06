@@ -420,6 +420,43 @@ export async function approveJobOnChain(params: {
   };
 }
 
+/** Approve (optional) + BeaconAgentVault owner call on Coston2. */
+export async function executeAgentVaultPrep(params: {
+  to: Address;
+  data: Hex;
+  approveTo?: Address;
+  approveData?: Hex;
+}): Promise<{ approveHash?: Hex; txHash: Hex }> {
+  await ensureCoston2Network();
+  const wallet = walletClient();
+  const pub = publicClient();
+  const [account] = await wallet.getAddresses();
+  if (!account) throw new Error("Connect a wallet first.");
+
+  let approveHash: Hex | undefined;
+  if (params.approveTo && params.approveData) {
+    approveHash = await wallet.sendTransaction({
+      account,
+      to: params.approveTo,
+      data: params.approveData,
+      chain: coston2,
+    });
+    await pub.waitForTransactionReceipt({ hash: approveHash });
+  }
+
+  const txHash = await wallet.sendTransaction({
+    account,
+    to: params.to,
+    data: params.data,
+    chain: coston2,
+  });
+  const receipt = await pub.waitForTransactionReceipt({ hash: txHash });
+  if (receipt.status === "reverted") {
+    throw new Error("Vault transaction reverted on Coston2.");
+  }
+  return { approveHash, txHash };
+}
+
 export function shortAddress(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }

@@ -19,13 +19,24 @@ import {
   readFtsoFeeds,
   prepareUsdt0ToFxrpSwap,
   prepareFxrpOftBridge,
+  trackOftDelivery,
   readErc20Balance,
   resolveFxrpAddress,
   discoverFxrpOftRoutes,
   discoverSparkDexPools,
   readFassetsDesk,
+  prepareFassetsRedeemLots,
   buildMarketIntelligence,
   readPortfolioDesk,
+  readYieldVaultDesk,
+  prepareFirelightDeposit,
+  prepareUpshiftDeposit,
+  readAgentVaultStatus,
+  prepareAgentVaultDeposit,
+  prepareAgentVaultWithdraw,
+  prepareAgentVaultSetPolicy,
+  prepareAgentVaultSetPaused,
+  prepareAgentVaultSetExecutor,
   COSTON2_USDT0,
   chatCompletionStream,
   resolveModelForRole,
@@ -33,7 +44,15 @@ import {
   type BeaconAgentId,
   type ConversationState,
 } from "@beacon/shared";
-import { FacilitatorClient } from "@beacon/x402";
+import {
+  FacilitatorClient,
+  assertX402PaymentFields,
+  resolveEip3009Domain,
+  buildEip3009Domain,
+  TRANSFER_WITH_AUTHORIZATION_TYPES,
+  randomAuthNonce,
+  MOCK_USDT0_DEMO_LABEL,
+} from "@beacon/x402";
 import { JsonRpcProvider, Wallet, Signature } from "ethers";
 import {
   buildBoundOffer,
@@ -43,7 +62,6 @@ import {
   type ServiceId,
 } from "@beacon/quote";
 import { registryFromEnv, assertRegistryConfigured, encodeCreditDepositMemo } from "@beacon/smart-accounts";
-import { buildEip3009Domain, TRANSFER_WITH_AUTHORIZATION_TYPES, randomAuthNonce } from "@beacon/x402";
 import { startEmbeddedWorkers } from "./workers.js";
 import { PIPELINE_CAPS } from "@beacon/pipeline";
 import {
@@ -89,8 +107,28 @@ const app = Fastify({
   logger: { level: env.LOG_LEVEL },
 });
 
-await app.register(cors, { origin: true });
+await app.register(cors, {
+  origin: resolveCorsOrigin(),
+  credentials: true,
+});
 await app.register(sensible);
+
+function resolveCorsOrigin(): boolean | string | string[] {
+  const raw = process.env.ALLOWED_ORIGINS || process.env.WEB_ORIGIN || "";
+  const listed = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (listed.length > 0) {
+    return listed.length === 1 ? listed[0]! : listed;
+  }
+  if ((process.env.NODE_ENV ?? "development") === "production") {
+    console.warn(
+      "[cors] WEB_ORIGIN / ALLOWED_ORIGINS unset — reflecting request origin. Set explicit production origins.",
+    );
+  }
+  return true;
+}
 
 app.setErrorHandler((error, _req, reply) => {
   if (isAppError(error)) {
@@ -118,6 +156,7 @@ app.get("/health", async () => ({
     x402Token: env.X402_TOKEN_ADDRESS,
     facilitator: env.X402_FACILITATOR_ADDRESS,
     jobRegistry: env.BEACON_JOB_REGISTRY,
+    agentVault: env.BEACON_AGENT_VAULT_ADDRESS || null,
     contractRegistry: env.FLARE_CONTRACT_REGISTRY,
     rpc: env.COSTON2_RPC_URL,
   },
@@ -130,6 +169,11 @@ app.get("/health", async () => ({
     "flare-fcc-skill",
   ],
   simulatedTee: env.SIMULATED_TEE,
+  fccMode: (process.env.FCC_MODE ?? "unavailable").toLowerCase() === "verified"
+    ? "verified"
+    : (process.env.FCC_MODE ?? "unavailable").toLowerCase() === "simulated"
+      ? "simulated"
+      : "unavailable",
   honesty: honestyMessage(env.SIMULATED_TEE),
   service: "beacon-api",
   version: "0.1.0",
@@ -714,6 +758,50 @@ app.get("/v1/agents/fassets", async () => {
   return { ok: true, ...desk };
 });
 
+app.get("/v1/agents/yield", async (req) => {
+  const walletRaw = (req.query as { wallet?: string }).wallet;
+  const wallet =
+    walletRaw && /^0x[a-fA-F0-9]{40}$/.test(walletRaw) ? walletRaw : undefined;
+  const desk = await readYieldVaultDesk({ wallet, env });
+  return { ok: true, ...desk };
+});
+
+app.post("/v1/agents/fassets/redeem/prepare", async (req) => {
+  const body = z
+    .object({
+      lots: z.number().int().positive(),
+      underlyingAddress: z.string().min(25).max(64),
+      executor: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+      assetManager: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+    })
+    .parse(req.body ?? {});
+  const prep = await prepareFassetsRedeemLots(body, env);
+  if (!prep.ok) return { ok: false, error: prep.error };
+  return { ok: true, prep };
+});
+
+app.post("/v1/agents/yield/prepare", async (req) => {
+  const body = z
+    .object({
+      vault: z.enum(["firelight", "upshift"]),
+      action: z.enum(["deposit"]),
+      amountUnits: z.string().default("1"),
+      recipient: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+    })
+    .parse(req.body ?? {});
+  const prep =
+    body.vault === "firelight"
+      ? await prepareFirelightDeposit(
+          { amountUnits: body.amountUnits, recipient: body.recipient },
+          env,
+        )
+      : await prepareUpshiftDeposit(
+          { amountUnits: body.amountUnits, recipient: body.recipient },
+          env,
+        );
+  return { ok: true, prep };
+});
+
 app.get("/v1/agents/intel", async (req) => {
   const wallet = (req.query as { wallet?: string }).wallet;
   const intel = await buildMarketIntelligence({
@@ -741,9 +829,28 @@ app.get("/v1/agents/bridge/routes", async (req) => {
       "https://dev.flare.network/fxrp/oft/fxrp-autoredeem#discovering-available-bridge-routes",
       "https://docs.layerzero.network/v2/deployments/chains/flare-testnet",
     ],
-    honesty:
-      "Peers are read on-chain from the FXRP OFT Adapter. Destination fill is only proven on LayerZero Scan.",
+    // Prefer discoverFxrpOftRoutes honesty — never present fallback snapshot as live.
+    honesty: discovered.honesty,
   };
+});
+
+app.get("/v1/agents/bridge/delivery", async (req) => {
+  const q = z
+    .object({
+      tx: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+      dstEid: z.coerce.number().int().positive().optional(),
+      peer: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+      guid: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
+    })
+    .parse(req.query ?? {});
+  const status = await trackOftDelivery({
+    sourceTxHash: q.tx,
+    dstEid: q.dstEid,
+    peer: q.peer,
+    guid: q.guid,
+    env,
+  });
+  return { ok: true, delivery: status };
 });
 
 app.get("/v1/agents/balances", async (req) => {
@@ -879,6 +986,12 @@ app.post("/v1/agents/chat", async (req) => {
   }
 
   if (body.payment?.signature || (body.payment?.r && body.payment?.s)) {
+    if (!env.X402_TOKEN_ADDRESS || !env.X402_FACILITATOR_ADDRESS || !env.X402_PAYEE_ADDRESS) {
+      throw new AppError("SETTLE_FAILED", {
+        message: "x402 rails not configured (MockUSDT0 demo token / facilitator / payee).",
+        statusCode: 503,
+      });
+    }
     const spendUnits = Number(BigInt(body.payment.value)) / 1e6;
     if (body.wallet || body.payment.from) {
       await assertPolicyAllows(redis, {
@@ -887,10 +1000,29 @@ app.post("/v1/agents/chat", async (req) => {
         amountUsdt0: spendUnits,
       });
     }
+
+    let fields;
+    try {
+      fields = assertX402PaymentFields(body.payment, {
+        chainId: env.CHAIN_ID || 114,
+        network: env.NETWORK_NAME || "coston2",
+        tokenAddress: env.X402_TOKEN_ADDRESS,
+        payeeAddress: env.X402_PAYEE_ADDRESS,
+        // Chat settles the signed amount; still enforce payee/token/window/nonce.
+        exactAmount: BigInt(body.payment.value),
+      });
+    } catch (err) {
+      throw new AppError("PAYMENT_REQUIRED", {
+        message:
+          (err instanceof Error ? err.message : "x402 payment invalid") +
+          ` (${MOCK_USDT0_DEMO_LABEL})`,
+      });
+    }
+
     const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
     const client = new FacilitatorClient({
-      facilitatorAddress: env.X402_FACILITATOR_ADDRESS!,
-      tokenAddress: env.X402_TOKEN_ADDRESS!,
+      facilitatorAddress: env.X402_FACILITATOR_ADDRESS,
+      tokenAddress: env.X402_TOKEN_ADDRESS,
       provider,
     });
     let signature = body.payment.signature ?? "";
@@ -901,36 +1033,48 @@ app.post("/v1/agents/chat", async (req) => {
         v: body.payment.v,
       }).serialized;
     }
+
+    const alreadyUsed = await client.isAuthorizationUsed(body.payment.from, fields.nonce);
+    if (alreadyUsed) {
+      throw new AppError("VALIDATION", {
+        message: "x402 nonce already settled on-chain — refuse double charge.",
+      });
+    }
+
     const ok = await client.verifyPayment(
       body.payment.from,
       body.payment.to,
-      BigInt(body.payment.value),
-      BigInt(body.payment.validAfter),
-      BigInt(body.payment.validBefore),
-      body.payment.nonce as `0x${string}`,
+      fields.value,
+      fields.validAfter,
+      fields.validBefore,
+      fields.nonce,
       signature,
     );
     if (!ok) {
-      throw new AppError("VALIDATION", { message: "x402 payment authorization invalid." });
+      throw new AppError("VALIDATION", {
+        message:
+          "x402 payment authorization invalid. EIP-712 domain name must match token.name() (MockUSDT0 may be \"USD0\").",
+      });
     }
-    if (!env.DEPLOYER_PRIVATE_KEY) {
+    const settlerKey = env.DEPLOYER_PRIVATE_KEY || env.SETTLER_PRIVATE_KEY;
+    if (!settlerKey) {
       throw new AppError("SETTLE_FAILED", {
-        message: "Payment settlement unavailable — DEPLOYER_PRIVATE_KEY not configured.",
+        message: "Payment settlement unavailable — settler private key not configured.",
         statusCode: 503,
       });
     }
-    const wallet = new Wallet(env.DEPLOYER_PRIVATE_KEY, provider);
+    const wallet = new Wallet(settlerKey, provider);
     const settled = await client.settlePayment(
       wallet,
       body.payment.from,
       body.payment.to,
-      BigInt(body.payment.value),
-      BigInt(body.payment.validAfter),
-      BigInt(body.payment.validBefore),
-      body.payment.nonce as `0x${string}`,
+      fields.value,
+      fields.validAfter,
+      fields.validBefore,
+      fields.nonce,
       signature,
     );
-    if (!settled.success) {
+    if (!settled.success || !settled.txHash) {
       throw new AppError("SETTLE_FAILED", { message: "x402 settlement failed on-chain." });
     }
     settlementTxHash = settled.txHash;
@@ -1105,6 +1249,80 @@ app.post("/v1/flow/activity", async (req) => {
   return { ok: true };
 });
 
+/**
+ * BeaconAgentVault status — on-chain reads when BEACON_AGENT_VAULT_ADDRESS
+ * (or ?address=) is set. Unset → readiness only, never fake balances.
+ * Distinct from Bound Work BeaconEscrow per-job locks.
+ */
+app.get("/v1/vault/status", async (req) => {
+  const q = req.query as { address?: string };
+  const address =
+    q.address && /^0x[a-fA-F0-9]{40}$/i.test(q.address) ? q.address : undefined;
+  const status = await readAgentVaultStatus({ address, env });
+  return { ok: true, status };
+});
+
+app.post("/v1/vault/prepare", async (req) => {
+  const body = z
+    .object({
+      action: z.enum(["deposit", "withdraw", "setPolicy", "setPaused", "setExecutor"]),
+      address: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
+      amountUsdt0: z.string().optional(),
+      maxSpendPerTxUsdt0: z.string().optional(),
+      rollingWindowBudgetUsdt0: z.string().optional(),
+      rollingWindowSeconds: z.number().int().positive().optional(),
+      sessionExpiresAt: z.number().int().min(0).optional(),
+      paused: z.boolean().optional(),
+      executor: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
+      revoke: z.boolean().optional(),
+    })
+    .parse(req.body ?? {});
+
+  const addr = body.address;
+  let prep;
+  switch (body.action) {
+    case "deposit":
+      prep = await prepareAgentVaultDeposit(
+        { amountUsdt0: body.amountUsdt0 ?? "0", address: addr },
+        env,
+      );
+      break;
+    case "withdraw":
+      prep = await prepareAgentVaultWithdraw(
+        { amountUsdt0: body.amountUsdt0 ?? "0", address: addr },
+        env,
+      );
+      break;
+    case "setPolicy":
+      prep = await prepareAgentVaultSetPolicy(
+        {
+          maxSpendPerTxUsdt0: body.maxSpendPerTxUsdt0 ?? "0",
+          rollingWindowBudgetUsdt0: body.rollingWindowBudgetUsdt0 ?? "0",
+          rollingWindowSeconds: body.rollingWindowSeconds ?? 86400,
+          sessionExpiresAt: body.sessionExpiresAt ?? 0,
+          address: addr,
+        },
+        env,
+      );
+      break;
+    case "setPaused":
+      prep = await prepareAgentVaultSetPaused(
+        { paused: body.paused ?? true, address: addr },
+        env,
+      );
+      break;
+    case "setExecutor":
+      prep = await prepareAgentVaultSetExecutor(
+        { executor: body.executor, revoke: body.revoke, address: addr },
+        env,
+      );
+      break;
+    default:
+      throw new AppError("VALIDATION", { message: "Unknown vault action." });
+  }
+  return { ok: true, prep };
+});
+
 /** Security Center policies — persisted in Redis when available. */
 app.get("/v1/security/policy", async (req) => {
   const wallet = z
@@ -1127,8 +1345,13 @@ app.get("/v1/security/policy", async (req) => {
       dailyBudgetUsdt0: policy.dailySpendUsdt0,
       perJobLimitUsdt0: policy.perJobLimitUsdt0,
       emergencyPause: policy.emergencyPause,
+      sessionExpiryHours: policy.sessionExpiryHours,
+      sessionStartedAt: policy.sessionStartedAt ?? policy.updatedAt ?? null,
       allowedAgents: policy.allowedAgents,
-      note: "Server-enforced policy on Beacon API. Your agent spends only within this budget. Pause or revoke anytime.",
+      note:
+        source === "unavailable"
+          ? "Redis unavailable — spend denied (fail closed). Free agent chat may still work; paid paths require Redis."
+          : "Server-enforced policy on Beacon API. Session expiry is enforced from last policy save. Pause or revoke anytime.",
     },
   };
 });
@@ -1149,15 +1372,27 @@ app.put("/v1/security/policy", async (req) => {
       }),
     })
     .parse(req.body ?? {});
+  const nowIso = new Date().toISOString();
+  const stored: BeaconSecurityPolicy = {
+    ...body.policy,
+    updatedAt: nowIso,
+    sessionStartedAt: nowIso,
+  };
   if (!redis) {
-    return { ok: true, policy: body.policy, source: "ephemeral" };
+    return {
+      ok: false,
+      policy: stored,
+      source: "unavailable",
+      error: "Redis required to persist security policy (fail closed for spend accounting).",
+    };
   }
-  await redis.set(policyKey(body.wallet), body.policy as BeaconSecurityPolicy);
-  return { ok: true, policy: body.policy, source: "redis" };
+  await redis.set(policyKey(body.wallet), stored);
+  return { ok: true, policy: stored, source: "redis" };
 });
 
 app.post("/v1/security/revoke", async (req) => {
   const body = z.object({ wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i) }).parse(req.body ?? {});
+  const nowIso = new Date().toISOString();
   const paused: BeaconSecurityPolicy = {
     ...DEFAULT_SECURITY_POLICY,
     dailySpendUsdt0: 0,
@@ -1167,6 +1402,8 @@ app.post("/v1/security/revoke", async (req) => {
     maxVideoSeconds: 0,
     emergencyPause: true,
     sessionExpiryHours: 1,
+    updatedAt: nowIso,
+    sessionStartedAt: nowIso,
   };
   if (redis) {
     await redis.set(policyKey(body.wallet), paused);
@@ -1236,13 +1473,26 @@ if (redis) {
   console.warn("[workers] Redis unavailable — pipeline/settler not started");
 }
 
-// expose typed data helper for clients that need approve payloads
-export function buildApproveTypedData(tokenAddress: string, chainId: number, fields: Record<string, unknown>) {
+// expose typed data helper for clients that need approve payloads — domain name FROM token.name()
+export async function buildApproveTypedData(
+  tokenAddress: string,
+  chainId: number,
+  fields: Record<string, unknown>,
+  provider?: import("ethers").Provider,
+) {
+  if (!provider) {
+    throw new Error("Provider required to resolve EIP-712 domain from token.name().");
+  }
+  const resolved = await resolveEip3009Domain(provider, tokenAddress, chainId);
   return {
-    domain: buildEip3009Domain(chainId, tokenAddress),
+    domain: buildEip3009Domain(chainId, tokenAddress, {
+      name: resolved.name,
+      version: resolved.version,
+    }),
     types: TRANSFER_WITH_AUTHORIZATION_TYPES,
     primaryType: "TransferWithAuthorization",
     message: fields,
     nonce: randomAuthNonce(),
+    assetLabel: MOCK_USDT0_DEMO_LABEL,
   };
 }

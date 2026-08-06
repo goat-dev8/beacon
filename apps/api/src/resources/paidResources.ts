@@ -9,7 +9,12 @@ import {
   PAID_RESOURCES,
   type BeaconEnv,
 } from "@beacon/shared";
-import { FacilitatorClient, parseUsdtAmount } from "@beacon/x402";
+import {
+  FacilitatorClient,
+  parseUsdtAmount,
+  assertX402PaymentFields,
+  MOCK_USDT0_DEMO_LABEL,
+} from "@beacon/x402";
 
 type PaymentPayload = {
   from: string;
@@ -23,9 +28,13 @@ type PaymentPayload = {
   r?: string;
   s?: string;
   signature?: string;
+  chainId?: number;
+  network?: string;
 };
 
-const memoryReceipts = new Map<string, { txHash: string; body: unknown }>();
+const memoryReceipts = new Map<string, { txHash: string; body: unknown; settledAt: number }>();
+/** In-flight settles keyed by nonce — prevent double-charge races before receipt write. */
+const settlingNonces = new Set<string>();
 
 function resourceIdFromParam(param: string): string {
   return param.replace(/^\/v1\/agents\/resources\//, "").replace(/^\//, "");
@@ -45,12 +54,18 @@ function paymentRequirementFor(
     mimeType: "application/json",
     payTo: env.X402_PAYEE_ADDRESS!,
     maxTimeoutSeconds: 300,
-    asset: "USDT0",
+    /** Demo asset until production EIP-3009 USDT0 exists — never SparkDEX USDT0. */
+    asset: "MockUSDT0",
+    assetLabel: MOCK_USDT0_DEMO_LABEL,
     extra: {
       tokenAddress: env.X402_TOKEN_ADDRESS!,
       facilitatorAddress: env.X402_FACILITATOR_ADDRESS!,
       chainId: env.CHAIN_ID || 114,
+      network: env.NETWORK_NAME || "coston2",
       serviceId: res.id,
+      demo: true,
+      testnetOnly: true,
+      eip712Note: "EIP-712 domain name is read from token.name() (MockUSDT0 may be \"USD0\").",
     },
   };
 }
@@ -79,39 +94,76 @@ function paymentSignature(payment: PaymentPayload): string {
   throw new AppError("VALIDATION", { message: "x402 payment signature missing." });
 }
 
+function receiptKey(nonce: string): string {
+  return `x402:receipt:${nonce.toLowerCase()}`;
+}
+
 async function readCachedReceipt(
   redis: Redis | null,
   nonce: string,
-): Promise<{ txHash: string; body: unknown } | null> {
-  const key = `x402:receipt:${nonce}`;
+): Promise<{ txHash: string; body: unknown; settledAt?: number } | null> {
+  const key = receiptKey(nonce);
   if (redis) {
-    const hit = await redis.get<{ txHash: string; body: unknown }>(key);
-    if (hit) return hit;
+    try {
+      const hit = await redis.get<{ txHash: string; body: unknown; settledAt?: number }>(key);
+      if (hit) return hit;
+    } catch {
+      // Fall through to memory — still prefer not to re-charge if local hit exists.
+    }
   }
-  return memoryReceipts.get(nonce) ?? null;
+  return memoryReceipts.get(nonce.toLowerCase()) ?? null;
 }
 
 async function writeCachedReceipt(
   redis: Redis | null,
   nonce: string,
-  receipt: { txHash: string; body: unknown },
+  receipt: { txHash: string; body: unknown; settledAt: number },
 ): Promise<void> {
-  const key = `x402:receipt:${nonce}`;
-  memoryReceipts.set(nonce, receipt);
+  const key = receiptKey(nonce);
+  memoryReceipts.set(nonce.toLowerCase(), receipt);
   if (redis) {
-    await redis.set(key, receipt, { ex: 86_400 });
+    try {
+      await redis.set(key, receipt, { ex: 86_400 * 7 });
+    } catch {
+      // Memory map still holds idempotency for this process.
+    }
   }
 }
 
 async function verifyAndSettlePayment(
   payment: PaymentPayload,
-  minAmount: bigint,
+  exactAmount: bigint,
   env: BeaconEnv,
 ): Promise<{ txHash: string }> {
-  if (BigInt(payment.value) < minAmount) {
+  const chainId = env.CHAIN_ID || 114;
+  const network = env.NETWORK_NAME || "coston2";
+
+  if (payment.chainId != null && payment.chainId !== chainId) {
+    throw new AppError("VALIDATION", {
+      message: `x402 network mismatch — expected chainId ${chainId} (${network}).`,
+    });
+  }
+  if (payment.network) {
+    const n = payment.network.toLowerCase().replace(/\s+/g, "-");
+    if (!n.includes("coston2") && n !== "flare-coston2" && n !== network.toLowerCase()) {
+      throw new AppError("VALIDATION", {
+        message: `x402 network mismatch — expected ${network} / flare-coston2.`,
+      });
+    }
+  }
+
+  let fields;
+  try {
+    fields = assertX402PaymentFields(payment, {
+      chainId,
+      network,
+      tokenAddress: env.X402_TOKEN_ADDRESS!,
+      payeeAddress: env.X402_PAYEE_ADDRESS!,
+      exactAmount,
+    });
+  } catch (err) {
     throw new AppError("PAYMENT_REQUIRED", {
-      message: "Insufficient x402 payment amount.",
-      details: { required: minAmount.toString(), received: payment.value },
+      message: err instanceof Error ? err.message : "x402 payment fields invalid.",
     });
   }
 
@@ -123,17 +175,28 @@ async function verifyAndSettlePayment(
   });
   const signature = paymentSignature(payment);
 
+  // Fail closed: refuse re-settle of a consumed nonce (idempotent delivery uses receipt cache).
+  const alreadyUsed = await client.isAuthorizationUsed(payment.from, fields.nonce);
+  if (alreadyUsed) {
+    throw new AppError("VALIDATION", {
+      message: "x402 nonce already settled on-chain — resubmit with receipt replay or a new authorization.",
+    });
+  }
+
   const ok = await client.verifyPayment(
     payment.from,
     payment.to,
-    BigInt(payment.value),
-    BigInt(payment.validAfter),
-    BigInt(payment.validBefore),
-    payment.nonce as `0x${string}`,
+    fields.value,
+    fields.validAfter,
+    fields.validBefore,
+    fields.nonce,
     signature,
   );
   if (!ok) {
-    throw new AppError("VALIDATION", { message: "x402 payment authorization invalid." });
+    throw new AppError("VALIDATION", {
+      message:
+        "x402 payment authorization invalid (signature/domain). Domain name must match token.name() — MockUSDT0 uses \"USD0\", not \"USD₮0\".",
+    });
   }
 
   const settlerKey = env.DEPLOYER_PRIVATE_KEY || env.SETTLER_PRIVATE_KEY;
@@ -149,10 +212,10 @@ async function verifyAndSettlePayment(
     wallet,
     payment.from,
     payment.to,
-    BigInt(payment.value),
-    BigInt(payment.validAfter),
-    BigInt(payment.validBefore),
-    payment.nonce as `0x${string}`,
+    fields.value,
+    fields.validAfter,
+    fields.validBefore,
+    fields.nonce,
     signature,
   );
   if (!settled.success || !settled.txHash) {
@@ -192,6 +255,8 @@ async function handlePaidResource(
           r: z.string().optional(),
           s: z.string().optional(),
           signature: z.string().optional(),
+          chainId: z.number().optional(),
+          network: z.string().optional(),
         })
         .optional(),
     })
@@ -204,22 +269,55 @@ async function handlePaidResource(
       error: "Payment Required",
       x402Version: "1",
       accepts: [paymentRequirementFor(resourcePath, res, env)],
+      honesty: MOCK_USDT0_DEMO_LABEL,
     });
   }
 
+  const nonceKey = payment.nonce.toLowerCase();
   const cached = await readCachedReceipt(redis, payment.nonce);
   if (cached) {
     reply.header(
       "X-Payment-Response",
-      Buffer.from(JSON.stringify({ transactionHash: cached.txHash, settled: true, replay: true })).toString(
-        "base64",
-      ),
+      Buffer.from(
+        JSON.stringify({
+          transactionHash: cached.txHash,
+          settled: true,
+          replay: true,
+          asset: "MockUSDT0",
+          demo: true,
+        }),
+      ).toString("base64"),
     );
     return cached.body;
   }
 
-  const minAmount = parseUsdtAmount(parseFloat(res.priceUsdt0));
-  const { txHash } = await verifyAndSettlePayment(payment, minAmount, env);
+  if (settlingNonces.has(nonceKey)) {
+    throw new AppError("VALIDATION", {
+      message: "x402 settlement already in progress for this nonce — retry shortly for receipt replay.",
+      statusCode: 409,
+    });
+  }
+
+  const exactAmount = parseUsdtAmount(parseFloat(res.priceUsdt0));
+  settlingNonces.add(nonceKey);
+  let txHash: string;
+  try {
+    ({ txHash } = await verifyAndSettlePayment(payment, exactAmount, env));
+  } finally {
+    settlingNonces.delete(nonceKey);
+  }
+
+  // Re-check receipt after settle (concurrent twin may have written).
+  const raced = await readCachedReceipt(redis, payment.nonce);
+  if (raced) {
+    reply.header(
+      "X-Payment-Response",
+      Buffer.from(
+        JSON.stringify({ transactionHash: raced.txHash, settled: true, replay: true }),
+      ).toString("base64"),
+    );
+    return raced.body;
+  }
 
   const brief = parsedBody?.brief ?? query.brief ?? "Paid resource request";
   const fulfilled = await fulfillPaidResource({
@@ -241,13 +339,29 @@ async function handlePaidResource(
     agentId: fulfilled.agentId,
     text: fulfilled.text,
     cards: fulfilled.cards,
+    asset: "MockUSDT0",
+    assetLabel: MOCK_USDT0_DEMO_LABEL,
+    demo: true,
+    network: env.NETWORK_NAME || "coston2",
+    chainId: env.CHAIN_ID || 114,
   };
 
-  await writeCachedReceipt(redis, payment.nonce, { txHash, body: payload });
+  await writeCachedReceipt(redis, payment.nonce, {
+    txHash,
+    body: payload,
+    settledAt: Date.now(),
+  });
 
   reply.header(
     "X-Payment-Response",
-    Buffer.from(JSON.stringify({ transactionHash: txHash, settled: true })).toString("base64"),
+    Buffer.from(
+      JSON.stringify({
+        transactionHash: txHash,
+        settled: true,
+        asset: "MockUSDT0",
+        demo: true,
+      }),
+    ).toString("base64"),
   );
   return payload;
 }

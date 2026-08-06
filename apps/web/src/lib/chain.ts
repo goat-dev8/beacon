@@ -17,4 +17,6 @@ export const CONTRACTS = {
     "0x100a3E24909DE25B9CAe75Ba665Be6F893b98889") as `0x${string}`,
   payee: (import.meta.env.VITE_X402_PAYEE_ADDRESS ??
     "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034") as `0x${string}`,
+  /** Empty string when unset — UI shows deploy readiness, not fake balances. */
+  agentVault: (import.meta.env.VITE_BEACON_AGENT_VAULT_ADDRESS ?? "") as `0x${string}` | "",
 } as const;

@@ -52,44 +52,48 @@
     font: inherit;
   }
 
-  /* Product OS shell tokens. Brand accent stays the landing signal emerald. */
+  /*
+   * Product OS shell tokens.
+   * Linear surface ladder (DESIGN.md) mapped onto --p-*; chromatic accent stays Beacon emerald.
+   * Do not invent purple AI glow.
+   */
   .product-shell {
     --p-accent: #39e08a;
     --p-on-accent: #06130c;
-    --p-radius: 14px;
-    --p-radius-sm: 10px;
+    --p-radius: 12px;
+    --p-radius-sm: 8px;
   }
 
   .product-shell[data-theme="dark"] {
-    --p-bg: #0b0d0c;
-    --p-rail: #080a09;
-    --p-surface: #111413;
-    --p-surface-2: #171b19;
-    --p-fg: #eef1ee;
-    --p-muted: #99a29c;
-    --p-faint: #6c746f;
-    --p-border: rgba(255, 255, 255, 0.09);
-    --p-border-strong: rgba(255, 255, 255, 0.17);
-    --p-hover: rgba(255, 255, 255, 0.055);
+    --p-bg: #010102;
+    --p-rail: #0f1011;
+    --p-surface: #141516;
+    --p-surface-2: #18191a;
+    --p-fg: #f7f8f8;
+    --p-muted: #8a8f98;
+    --p-faint: #62666d;
+    --p-border: #23252a;
+    --p-border-strong: #34343a;
+    --p-hover: rgba(255, 255, 255, 0.045);
     --p-user-bubble: #17372a;
-    --p-card: #111413;
+    --p-card: #0f1011;
     --p-accent-soft: rgba(57, 224, 138, 0.14);
     --p-accent-text: #5cecab;
     --p-danger: #ff7b7b;
     --p-warn: #e8b93f;
-    --p-shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px -18px rgba(0, 0, 0, 0.8);
+    --p-shadow: none;
 
     /* Landing palette remapped so shared components inherit the product theme. */
-    --color-paper: #0b0d0c;
-    --color-paper-2: #171b19;
-    --color-surface: #111413;
-    --color-ink: #eef1ee;
-    --color-ink-muted: #99a29c;
-    --color-ink-faint: #6c746f;
-    --color-line: rgba(255, 255, 255, 0.09);
-    --color-line-strong: rgba(255, 255, 255, 0.17);
-    --color-dusk: #eef1ee;
-    --color-dusk-2: #dfe4e0;
+    --color-paper: #010102;
+    --color-paper-2: #141516;
+    --color-surface: #0f1011;
+    --color-ink: #f7f8f8;
+    --color-ink-muted: #8a8f98;
+    --color-ink-faint: #62666d;
+    --color-line: #23252a;
+    --color-line-strong: #34343a;
+    --color-dusk: #f7f8f8;
+    --color-dusk-2: #d0d6e0;
     --color-signal-deep: #5cecab;
     --color-danger: #ff7b7b;
     --color-warn: #e8b93f;
@@ -229,11 +233,19 @@
     clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 8px 100%, 0 50%);
   }
 
-  /* Assistant output typography. Keeps agent answers readable, never a markdown wall. */
+  /* Assistant output typography. Readable body (15–16px), never a markdown wall. */
   .beacon-prose {
-    font-size: 14.5px;
-    line-height: 1.65;
+    font-size: 15.5px;
+    line-height: 1.6;
+    letter-spacing: -0.05px;
     color: var(--p-fg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .beacon-glow,
+    .float-soft {
+      animation: none !important;
+    }
   }
 
   .beacon-prose > * + * {

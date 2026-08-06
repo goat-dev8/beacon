@@ -293,13 +293,37 @@ export const api = {
         peer: string;
         asset: string;
         status: string;
+        live?: boolean;
         eta: string;
         fees: string;
       }>;
       source: "onchain" | "fallback";
       discoveredAt: number;
       oftAdapter: string;
+      honesty?: string;
     }>(`/v1/agents/bridge/routes${force ? "?force=1" : ""}`),
+  agentBridgeDelivery: (params: { tx: string; dstEid?: number; peer?: string; guid?: string }) => {
+    const q = new URLSearchParams({ tx: params.tx });
+    if (params.dstEid != null) q.set("dstEid", String(params.dstEid));
+    if (params.peer) q.set("peer", params.peer);
+    if (params.guid) q.set("guid", params.guid);
+    return request<{
+      ok: boolean;
+      delivery: {
+        phase: string;
+        sourceTxHash: string;
+        guid: string | null;
+        dstEid: number | null;
+        destination: string | null;
+        destTxHash: string | null;
+        layerZeroScanUrl: string;
+        explorerUrl: string;
+        destExplorerUrl: string | null;
+        note: string;
+        uiPhases: Array<{ id: string; label: string; status: string }>;
+      };
+    }>(`/v1/agents/bridge/delivery?${q.toString()}`);
+  },
   agentBalances: (wallet: string) =>
     request<{
       ok: boolean;
@@ -336,6 +360,80 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ wallet }),
     }),
+  getVaultStatus: (address?: string) => {
+    const q = address ? `?address=${encodeURIComponent(address)}` : "";
+    return request<{ ok: boolean; status: AgentVaultStatus }>(`/v1/vault/status${q}`);
+  },
+  prepareVault: (body: {
+    action: "deposit" | "withdraw" | "setPolicy" | "setPaused" | "setExecutor";
+    address?: string;
+    amountUsdt0?: string;
+    maxSpendPerTxUsdt0?: string;
+    rollingWindowBudgetUsdt0?: string;
+    rollingWindowSeconds?: number;
+    sessionExpiresAt?: number;
+    paused?: boolean;
+    executor?: string;
+    revoke?: boolean;
+  }) =>
+    request<{ ok: boolean; prep: AgentVaultPrep }>("/v1/vault/prepare", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+};
+
+export type AgentVaultStatus =
+  | {
+      configured: false;
+      readiness: string;
+      address: null;
+      note: string;
+      honesty: string;
+      distinction: string;
+    }
+  | {
+      configured: true;
+      address: string;
+      network: string;
+      chainId: number;
+      token: string;
+      tokenSymbol: string;
+      tokenDecimals: number;
+      balance: string;
+      balanceDisplay: string;
+      owner: string;
+      executor: string;
+      paused: boolean;
+      maxSpendPerTxDisplay: string;
+      rollingWindowBudgetDisplay: string;
+      rollingWindowSeconds: string;
+      windowSpentDisplay: string;
+      sessionExpiresAt: number;
+      sessionExpiresAtIso: string | null;
+      sessionActive: boolean;
+      executeNonce: string;
+      allowlists: {
+        targets: Array<{ address: string; allowed: boolean }>;
+        selectors: Array<{ selector: string; allowed: boolean }>;
+        note: string;
+      };
+      explorer: string;
+      honesty: string;
+      distinction: string;
+    };
+
+export type AgentVaultPrep = {
+  action: string;
+  chainId: number;
+  network: string;
+  to: string;
+  data: string;
+  approveTo?: string;
+  approveData?: string;
+  value: "0";
+  ownerOnly: boolean;
+  note: string;
+  honesty: string;
 };
 
 export type SecurityPolicy = {

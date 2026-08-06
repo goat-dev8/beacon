@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { displayModelName } from "./ai.js";
 import {
-  displayModelName,
   extractAmount,
   resolvePaidResourceTurn,
   shouldEmitPayCatalog,
@@ -20,12 +20,13 @@ describe("extractAmount", () => {
 });
 
 describe("displayModelName", () => {
-  it("never exposes provider brands or invents GPT-3.5", () => {
-    expect(displayModelName("claude-opus-5")).toBe("Claude Opus 5");
-    expect(displayModelName("gpt-5.6-sol")).toBe("GPT-5.6");
-    expect(displayModelName("gpt-4o")).toBe("GPT-5.6");
-    expect(displayModelName("local-heuristic")).toBe("Beacon");
-    expect(displayModelName("agentrouter-foo")).toBe("Beacon");
+  it("shows exact Agent Router model ids; never invents marketing names", () => {
+    expect(displayModelName("claude-opus-5")).toBe("claude-opus-5");
+    expect(displayModelName("gpt-5.6-sol")).toBe("gpt-5.6-sol");
+    expect(displayModelName("gpt-4o")).toBe("gpt-4o");
+    expect(displayModelName("local-heuristic")).toBe("deterministic fallback");
+    expect(displayModelName("beacon-local")).toBe("deterministic fallback");
+    expect(displayModelName("anything", { fallback: true })).toBe("deterministic fallback");
   });
 });
 

@@ -75,6 +75,14 @@ export class FdcClient {
     }
 
     const requestId = extractRequestId(raw);
+    if (!requestId) {
+      return {
+        requestId: "",
+        status: "error",
+        message: "Verifier prepare response missing requestId — refusing invented id",
+        raw,
+      };
+    }
     return { requestId, status: "prepared", raw };
   }
 
@@ -124,8 +132,18 @@ async function safeJson(response: Response): Promise<unknown> {
 function extractRequestId(raw: unknown): string {
   if (typeof raw === "object" && raw !== null) {
     const obj = raw as Record<string, unknown>;
-    if (typeof obj.requestId === "string") return obj.requestId;
-    if (typeof obj.id === "string") return obj.id;
+    if (typeof obj.requestId === "string" && obj.requestId.trim()) return obj.requestId.trim();
+    if (typeof obj.id === "string" && obj.id.trim()) return obj.id.trim();
+    // Official Flare verifier responses may nest abiEncodedRequest / data
+    const nested = obj.data;
+    if (typeof nested === "object" && nested !== null) {
+      const d = nested as Record<string, unknown>;
+      if (typeof d.requestId === "string" && d.requestId.trim()) return d.requestId.trim();
+      if (typeof d.abiEncodedRequest === "string" && d.abiEncodedRequest.trim()) {
+        return d.abiEncodedRequest.trim();
+      }
+    }
   }
-  return crypto.randomUUID();
+  // Never invent UUIDs — unverified placeholders break FDC honesty.
+  return "";
 }

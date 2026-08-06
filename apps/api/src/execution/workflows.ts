@@ -1,67 +1,8 @@
-import type {
-  ExecutionAdapter,
-  ExecutionEvidence,
-  ExecutionPlan,
-  PreparedExecution,
-  VerificationResult,
-} from "@beacon/execution";
+import type { ExecutionAdapter } from "@beacon/execution";
 import { WorkflowRegistry } from "@beacon/execution";
 import { prepareUsdt0ToFxrpSwap, prepareFxrpOftBridge } from "@beacon/shared";
 
 const WORKFLOW_VERSION = "1";
-
-function stubAdapter(label: string, executorType: string): ExecutionAdapter {
-  return {
-    async prepare(plan: ExecutionPlan): Promise<PreparedExecution> {
-      return {
-        executionId: plan.executionId,
-        workflowType: plan.workflowType,
-        workflowVersion: plan.workflowVersion,
-        preparedAt: new Date().toISOString(),
-        plan,
-        payload: {
-          stub: true,
-          label,
-          message: `${label} prepare stub`,
-          inputHash: plan.inputHash,
-        },
-      };
-    },
-    async execute(prepared: PreparedExecution): Promise<ExecutionEvidence> {
-      return {
-        executionId: prepared.executionId,
-        workflowType: prepared.workflowType,
-        workflowVersion: prepared.workflowVersion,
-        recordedAt: new Date().toISOString(),
-        prepared,
-        payload: {
-          stub: true,
-          label,
-          executorType,
-          message: `${label} execute stub — wallet/user confirms on client`,
-        },
-      };
-    },
-    async *observe(evidence: ExecutionEvidence) {
-      yield {
-        id: `stub-${evidence.executionId}`,
-        executionId: evidence.executionId,
-        seq: 1,
-        type: "note" as const,
-        payload: { stub: true, label, phase: "observing" },
-        createdAt: new Date().toISOString(),
-      };
-    },
-    async verify(evidence: ExecutionEvidence): Promise<VerificationResult> {
-      return {
-        executionId: evidence.executionId,
-        verified: false,
-        outcome: "needs_review",
-        details: { stub: true, label },
-      };
-    },
-  };
-}
 
 const swapAdapter: ExecutionAdapter = {
   async prepare(plan) {
@@ -183,13 +124,9 @@ export function getWorkflowRegistry(): WorkflowRegistry {
   if (registry) return registry;
 
   registry = new WorkflowRegistry();
+  // Only register live prepare adapters. Unsupported workflows are simply unregistered.
   registry.register("swap.usdt0_fxrp", WORKFLOW_VERSION, swapAdapter);
   registry.register("bridge.fxrp_oft", WORKFLOW_VERSION, bridgeAdapter);
-  registry.register("media.image", WORKFLOW_VERSION, stubAdapter("Image generation", "x402_media"));
-  registry.register("research.report", WORKFLOW_VERSION, stubAdapter("Research report", "x402_research"));
-  registry.register("bound_work", WORKFLOW_VERSION, stubAdapter("Bound Work escrow job", "beacon_escrow"));
-  registry.register("trade.signal_action", WORKFLOW_VERSION, stubAdapter("Trade signal action", "ftso_trade"));
-  registry.register("signals.deep", WORKFLOW_VERSION, stubAdapter("Deep signals analysis", "signals_pipeline"));
 
   return registry;
 }
@@ -198,9 +135,6 @@ export function listRegisteredWorkflows() {
   return getWorkflowRegistry().list().map(({ workflowType, version }) => ({
     workflowType,
     version,
-    status:
-      workflowType === "swap.usdt0_fxrp" || workflowType === "bridge.fxrp_oft"
-        ? "live_prepare"
-        : "stub",
+    status: "live_prepare" as const,
   }));
 }
