@@ -26,7 +26,7 @@ export type FlowFeature = {
 /** Compact rail chips: short labels, full prompts on select. */
 export const FLOW_FEATURES: FlowFeature[] = [
   { id: "swap", label: "Swap", prompt: "Swap 50 USDT0 to FXRP", icon: ArrowLeftRight },
-  { id: "bridge", label: "Bridge", prompt: "Bridge FXRP to Base", icon: Network },
+  { id: "bridge", label: "Bridge", prompt: "Bridge FXRP to Sepolia", icon: Network },
   { id: "x402", label: "x402", prompt: "Pay using x402", icon: Wallet },
   { id: "fassets", label: "FAssets", prompt: "Redeem FAssets", icon: Boxes },
   { id: "portfolio", label: "Portfolio", prompt: "Analyze my Portfolio", icon: PieChart },

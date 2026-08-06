@@ -37,7 +37,7 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
     id: "bridge",
     title: "Bridge",
     blurb: "Move FXRP across chains with LayerZero OFT quotes and explorer receipts.",
-    prompt: "Bridge FXRP to Base",
+    prompt: "Bridge FXRP to Sepolia",
     icon: Network,
     accent: true,
   },
