@@ -499,7 +499,7 @@ function detectIntent(message: string, fallback: BeaconAgentId, state?: Conversa
   if (wantsSafeHelp(m)) return "general";
   if (/@signals|ftso|price feed|oracle|\bsignals?\b/.test(m)) return "signals";
   if (/@intel|market intel|probability|confidence|risk posture/.test(m)) return "intel";
-  if (/@portfolio|balances?|holdings|net worth/.test(m)) return "portfolio";
+  if (/@portfolio|\bportfolio\b|balances?|holdings|net worth/.test(m)) return "portfolio";
   if (/@fassets|fbtc|fdoge|mint fxrp|redeem fxrp|asset manager/.test(m)) return "fassets";
   if (/@liquidity|pools?|sparkdex pairs/.test(m)) return "liquidity";
   if (/@yield|apy|earn/.test(m)) return "yield";
