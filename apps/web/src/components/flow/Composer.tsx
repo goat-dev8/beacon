@@ -15,7 +15,7 @@ export function Composer({ input, onChange, onSend, pending, agentHint }: Props)
         {agentHint && (
           <p className="mb-2 font-mono text-[11px] text-[var(--p-faint)]">
             Active · {agentHint}
-            <span className="text-[var(--p-muted)]"> · mention @swap @bridge @image to route</span>
+            <span className="text-[var(--p-muted)]"> · mention @swap @bridge @signals @fassets</span>
           </p>
         )}
         <div className="flex items-end gap-2 rounded-[var(--p-radius)] border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-2 shadow-[var(--p-shadow)]">

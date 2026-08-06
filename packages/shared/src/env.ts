@@ -207,7 +207,7 @@ export function requireEnv<K extends keyof BeaconEnv>(
 
 export function honestyMessage(simulatedTee: boolean): string {
   if (simulatedTee) {
-    return "FCC / confidential compute is unavailable for this product path — server policy only; not hardware-verified. Do not treat any TEE label as attestation.";
+    return "FCC / confidential compute is unavailable for this product path. Server policy only; not hardware-verified. Do not treat any TEE label as attestation.";
   }
-  return "Confidentiality uses attested hardware where configured.";
+  return "FCC / confidential compute is unavailable in this deployment. Spend policy and receipts are server and on-chain only.";
 }

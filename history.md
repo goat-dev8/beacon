@@ -4,6 +4,13 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-06 - Production verify + hotfix
+
+- Pushed `ab5894c`; GitHub auto-deployed web to https://beacon-desk.vercel.app (READY).
+- Render API live with `agentVault=0x9bD5B894Da0a54B7649A4084d93D58df4f6182e0`, `fccMode=unavailable`.
+- Chrome: QuoterV2 quote `1 USD?0 ˜ 0.955428 FXRP` on Mainnet; model badge `deterministic fallback`; execution surface Mainnet phases; no pairs spam on quote turn.
+- Hotfix: landing Flare-rails catalog (no video/image stubs), meta title Flare AI OS, composer mentions, honesty string, vault default address on web.
+
 ## 2026-08-06 - FDC honesty + Summer Signal research baseline
 
 - Wrote `SUMMER_SIGNAL_RESEARCH_2026-08-06.md` (constraints, competitor benchmark without private names, audit gaps, ship list).

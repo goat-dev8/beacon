@@ -1,18 +1,4 @@
 import { motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
-import {
-  Clapperboard,
-  Image,
-  Presentation,
-  Code2,
-  Search,
-  FileText,
-  type LucideIcon,
-} from "lucide-react";
-import { api } from "@/lib/api";
-import type { ServiceId } from "@/lib/types";
-import { Skeleton } from "@/components/ui/Skeleton";
-import { FacetCtaPair } from "@/components/ui/Button";
 import {
   AcceptanceDiagram,
   EscrowDiagram,
@@ -21,16 +7,8 @@ import {
   ReceiptDiagram,
 } from "@/components/diagrams/BeaconDiagrams";
 import { PixelWave, Ruler, SectionLabel } from "@/components/landing/PixelWave";
+import { FacetCtaPair } from "@/components/ui/Button";
 import { CONTRACTS, NETWORK } from "@/lib/chain";
-
-const ICONS: Record<ServiceId, LucideIcon> = {
-  video: Clapperboard,
-  image: Image,
-  presentations: Presentation,
-  coding: Code2,
-  research: Search,
-  documents: FileText,
-};
 
 export function HowSection() {
   return (
@@ -84,10 +62,14 @@ export function HowSection() {
 }
 
 export function ServicesSection() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["services"],
-    queryFn: api.services,
-  });
+  const rails: Array<{ id: string; title: string; body: string }> = [
+    { id: "ftso", title: "FTSO Signals", body: "Live prices and risk bias from Flare Time Series Oracle." },
+    { id: "sparkdex", title: "SparkDEX Swap", body: "QuoterV2 quotes and Mainnet execution for discovered pairs." },
+    { id: "oft", title: "FXRP OFT Bridge", body: "LayerZero peers, quoteSend, source tx to destination receipt." },
+    { id: "fassets", title: "FAssets / XRPFi", body: "Coston2 FTestXRP status, redeem prepare, documented mint handoff." },
+    { id: "x402", title: "x402 Payments", body: "MockUSDT0 EIP-3009 settle on Coston2 with idempotent receipts." },
+    { id: "vault", title: "Agent Vault", body: "Deposit once, policy budgets, owner pause. Escrow stays per-job." },
+  ];
 
   return (
     <section id="services" className="border-b border-line bg-paper py-24">
@@ -97,32 +79,19 @@ export function ServicesSection() {
           Agents on Flare rails
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-center text-ink-muted">
-          Live catalog from Beacon Flow. Swap, bridge, signals, and Bound Work in one OS.
+          Live catalog from Beacon Flow. Swap, bridge, signals, vault, and Bound Work in one OS.
         </p>
         <div className="mt-12 grid gap-0 border border-line sm:grid-cols-2 lg:grid-cols-3">
-          {isLoading &&
-            Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-none border-b border-r border-line" />
-            ))}
-          {isError && (
-            <p className="col-span-full p-6 text-sm text-danger">
-              Could not load services from the API.
-            </p>
-          )}
-          {data?.services.map((s) => {
-            const Icon = ICONS[s.id] ?? FileText;
-            return (
-              <a
-                key={s.id}
-                href="/flow"
-                className="group border-b border-r border-line bg-surface p-5 transition-opacity hover:opacity-90"
-              >
-                <Icon className="size-5 text-ink transition-transform group-hover:scale-110" />
-                <h3 className="mt-3 font-display text-lg font-bold">{s.name}</h3>
-                <p className="mt-1 text-sm text-ink-muted">{s.description}</p>
-              </a>
-            );
-          })}
+          {rails.map((s) => (
+            <a
+              key={s.id}
+              href="/flow"
+              className="group border-b border-r border-line bg-surface p-5 transition-opacity hover:opacity-90"
+            >
+              <h3 className="font-display text-lg font-bold text-ink">{s.title}</h3>
+              <p className="mt-2 text-sm text-ink-muted">{s.body}</p>
+            </a>
+          ))}
         </div>
       </div>
     </section>
