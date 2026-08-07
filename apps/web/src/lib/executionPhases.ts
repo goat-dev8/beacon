@@ -44,7 +44,7 @@ const ACTIONABLE_TYPES = new Set<string>([
 ]);
 
 export type CardExecutionState = {
-  approveStatus?: "idle" | "pending" | "confirmed" | "skipped";
+  approveStatus?: "idle" | "pending" | "confirmed" | "skipped" | "failed";
   swapStatus?: "idle" | "pending" | "confirmed" | "failed";
   sendStatus?: "idle" | "pending" | "confirmed" | "failed";
   approveHash?: string | null;

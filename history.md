@@ -27,6 +27,11 @@ Living log of what was done. No secrets in this file.
 ### Env
 - Local `.env`: `BEACON_SWAP_DESK_ADDRESS` (not committed). Render must set the same for live API.
 
+### Deploy follow-up
+- Vercel first build failed: approveStatus lacked `failed`. Fixed + rebuilt.
+- **GitHub:** pending push after TS fix.
+- Render: `BEACON_SWAP_DESK_ADDRESS` set; deploy `5b78a70`.
+
 ---
 
 ## 2026-08-07 - Loop deep retest + Safe intent / vault validation

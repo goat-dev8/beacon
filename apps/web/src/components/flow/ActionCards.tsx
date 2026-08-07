@@ -59,7 +59,7 @@ export function ActionCard({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [approveStatus, setApproveStatus] = useState<"idle" | "pending" | "confirmed" | "skipped">(
+  const [approveStatus, setApproveStatus] = useState<"idle" | "pending" | "confirmed" | "skipped" | "failed">(
     () => savedExec?.approveStatus ?? "idle",
   );
   const [swapStatus, setSwapStatus] = useState<"idle" | "pending" | "confirmed" | "failed">(
