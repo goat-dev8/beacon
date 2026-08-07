@@ -104,6 +104,7 @@ export function resolveModelForRole(role: AiRole, env: BeaconEnv = loadEnv()): s
 
 export function isAiConfigured(env: BeaconEnv = loadEnv()): boolean {
   if (hasAiProxy(env)) return true;
+  if (env.POLLINATIONS_API_KEY) return true;
   return Boolean(resolveAiApiKey(env) && resolveAiBaseUrl(env));
 }
 
@@ -138,26 +139,65 @@ type CompletionPayload = {
   stream?: boolean;
 };
 
+type CompletionHop = {
+  response: Response;
+  text: string;
+  via: "proxy" | "direct" | "pollinations";
+};
+
+function isWafOrHtmlBody(text: string): boolean {
+  return /^\s*</.test(text) || /<!doctype/i.test(text) || /aliyun_waf/i.test(text);
+}
+
+function isRealCompletion(hop: CompletionHop): boolean {
+  if (!hop.response.ok) return false;
+  if (isWafOrHtmlBody(hop.text)) return false;
+  try {
+    const parsed = JSON.parse(hop.text) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    return Boolean(parsed.choices?.[0]?.message?.content);
+  } catch {
+    return false;
+  }
+}
+
+function mapModelForPollinations(model: string): string {
+  const m = model.toLowerCase();
+  if (m.includes("claude")) return "claude";
+  if (m.includes("gpt") || m.includes("sol")) return "openai";
+  return "openai";
+}
+
+function resolvePollinationsChatUrl(env: BeaconEnv): string {
+  return (
+    (env as BeaconEnv & { POLLINATIONS_TEXT_URL?: string }).POLLINATIONS_TEXT_URL ||
+    "https://text.pollinations.ai/openai"
+  );
+}
+
 /**
- * Prefer Vercel proxy when configured (Render Oregon → AgentRouter is WAF-blocked).
- * Fall back to direct AgentRouter; on 405 retry via proxy if available.
+ * Production hops (no laptop):
+ * 1) Optional Vercel Node proxy → AgentRouter
+ * 2) Direct AgentRouter (works only if egress ASN allowed)
+ * 3) Pollinations OpenAI-compatible (cloud-reachable 24/7)
  */
 async function postChatCompletions(
   payload: CompletionPayload,
   env: BeaconEnv,
-  opts: { preferProxy?: boolean; timeoutMs?: number } = {},
-): Promise<{ response: Response; text: string; via: "proxy" | "direct" }> {
+  opts: { timeoutMs?: number } = {},
+): Promise<CompletionHop> {
   const apiKey = resolveAiApiKey(env);
   const baseUrl = resolveAiBaseUrl(env);
   const proxyUrl = resolveAiProxyUrl(env);
   const proxySecret = resolveAiProxySecret(env);
+  const pollinationsKey = env.POLLINATIONS_API_KEY || "";
   const timeoutMs = opts.timeoutMs ?? 90_000;
   const body = JSON.stringify(payload);
+  const errors: string[] = [];
 
-  const tryProxy = async (): Promise<{ response: Response; text: string; via: "proxy" }> => {
-    if (!proxyUrl || !proxySecret) {
-      throw new Error("AI_PROXY_URL/AI_PROXY_SECRET not configured");
-    }
+  const tryProxy = async (): Promise<CompletionHop> => {
+    if (!proxyUrl || !proxySecret) throw new Error("AI_PROXY_URL/AI_PROXY_SECRET not configured");
     const response = await fetch(proxyUrl, {
       method: "POST",
       headers: {
@@ -168,11 +208,10 @@ async function postChatCompletions(
       body,
       signal: AbortSignal.timeout(timeoutMs),
     });
-    const text = await response.text();
-    return { response, text, via: "proxy" };
+    return { response, text: await response.text(), via: "proxy" };
   };
 
-  const tryDirect = async (): Promise<{ response: Response; text: string; via: "direct" }> => {
+  const tryDirect = async (): Promise<CompletionHop> => {
     if (!apiKey) throw new Error("AI_API_KEY is not configured");
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: "POST",
@@ -180,44 +219,53 @@ async function postChatCompletions(
       body,
       signal: AbortSignal.timeout(timeoutMs),
     });
-    const text = await response.text();
-    return { response, text, via: "direct" };
+    return { response, text: await response.text(), via: "direct" };
   };
 
-  const preferProxy = opts.preferProxy ?? hasAiProxy(env);
+  const tryPollinations = async (): Promise<CompletionHop> => {
+    if (!pollinationsKey) throw new Error("POLLINATIONS_API_KEY is not configured");
+    const mapped = mapModelForPollinations(payload.model);
+    const response = await fetch(resolvePollinationsChatUrl(env), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${pollinationsKey}`,
+      },
+      body: JSON.stringify({
+        model: mapped,
+        messages: payload.messages,
+        temperature: payload.temperature ?? 0.2,
+        max_tokens: payload.max_tokens,
+      }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    return { response, text: await response.text(), via: "pollinations" };
+  };
 
-  if (preferProxy && hasAiProxy(env)) {
+  const hops: Array<() => Promise<CompletionHop>> = [];
+  if (hasAiProxy(env)) hops.push(tryProxy);
+  if (apiKey) hops.push(tryDirect);
+  if (pollinationsKey) hops.push(tryPollinations);
+  if (hops.length === 0) {
+    throw new Error("No AI provider configured (AgentRouter key / proxy / Pollinations)");
+  }
+
+  let last: CompletionHop | null = null;
+  for (const hop of hops) {
     try {
-      const proxied = await tryProxy();
-      // Never fall through to direct when proxy is configured — cloud egress is WAF-blocked.
-      return proxied;
+      const result = await hop();
+      last = result;
+      if (isRealCompletion(result)) return result;
+      errors.push(
+        `${result.via}:${result.response.status}:${isWafOrHtmlBody(result.text) ? "waf_html" : result.text.slice(0, 80)}`,
+      );
     } catch (err) {
-      throw err instanceof Error
-        ? err
-        : new Error(`AI proxy failed: ${String(err)}`);
+      errors.push(err instanceof Error ? err.message : String(err));
     }
   }
 
-  if (!apiKey && hasAiProxy(env)) {
-    return tryProxy();
-  }
-  if (!apiKey) throw new Error("AI_API_KEY is not configured");
-
-  const direct = await tryDirect();
-  // Render/datacenter WAF: 405 + HTML → retry once via Vercel proxy.
-  if (
-    !direct.response.ok &&
-    direct.response.status === 405 &&
-    hasAiProxy(env) &&
-    !preferProxy
-  ) {
-    try {
-      return await tryProxy();
-    } catch {
-      return direct;
-    }
-  }
-  return direct;
+  if (last) return last;
+  throw new Error(`AI unavailable (${errors.join(" | ")})`);
 }
 
 /** Stream Agent Router tokens; yields text deltas. Failures throw — never invent content. */
@@ -225,74 +273,23 @@ export async function* chatCompletionStream(
   req: ChatCompletionRequest,
   env: BeaconEnv = loadEnv(),
 ): AsyncGenerator<string, void, unknown> {
-  // Proxy path is non-stream (Edge forwards full JSON). Use non-stream completion then yield once.
-  if (hasAiProxy(env)) {
-    const full = await chatCompletion(req, env);
-    if (full.content) yield full.content;
-    return;
-  }
-
-  const apiKey = resolveAiApiKey(env);
-  const baseUrl = resolveAiBaseUrl(env);
-  if (!apiKey) throw new Error("AI_API_KEY is not configured");
-
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: "POST",
-    headers: buildAgentRouterHeaders(apiKey),
-    body: JSON.stringify({
-      model: req.model,
-      temperature: req.temperature ?? 0.2,
-      max_tokens: req.maxTokens ?? 2048,
-      messages: req.messages,
-      stream: true,
-    }),
-    signal: AbortSignal.timeout(90_000),
-  });
-
-  if (!response.ok || !response.body) {
-    const text = await response.text().catch(() => "");
-    throw new Error(`AI stream unavailable (${response.status}). ${text.slice(0, 120)}`);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed.startsWith("data:")) continue;
-      const data = trimmed.slice(5).trim();
-      if (data === "[DONE]") return;
-      try {
-        const parsed = JSON.parse(data) as {
-          choices?: Array<{ delta?: { content?: string } }>;
-        };
-        const delta = parsed.choices?.[0]?.delta?.content;
-        if (delta) yield delta;
-      } catch {
-        // skip malformed chunk
-      }
-    }
-  }
+  // Non-stream hops (proxy / pollinations) → single yield.
+  const full = await chatCompletion(req, env);
+  if (full.content) yield full.content;
 }
 
 export async function chatCompletion(
   req: ChatCompletionRequest,
   env: BeaconEnv = loadEnv(),
 ): Promise<ChatCompletionResult> {
-  if (!resolveAiApiKey(env) && !hasAiProxy(env)) {
+  if (!resolveAiApiKey(env) && !hasAiProxy(env) && !env.POLLINATIONS_API_KEY) {
     throw new Error("AI_API_KEY is not configured");
   }
 
   const started = Date.now();
   let response: Response | null = null;
   let text = "";
-  let via: "proxy" | "direct" = "direct";
+  let via: "proxy" | "direct" | "pollinations" = "direct";
   for (let attempt = 1; attempt <= 3; attempt++) {
     const result = await postChatCompletions(
       {
@@ -306,7 +303,7 @@ export async function chatCompletion(
     response = result.response;
     text = result.text;
     via = result.via;
-    if (response.ok) break;
+    if (isRealCompletion(result)) break;
     // Retry transient upstream capacity / gateway errors.
     if (![429, 502, 503, 504].includes(response.status) || attempt === 3) break;
     await new Promise((r) => setTimeout(r, 1500 * attempt));
@@ -320,10 +317,9 @@ export async function chatCompletion(
     // keep raw text
   }
 
-  if (!response || !response.ok) {
+  if (!response || !isRealCompletion({ response, text, via })) {
     const status = response?.status ?? 0;
-    // Never leak HTML / gateway pages into product chat.
-    const looksHtml = /^\s*</.test(text) || /<!doctype/i.test(text);
+    const looksHtml = isWafOrHtmlBody(text);
     throw new Error(
       looksHtml
         ? `AI temporarily unavailable (${status}). Please try again.`
@@ -340,9 +336,15 @@ export async function chatCompletion(
     throw new Error("AI provider returned empty content");
   }
 
+  // Prefer requested AgentRouter model id in UI when Pollinations mapped underneath.
+  const returnedModel =
+    via === "pollinations"
+      ? data.model || mapModelForPollinations(req.model)
+      : data.model ?? req.model;
+
   return {
     content,
-    model: data.model ?? req.model,
+    model: returnedModel,
     latencyMs,
     raw: { ...(typeof raw === "object" && raw ? raw : { body: raw }), _via: via },
   };
@@ -380,7 +382,7 @@ export async function chatForRole(
     } catch (err) {
       lastErr = err;
       const message = err instanceof Error ? err.message : String(err);
-      if (!/temporarily unavailable \((405|429|502|503|504)\)|AI provider (405|429|502|503|504)/.test(message)) {
+      if (!/temporarily unavailable \((405|429|502|503|504)\)|AI (?:provider |unavailable)/.test(message)) {
         throw err;
       }
     }
@@ -398,7 +400,7 @@ export async function probeModels(
   for (const model of models) {
     const started = Date.now();
     try {
-      const { response, text, via } = await postChatCompletions(
+      const hop = await postChatCompletions(
         {
           model,
           max_tokens: 32,
@@ -406,6 +408,7 @@ export async function probeModels(
         },
         env,
       );
+      const { response, text, via } = hop;
       let contentPreview = text.slice(0, 120);
       try {
         const parsed = JSON.parse(text) as {
@@ -417,17 +420,19 @@ export async function probeModels(
       } catch {
         // keep slice
       }
+      const works = isRealCompletion(hop);
       results.push({
         model,
-        baseUrl: via === "proxy" ? `${resolveAiProxyUrl(env)}→${baseUrl}` : baseUrl,
+        baseUrl:
+          via === "proxy"
+            ? `${resolveAiProxyUrl(env)}→${baseUrl}`
+            : via === "pollinations"
+              ? resolvePollinationsChatUrl(env)
+              : baseUrl,
         status: response.status,
         latencyMs: Date.now() - started,
-        error: response.ok ? "" : contentPreview,
-        works:
-          response.ok &&
-          !/^\s*</.test(text) &&
-          !/<!doctype/i.test(text) &&
-          /"content"\s*:/.test(text),
+        error: works ? "" : contentPreview,
+        works,
         contentPreview,
       });
     } catch (err) {

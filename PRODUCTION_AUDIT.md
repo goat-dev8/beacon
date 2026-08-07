@@ -184,3 +184,16 @@ Security Center (Chrome): Safe **10.5** USDT0 Â· spent **3.5/50** Â· max **10**/
 2. Delete runtime dependency on local relay (keep script only as optional offline debug, gated, not documented as required).  
 3. Re-run full Chrome E2E with laptop relay stopped.  
 4. Push + confirm Render/Vercel SHAs.
+
+## 10. Update — cloud AI without laptop (2026-08-07 later)
+
+### Vercel billing
+- Force redeploy returned **402 Payment Required**; GitHub pushes after `052f8c3` did not create Vercel deployments.
+- UI may stay on older SHA until billing/on-demand is restored.
+
+### Production AI hop (Render 24/7)
+1. AgentRouter via Vercel proxy (when deployable / ASN allowed)
+2. Direct AgentRouter
+3. **Pollinations OpenAI-compatible** `text.pollinations.ai/openai` — verified WORKS from cloud; no laptop
+
+Local cloudflared/ai-relay processes were killed and must not be restarted for production.
