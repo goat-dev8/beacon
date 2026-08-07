@@ -51,6 +51,7 @@ import {
   resolveModelForRole,
   resolveAiBaseUrl,
   isAiConfigured,
+  probeModels,
   type BeaconAgentId,
   type ConversationState,
 } from "@beacon/shared";
@@ -193,6 +194,37 @@ app.get("/health", async () => ({
   version: "0.1.0",
   pipeline: PIPELINE_CAPS,
 }));
+
+/** Live AgentRouter reachability (no secrets). */
+app.get("/v1/ai/probe", async () => {
+  if (!isAiConfigured(env)) {
+    return { ok: false, configured: false, results: [] };
+  }
+  const results = await probeModels(
+    [env.AI_MODEL_GENERATOR || "claude-opus-5", env.AI_MODEL_QUOTE || "gpt-5.6-sol"].filter(
+      (v, i, a) => Boolean(v) && a.indexOf(v) === i,
+    ),
+    env,
+  );
+  return {
+    ok: results.some((r) => r.ok),
+    configured: true,
+    host: (() => {
+      try {
+        return new URL(resolveAiBaseUrl(env)).host;
+      } catch {
+        return null;
+      }
+    })(),
+    results: results.map((r) => ({
+      model: r.model,
+      ok: r.ok,
+      status: r.status,
+      latencyMs: r.latencyMs,
+      error: r.error ? String(r.error).slice(0, 160) : undefined,
+    })),
+  };
+});
 
 /** FCC honesty status — simulated TEE on Coston2 is the accepted hackathon path. */
 app.get("/v1/fcc/status", async () => {
