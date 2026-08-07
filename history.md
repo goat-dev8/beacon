@@ -51,6 +51,9 @@ Living log of what was done. No secrets in this file.
 ### Loop tick 82
 - Retest tick green; Coston2 Safe swap path unchanged.
 
+### Loop tick 83
+- Retest tick green; Safe swap on Coston2 still primary.
+
 ---
 
 ## 2026-08-07 - Loop deep retest + Safe intent / vault validation
