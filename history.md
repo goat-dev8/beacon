@@ -933,3 +933,10 @@ Stale Redis policies blocked `@fassets` / `@liquidity` etc. `loadPolicy` now uni
 ### Matrix
 - Local MATRIX_GREEN with `beacon_safe` + `beacon_agent` after faucet.
 
+
+## 2026-08-07 - Pollinations cloud hop (no laptop)
+
+- AgentRouter still preferred; on WAF/405 fall through to Pollinations OpenAI-compatible (Render-reachable).
+- Killed cloudflared/ai-relay; Vercel redeploy blocked by **402 Payment Required** (UI may lag on `052f8c3` until billing fixed).
+- Render deploy `5c6df12`.
+
