@@ -4,6 +4,48 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-07 - Summer Signal deep research + FCC/Safe/prod ship
+
+### Research (evidence)
+- Wrote `SUMMER_SIGNAL_FEASIBILITY_REPORT.md` + canvas `summer-signal-feasibility`.
+- FCC: not fully public production; **SIMULATED_TEE on live Coston2 accepted** (telegram + getting-started). Scaffolds current: `fce-extension-scaffold` tip 2026-08-07, tee-node 2026-08-06, tee-proxy main←develop.
+- Safe: Mainnet ask only when SparkDEX fallback; live chat = `beacon_safe` chain 114. Smart Accounts = XRPL personal accounts ≠ MetaMask AA.
+- Production: no laptop AI; Pollinations hop OK; dead trycloudflare EXT_PROXY cleared on Render.
+
+### Ops
+- Hardened `scripts/deploy-render.mjs`: merge+paginate env, reject tunnels, never sync EXT_PROXY_URL, include AI_PROXY/Pollinations/desk/vault/settler.
+- Restored full Render env after pagination-safe merge (58 keys); `APP_URL`/`API_URL` production; `extProxyConfigured=false`.
+- MATRIX_GREEN: swap/bridge/pay/fassets/portfolio/signals/yield/research/risk/Safe.
+- Chrome Flow: x402 Unpaid quotes EIP-3009 chain 114; recent Safe + Agent OFT explorer links.
+
+### FCC verdict for judges
+Ship honest **simulated TEE** FCC on Coston2. Hardware Confidential Space optional. Do not claim verified enclave.
+
+---
+
+## 2026-08-07 - Watch: Kristaps Grinbergs x402 + FlareNet showcase (judge bar)
+
+### Source
+Local MP4 (~2:27): Weather Insurance · Flare FCC (fassko-style). Frames only (no Whisper key).
+
+### What the judge demo shows
+1. Chat assistant + on-chain tools; chips for pool / policies / weather / buy.
+2. **x402 gate** for OpenWeatherMap: UI says gateway returns **402 Payment Required**, fee approval in **USDT0** (~0.000001), then relays `getWeather` to TEE, polls signed result.
+3. Wallet on **Coston2**: Approve spending cap USDT0 → contract interaction; chat shows **Request tx** / **Settle tx** + TEE weather / settle outcome.
+4. Same x402 micropay pattern to settle a policy (TEE rainfall vs threshold).
+5. Mentions MCP + Flare Confidential Compute; closes on Flare Summer Signal (ship real).
+
+### Beacon alignment (verified live)
+- Official Flare x402 path is **EIP-3009 + X402Facilitator** (gasless auth), not ERC-20 Approve. Kristaps demo uses Approve for their FCC weather fee gateway — related product UX, different settle mechanic.
+- Live `GET /v1/agents/resources/image-logo` → **HTTP 402** with `x402Version:1`, `flare-coston2`, MockUSDT0 `0x6fd8…e86c`, facilitator `0x1f409…4779`, chainId 114.
+- On-chain: MockUSDT0 + facilitator bytecode present; token.name = `USD0` (EIP-712 domain).
+- Desk: EIP-3009 sign → facilitator settle → resource unlock + explorer tx hint (Pay & run / Pay again).
+
+### Verdict
+Beacon matches the **Flare docs / judge-real** x402 bar (402 → MockUSDT0 → on-chain settle → paid payload). Do **not** switch to Approve-only to clone the weather dApp. Optional polish: louder mid-flow status copy like “Fetching (x402) / Waiting for wallet / Settled tx” — rails already real.
+
+---
+
 ## 2026-08-07 - PRODUCTION: kill laptop AI; Vercel sin1 Node proxy
 
 ### Mandate
@@ -53,40 +95,40 @@ Zero localhost / cloudflared / ai-relay for live users. Render + Vercel only.
 
 ### Why Bridge showed MetaMask
 - Beacon Safe holds **MockUSDT0 only**; OFT needs **FXRP + C2FLR msg.value**.
-- Vault `execute` cannot pay LayerZero native fee → EOA MetaMask was the old path.
+- Vault `execute` cannot pay LayerZero native fee â EOA MetaMask was the old path.
 
 ### Fix shipped
-- `agentBridge.ts` + `POST /v1/agents/bridge/execute` — executor signs approve+send.
-- Optional Safe MockUSDT0→FXRP top-up to executor when inventory low.
+- `agentBridge.ts` + `POST /v1/agents/bridge/execute` â executor signs approve+send.
+- Optional Safe MockUSDT0âFXRP top-up to executor when inventory low.
 - UI: **Execute with Beacon Agent** (`mode=beacon_agent`).
 - Research: `research/agent-bridge-oft-2026-08.md`.
-- Risk copy: prefer Safe/@swap on Coston2 (not “use SparkDEX Mainnet” as default).
-- `scripts/feature-matrix.mts` — chat matrix for 10 rails.
+- Risk copy: prefer Safe/@swap on Coston2 (not âuse SparkDEX Mainnetâ as default).
+- `scripts/feature-matrix.mts` â chat matrix for 10 rails.
 
 ### On-chain smoke
-- **1 FXRP → Sepolia** agent-signed (no MetaMask).
-- Send `0xae7fdcaa…` on Coston2 explorer · LayerZero Scan linked.
+- **1 FXRP â Sepolia** agent-signed (no MetaMask).
+- Send `0xae7fdcaaâ¦` on Coston2 explorer Â· LayerZero Scan linked.
 
-### Live E2E (Chrome + matrix) · `92d3b97`
+### Live E2E (Chrome + matrix) Â· `92d3b97`
 - Render `beacon-api` **live** `92d3b97`; Vercel `beacon-desk` READY on same.
-- `/v1/agents/bridge/agent-ready`: executor ~4.6 FXRP · Safe MockUSDT0 12.5 · pause off.
-- **MATRIX_GREEN** — swap(`beacon_safe`), bridge(`beacon_agent`), x402, FAssets, portfolio, signals, yield, research, risk, Safe desk.
-- Chrome Bridge: quote → Confirm → **Execute with Beacon Agent** (no MetaMask).
-  - Approve `0xc6dd8613…` · Send `0x29f52777…`
+- `/v1/agents/bridge/agent-ready`: executor ~4.6 FXRP Â· Safe MockUSDT0 12.5 Â· pause off.
+- **MATRIX_GREEN** â swap(`beacon_safe`), bridge(`beacon_agent`), x402, FAssets, portfolio, signals, yield, research, risk, Safe desk.
+- Chrome Bridge: quote â Confirm â **Execute with Beacon Agent** (no MetaMask).
+  - Approve `0xc6dd8613â¦` Â· Send `0x29f52777â¦`
   - Explorer: https://coston2-explorer.flare.network/tx/0x29f52777b6f36c12ce532e93864ba4d42acfd4578c027d39f684a631ad0ef89a
   - LZ Scan: https://testnet.layerzeroscan.com/tx/0x29f52777b6f36c12ce532e93864ba4d42acfd4578c027d39f684a631ad0ef89a
 
 ### Rails honesty
 | Rail | Asset | Signer | MetaMask? |
 |------|--------|--------|-----------|
-| Safe swap desk | MockUSDT0→FXRP | Executor | No |
+| Safe swap desk | MockUSDT0âFXRP | Executor | No |
 | Agent OFT bridge | FXRP + C2FLR fee | Executor | No |
 | EOA OFT fallback | User FXRP + C2FLR | User | Yes |
 | SparkDEX | Mainnet only | User EOA | Yes (chain 14) |
 
 ### Loop tick 89
 - Retest heartbeat green; agent bridge + Safe swap still primary on Coston2.
-- Live: executor ~3.6 FXRP · Safe 12.5 · maxSpend 10 · paused false · Render/Vercel on `780a473`.
+- Live: executor ~3.6 FXRP Â· Safe 12.5 Â· maxSpend 10 Â· paused false Â· Render/Vercel on `780a473`.
 
 ---
 
@@ -94,20 +136,20 @@ Zero localhost / cloudflared / ai-relay for live users. Render + Vercel only.
 
 ### Root cause
 - SparkDEX SwapRouter/QuoterV2 have **bytecode on Flare Mainnet (14) only**; Coston2 published addresses are **empty**.
-- Flow still prepared Mainnet swaps → UI “Switch to Flare Mainnet”.
-- Live MockUSDT0 has **no approve/transferFrom** — Safe spend must `execute(token.transfer)`.
+- Flow still prepared Mainnet swaps â UI âSwitch to Flare Mainnetâ.
+- Live MockUSDT0 has **no approve/transferFrom** â Safe spend must `execute(token.transfer)`.
 - Vault `execute()` existed on-chain but was **not wired** in API/agent; spend caps were **0**.
 
 ### Fix shipped
-- Deployed **BeaconCoston2SwapDesk** `0x36c17ca6Aa2b61b13f7c4B5A59629320a8B4dF29` (FTSO-synced MockUSDT0→FXRP).
-- Seeded **5 FXRP** inventory; set Safe policy **10/tx · 50 window**; allowlisted `transfer`.
+- Deployed **BeaconCoston2SwapDesk** `0x36c17ca6Aa2b61b13f7c4B5A59629320a8B4dF29` (FTSO-synced MockUSDT0âFXRP).
+- Seeded **5 FXRP** inventory; set Safe policy **10/tx Â· 50 window**; allowlisted `transfer`.
 - API: `POST /v1/vault/safe-swap/prepare|execute` + desk status.
-- Agent prefers **Beacon Safe on Coston2** for USDT0→FXRP; UI **Execute from Beacon Safe** (no MetaMask).
+- Agent prefers **Beacon Safe on Coston2** for USDT0âFXRP; UI **Execute from Beacon Safe** (no MetaMask).
 - Research writeup: `research/coston2-safe-swap-2026-08.md`.
 
 ### On-chain smoke
-- **0.5 MockUSDT0 → ~0.48253 FXRP** to test wallet (executor signed).
-- Spend `0x07f3139f…` · Fulfill `0x2c906ed2…` on Coston2 explorer.
+- **0.5 MockUSDT0 â ~0.48253 FXRP** to test wallet (executor signed).
+- Spend `0x07f3139fâ¦` Â· Fulfill `0x2c906ed2â¦` on Coston2 explorer.
 - Safe balance after: **13.5** MockUSDT0 (was 14.0).
 
 ### Env
@@ -116,19 +158,19 @@ Zero localhost / cloudflared / ai-relay for live users. Render + Vercel only.
 ### Deploy follow-up
 - Vercel first build failed: `approveStatus` lacked `failed`. Fixed in `02ab74c`.
 - **GitHub main:** `02ab74c`
-- **Render `beacon-api`:** live with `BEACON_SWAP_DESK_ADDRESS` → https://beacon-api-97gl.onrender.com
-- **Vercel `beacon-desk` + `beacon`:** Production **READY** on `02ab74c` → https://beacon-desk.vercel.app
+- **Render `beacon-api`:** live with `BEACON_SWAP_DESK_ADDRESS` â https://beacon-api-97gl.onrender.com
+- **Vercel `beacon-desk` + `beacon`:** Production **READY** on `02ab74c` â https://beacon-desk.vercel.app
 
 ### Chrome E2E (live)
-- UI: **Spend from Beacon Safe · Coston2** + **Execute from Beacon Safe** (no Mainnet MetaMask).
-- 1 MockUSDT0 → ~0.96 FXRP confirmed; FXRP wallet **18.48 → 19.45**.
-- Fulfill explorer: `0x53000df1…` · Execution panel **COSTON2**.
+- UI: **Spend from Beacon Safe Â· Coston2** + **Execute from Beacon Safe** (no Mainnet MetaMask).
+- 1 MockUSDT0 â ~0.96 FXRP confirmed; FXRP wallet **18.48 â 19.45**.
+- Fulfill explorer: `0x53000df1â¦` Â· Execution panel **COSTON2**.
 
-### Loop ticks 75–80 (2026-08-07 ~03:54 UTC+3)
+### Loop ticks 75â80 (2026-08-07 ~03:54 UTC+3)
 - Background retest loop continued green while Safe swap shipped.
-- Live path: agent swap quote/confirm → `mode=beacon_safe` · chain **114** · no MetaMask Mainnet.
+- Live path: agent swap quote/confirm â `mode=beacon_safe` Â· chain **114** Â· no MetaMask Mainnet.
 - Desk + policy remain configured; Render/Vercel on Safe-swap commits (`02ab74c` / history `bd02cf6`).
-- **Render + Vercel:** live/READY on Safe-swap stack → https://beacon-api-97gl.onrender.com · https://beacon-desk.vercel.app
+- **Render + Vercel:** live/READY on Safe-swap stack â https://beacon-api-97gl.onrender.com Â· https://beacon-desk.vercel.app
 
 ### Loop tick 81
 - Retest tick green; Safe swap path still primary on Coston2.
@@ -145,29 +187,29 @@ Zero localhost / cloudflared / ai-relay for live users. Render + Vercel only.
 ## 2026-08-07 - Loop deep retest + Safe intent / vault validation
 
 ### Fixes shipped (`ffa0dfe`, `6fe0f25`)
-- **Bare Safe intent:** `Safe` / `@safe` / `open safe` / `from … Safe` → `desk_link` `/flow/security` (no SparkDEX pairs).
+- **Bare Safe intent:** `Safe` / `@safe` / `open safe` / `from â¦ Safe` â `desk_link` `/flow/security` (no SparkDEX pairs).
 - **Tighten:** `is it safe to swap` still routes to **swap** (does not steal Safe help).
-- **Vault prepare:** zero deposit/withdraw amount → HTTP **400 VALIDATION** (was 500 INTERNAL).
+- **Vault prepare:** zero deposit/withdraw amount â HTTP **400 VALIDATION** (was 500 INTERNAL).
 - **Deposit UX:** MetaMask reject / cancel notes styled as danger on Safe page.
 
 ### Deploy status (verified)
 - **GitHub main:** `6fe0f25`
-- **Render `beacon-api`:** live on `6fe0f25` → https://beacon-api-97gl.onrender.com
-- **Vercel `beacon-desk` + `beacon`:** Production **success** for `6fe0f25` (vercel[bot]) → https://beacon-desk.vercel.app
+- **Render `beacon-api`:** live on `6fe0f25` â https://beacon-api-97gl.onrender.com
+- **Vercel `beacon-desk` + `beacon`:** Production **success** for `6fe0f25` (vercel[bot]) â https://beacon-desk.vercel.app
 - Push workflow: always `git push` via `GITHUB_TOKEN` from `.env` (token never written into history).
 
 ### Live retest (Chrome + API)
-- Safe / open safe / Send from Safe → `general` + `desk_link`.
-- prep `amountUsdt0=0` → `VALIDATION`.
+- Safe / open safe / Send from Safe â `general` + `desk_link`.
+- prep `amountUsdt0=0` â `VALIDATION`.
 - Vault prepare deposit still `mode: eip3009`.
-- On-chain Safe balance now **14.0 USDT0** (was 4.0 — deposit confirmed).
-- Loop ticks 29–48 stayed green on chips / Bridge Base Sepolia / New chat→General / SIMULATED_TEE honesty.
+- On-chain Safe balance now **14.0 USDT0** (was 4.0 â deposit confirmed).
+- Loop ticks 29â48 stayed green on chips / Bridge Base Sepolia / New chatâGeneral / SIMULATED_TEE honesty.
 
 ### Ops note
 - Always update this file after fix + test + each loop cycle; show Render + Vercel status; push with token.
 
-### Loop ticks 49–51 (2026-08-07 ~01:27 UTC+3)
-- Bare `Safe` → `desk_link`; `is it safe to swap` → swap; prep0 → 400 VALIDATION; prep deposit `eip3009`.
+### Loop ticks 49â51 (2026-08-07 ~01:27 UTC+3)
+- Bare `Safe` â `desk_link`; `is it safe to swap` â swap; prep0 â 400 VALIDATION; prep deposit `eip3009`.
 - Safe balance **14.0 USDT0**.
 - **Render:** live `7098008`. **Vercel desk/beacon:** success on code `6fe0f25` (history-only commit skipped web rebuild).
 
@@ -177,11 +219,11 @@ Zero localhost / cloudflared / ai-relay for live users. Render + Vercel only.
 
 ### Full feature pass (2026-08-07)
 - API: **25/25** chip + agent intents green (Swap/Bridge/x402/FAssets/Portfolio/Signals/Yield/Research/Risk/Safe + @intel/@liquidity/@crosschain/@treasury/@xrpfi/@trade/@desk/@pay/@general/@image + Bridge Base + edge Safe phrases).
-- prep0 → 400 VALIDATION; deposit prep `eip3009`; FCC `simulated`; Safe balance **14.0 USDT0**.
-- UI: Flow chips+arrows, New chat→General, Safe Deposit, WORK Bound Work, SIMULATED_TEE OK.
-- **Fixes:** Safe pass warns when funded but spend caps are 0; Deposit disabled for amount ≤0; WORK quote disabled until brief ≥8 chars; user-facing Yield “vault rails” → “yield rails”.
+- prep0 â 400 VALIDATION; deposit prep `eip3009`; FCC `simulated`; Safe balance **14.0 USDT0**.
+- UI: Flow chips+arrows, New chatâGeneral, Safe Deposit, WORK Bound Work, SIMULATED_TEE OK.
+- **Fixes:** Safe pass warns when funded but spend caps are 0; Deposit disabled for amount â¤0; WORK quote disabled until brief â¥8 chars; user-facing Yield âvault railsâ â âyield railsâ.
 
-### Loop ticks 53–54
+### Loop ticks 53â54
 - Safe / Yield rails / x402 / Bridge Base Sepolia OK; vault **14.0**; prep `eip3009`.
 - **Render + Vercel:** live/success on `72e8fb7`.
 
@@ -269,10 +311,10 @@ Zero localhost / cloudflared / ai-relay for live users. Render + Vercel only.
 
 ## 2026-08-06 - Safe deposit EIP-3009 fix + feature rail arrows
 
-- **Root cause of deposit revert:** Coston2 MockUSDT0 at `0x6fd8…` has **no** `approve` / `transferFrom` / `allowance` (EIP-3009 + transfer/mint only). Approve+deposit path always reverted.
-- **Fix:** Beacon Safe deposit uses `depositWithAuthorization` (EIP-3009 sign → Safe pulls). Error copy says Safe, not Vault. Mint test USDT0 button on Safe page. Wallet balance shown.
+- **Root cause of deposit revert:** Coston2 MockUSDT0 at `0x6fd8â¦` has **no** `approve` / `transferFrom` / `allowance` (EIP-3009 + transfer/mint only). Approve+deposit path always reverted.
+- **Fix:** Beacon Safe deposit uses `depositWithAuthorization` (EIP-3009 sign â Safe pulls). Error copy says Safe, not Vault. Mint test USDT0 button on Safe page. Wallet balance shown.
 - **UX:** Feature chips get left/right scroll arrows. Yield blurb no longer says "vault".
-- Proved on-chain with deployer EIP-3009 deposit into `0xc7C6…AF33`.
+- Proved on-chain with deployer EIP-3009 deposit into `0xc7C6â¦AF33`.
 
 ---
 
@@ -280,7 +322,7 @@ Zero localhost / cloudflared / ai-relay for live users. Render + Vercel only.
 
 - **Root cause:** `BeaconAgentVault.deposit` was `onlyOwner`, so MetaMask users who were not the Safe owner could not fund.
 - **Contract:** `deposit` / `depositWithAuthorization` now public (anyone funds the pool). Withdraw / policy / pause / executor remain owner-only.
-- **Redeploy Coston2:** `BeaconAgentVault` `0xc7C6C06Dd59173dBAf8382627d6A483Ca53AAF33` (token MockUSDT0 `0x6fd8…e86c`, owner/executor deployer). Updated `BEACON_AGENT_VAULT_ADDRESS` / `VITE_BEACON_AGENT_VAULT_ADDRESS`.
+- **Redeploy Coston2:** `BeaconAgentVault` `0xc7C6C06Dd59173dBAf8382627d6A483Ca53AAF33` (token MockUSDT0 `0x6fd8â¦e86c`, owner/executor deployer). Updated `BEACON_AGENT_VAULT_ADDRESS` / `VITE_BEACON_AGENT_VAULT_ADDRESS`.
 - **Safe UI:** Deposit enabled for any connected wallet; Withdraw still owner-gated; clearer MetaMask fund copy.
 - **Composer:** single-line pill input (`rows={1}`, shorter padding).
 - **Chips:** long sentence prompts replaced with icon feature rail (Swap, Bridge, x402, FAssets, Portfolio, Signals, Yield, Research, Risk, Safe).
@@ -892,10 +934,10 @@ Stale Redis policies blocked `@fassets` / `@liquidity` etc. `loadPolicy` now uni
 ### Critical: Render env wipe recovery
 - Brief PUT of AI-only keys wiped other Render env vars.
 - Restored **112** keys from local `.env` (includes AgentRouter Claude/GPT + settler + Redis + vault/desk).
-- Render **live** again; vault 12.5 � bridge agent-ready.
+- Render **live** again; vault 12.5 · bridge agent-ready.
 
 ### Chat / UX fixes
-- `wantsSafeHelp` no longer swallows `swap � from Beacon Safe`.
+- `wantsSafeHelp` no longer swallows `swap  from Beacon Safe`.
 - Swap chip/default prompt: **1 USDT0 from Beacon Safe** (was 50 > Safe balance).
 - FeatureDiscovery Swap blurb: Safe desk honesty on Coston2.
 
@@ -913,7 +955,7 @@ Stale Redis policies blocked `@fassets` / `@liquidity` etc. `loadPolicy` now uni
 - `research/flare-rails-e2e-2026-08.md` from Flare DevHub MCP + docs map.
 
 ### Chat bugs fixed
-- `wantsSafeHelp` no longer swallows `swap � from Beacon Safe`.
+- `wantsSafeHelp` no longer swallows `swap  from Beacon Safe`.
 - Swap chip default **1 USDT0 from Beacon Safe** (was 50 > Safe bal).
 - Narrate uses `chatForRole` (Claude/GPT fallbacks).
 - `/health` exposes `aiConfigured` + `aiBaseHost`.
@@ -924,11 +966,11 @@ Stale Redis policies blocked `@fassets` / `@liquidity` etc. `loadPolicy` now uni
 - Executor faucet: **+100 C2FLR** (was ~19.5 < OFT fee 22.95 ? MetaMask fallback).
 
 ### Real txs (no MetaMask agent path)
-- Safe swap 1 USDT0: spend `0xc08a7c25�` fulfill `0xbdbe62d7�` � FXRP wallet ~18.37
-- Agent bridge 0.5 FXRP Sepolia: `0xe47cdee6�`
+- Safe swap 1 USDT0: spend `0xc08a7c25` fulfill `0xbdbe62d7` · FXRP wallet ~18.37
+- Agent bridge 0.5 FXRP Sepolia: `0xe47cdee6`
 
 ### Security
-- Safe **10.5** � spent **3.5/50** � max **10**/tx � **not paused**
+- Safe **10.5** · spent **3.5/50** · max **10**/tx · **not paused**
 
 ### Matrix
 - Local MATRIX_GREEN with `beacon_safe` + `beacon_agent` after faucet.
