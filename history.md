@@ -4,7 +4,31 @@ Living log of what was done. No secrets in this file.
 
 ---
 
-## 2026-08-07 - Agent OFT Bridge (no MetaMask) + why Safe ≠ bridge fee
+## 2026-08-07 - Real Claude/GPT via Vercel AI proxy (fix Render 405)
+
+### Root cause
+- Live chat showed **deterministic fallback** even with `aiConfigured=true`.
+- `GET /v1/ai/probe` from Render ? AgentRouter returned **405** + Chinese HTML WAF page.
+- Local Node/PowerShell ? AgentRouter **200** (same key/headers). Oregon Render egress is blocked.
+
+### Fix
+- Vercel Edge proxy: `api/ai/proxy.ts` at `https://beacon-desk.vercel.app/api/ai/proxy`
+- Shared secret `AI_PROXY_SECRET`; API key only on Vercel + Render (never browser).
+- `packages/shared/src/ai.ts` prefers proxy when `AI_PROXY_URL` set; retries proxy on direct 405.
+- `vercel.json` SPA rewrite excludes `/api/*`.
+- Probe returns `proxy` + per-model `baseUrl` (shows `proxy?agentrouter`).
+
+### Ops
+- Render: set `AI_PROXY_URL` + `AI_PROXY_SECRET` (per-key PUT ? never bulk env replace).
+- Vercel `beacon-desk`: `AI_API_KEY`, `AI_PROXY_SECRET`, `AI_BASE_URL`.
+
+### Verify
+- `/v1/ai/probe` ? `ok:true` with Claude + GPT models.
+- Flow chip chat badge ? ?deterministic fallback?.
+
+---
+
+## 2026-08-07 - Agent OFT Bridge (no MetaMask) + why Safe ? bridge fee
 
 ### Why Bridge showed MetaMask
 - Beacon Safe holds **MockUSDT0 only**; OFT needs **FXRP + C2FLR msg.value**.
