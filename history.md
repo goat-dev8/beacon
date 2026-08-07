@@ -38,6 +38,12 @@ Living log of what was done. No secrets in this file.
 - 1 MockUSDT0 → ~0.96 FXRP confirmed; FXRP wallet **18.48 → 19.45**.
 - Fulfill explorer: `0x53000df1…` · Execution panel **COSTON2**.
 
+### Loop ticks 75–80 (2026-08-07 ~03:54 UTC+3)
+- Background retest loop continued green while Safe swap shipped.
+- Live path: agent swap quote/confirm → `mode=beacon_safe` · chain **114** · no MetaMask Mainnet.
+- Desk + policy remain configured; Render/Vercel on Safe-swap commits (`02ab74c` / history `bd02cf6`).
+- **Render + Vercel:** live/READY on Safe-swap stack → https://beacon-api-97gl.onrender.com · https://beacon-desk.vercel.app
+
 ---
 
 ## 2026-08-07 - Loop deep retest + Safe intent / vault validation
