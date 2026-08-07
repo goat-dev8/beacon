@@ -1,12 +1,7 @@
 /**
- * Local AgentRouter relay — residential egress + Claude Code wire headers.
- * Cloud hosts (Render/Vercel) hit Aliyun WAF 405/challenge; this box works.
- *
- * Usage:
- *   npx tsx scripts/ai-relay.mts
- *   cloudflared tunnel --url http://127.0.0.1:8787
- * Then set Render AI_PROXY_URL to https://<tunnel>/v1/chat/completions
- * and AI_PROXY_SECRET to the same secret the relay expects.
+ * DEV-ONLY offline AgentRouter helper. NOT production.
+ * Production: Vercel Node proxy sin1 → https://beacon-desk.vercel.app/api/ai/proxy
+ * Never require cloudflared / localhost for live Beacon users.
  */
 import "dotenv/config";
 import http from "node:http";
@@ -17,6 +12,9 @@ import {
   resolveAiBaseUrl,
 } from "../packages/shared/src/ai.ts";
 
+console.warn(
+  "[beacon-ai-relay] DEV ONLY — production uses Vercel /api/ai/proxy (sin1).",
+);
 const PORT = Number(process.env.AI_RELAY_PORT || 8787);
 const env = loadEnv();
 const apiKey = resolveAiApiKey(env);

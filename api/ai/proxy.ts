@@ -1,12 +1,18 @@
 /**
- * Vercel Edge AI proxy.
- * Render (Oregon) is blocked by AgentRouter WAF (HTTP 405 + zh-cn HTML).
- * This hop runs from Vercel egress so Claude/GPT chat stays real in production.
+ * Production AI proxy — Vercel Node.js serverless (NOT Edge).
+ * AgentRouter/Aliyun WAF blocks many cloud Edge/Oregon ASNs (HTTP 405 + zh-cn HTML).
+ * Node.js serverless in Singapore (`sin1`) matches AgentRouter's primary region.
  *
- * Auth: x-beacon-proxy-secret or Authorization: Bearer <AI_PROXY_SECRET>
+ * Auth: x-beacon-proxy-secret or Authorization Bearer <AI_PROXY_SECRET>
  * Never expose AI_API_KEY to the browser.
  */
-export const config = { runtime: "edge" };
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+
+export const config = {
+  runtime: "nodejs",
+  regions: ["sin1"],
+  maxDuration: 60,
+};
 
 function buildAgentRouterHeaders(apiKey: string): Record<string, string> {
   return {
@@ -23,8 +29,8 @@ function buildAgentRouterHeaders(apiKey: string): Record<string, string> {
     "X-Stainless-Package-Version": "0.39.0",
     "X-Stainless-OS": "linux",
     "X-Stainless-Arch": "x64",
-    "X-Stainless-Runtime": "vercel-edge",
-    "X-Stainless-Runtime-Version": "1",
+    "X-Stainless-Runtime": "node",
+    "X-Stainless-Runtime-Version": process.version,
   };
 }
 
@@ -34,37 +40,37 @@ function normalizeOpenAiBase(baseUrl: string): string {
   return `${trimmed}/v1`;
 }
 
-function readSecret(req: Request): string {
-  const header = req.headers.get("x-beacon-proxy-secret");
-  if (header) return header;
-  const auth = req.headers.get("authorization");
-  if (auth && auth.toLowerCase().startsWith("bearer ")) {
+function readSecret(req: VercelRequest): string {
+  const header = req.headers["x-beacon-proxy-secret"];
+  if (typeof header === "string" && header) return header;
+  const auth = req.headers.authorization;
+  if (typeof auth === "string" && auth.toLowerCase().startsWith("bearer ")) {
     return auth.slice(7).trim();
   }
   return "";
 }
 
-export default async function handler(req: Request): Promise<Response> {
-  const cors: Record<string, string> = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers":
-      "Content-Type, Authorization, x-beacon-proxy-secret",
-    "Cache-Control": "no-store",
-  };
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, x-beacon-proxy-secret",
+  );
 
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: cors });
+    return res.status(204).end();
   }
 
   if (req.method !== "POST") {
-    return Response.json({ error: "method_not_allowed" }, { status: 405, headers: cors });
+    return res.status(405).json({ error: "method_not_allowed" });
   }
 
   const expected = process.env.AI_PROXY_SECRET || "";
   const provided = readSecret(req);
   if (!expected || provided !== expected) {
-    return Response.json({ error: "unauthorized" }, { status: 401, headers: cors });
+    return res.status(401).json({ error: "unauthorized" });
   }
 
   const apiKey =
@@ -73,28 +79,16 @@ export default async function handler(req: Request): Promise<Response> {
     process.env.ANTHROPIC_API_KEY ||
     "";
   if (!apiKey) {
-    return Response.json({ error: "ai_key_missing" }, { status: 503, headers: cors });
+    return res.status(503).json({ error: "ai_key_missing" });
   }
 
   const baseUrl = normalizeOpenAiBase(
     process.env.AI_BASE_URL || process.env.OPENAI_BASE_URL || "https://agentrouter.org/v1",
   );
 
-  let body: {
-    model?: string;
-    messages?: unknown;
-    temperature?: number;
-    max_tokens?: number;
-    maxTokens?: number;
-  };
-  try {
-    body = (await req.json()) as typeof body;
-  } catch {
-    return Response.json({ error: "invalid_json" }, { status: 400, headers: cors });
-  }
-
-  if (!body?.model || !Array.isArray(body.messages)) {
-    return Response.json({ error: "invalid_body" }, { status: 400, headers: cors });
+  const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+  if (!body || typeof body !== "object" || !body.model || !Array.isArray(body.messages)) {
+    return res.status(400).json({ error: "invalid_body" });
   }
 
   const upstream = await fetch(`${baseUrl}/chat/completions`, {
@@ -107,16 +101,24 @@ export default async function handler(req: Request): Promise<Response> {
       max_tokens: body.max_tokens ?? body.maxTokens ?? 2048,
       stream: false,
     }),
-    signal: AbortSignal.timeout(45_000),
+    signal: AbortSignal.timeout(55_000),
   });
 
   const text = await upstream.text();
-  return new Response(text, {
-    status: upstream.status,
-    headers: {
-      ...cors,
-      "Content-Type":
-        upstream.headers.get("content-type") || "application/json; charset=utf-8",
-    },
-  });
+  const looksHtml = /^\s*</.test(text) || /<!doctype/i.test(text) || /aliyun_waf/i.test(text);
+  if (looksHtml) {
+    return res.status(502).json({
+      error: "upstream_waf_blocked",
+      status: upstream.status,
+      region: "sin1",
+      hint: "AgentRouter WAF rejected this egress ASN",
+    });
+  }
+
+  res.status(upstream.status);
+  res.setHeader(
+    "Content-Type",
+    upstream.headers.get("content-type") || "application/json; charset=utf-8",
+  );
+  return res.send(text);
 }

@@ -4,6 +4,26 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-07 - PRODUCTION: kill laptop AI; Vercel sin1 Node proxy
+
+### Mandate
+Zero localhost / cloudflared / ai-relay for live users. Render + Vercel only.
+
+### Research
+- `PRODUCTION_AUDIT.md` ? Flare DevHub MCP + LZ + FCC + Smart Accounts + AgentRouter WAF.
+- Coston2 SparkDEX router bytecode EMPTY; Mainnet OK ? Safe desk remains correct.
+- FCC: SIMULATED_TEE accepted; official FCC getting-started still uses tunnel for EXT_PROXY only.
+- Smart Accounts = XRPL personal accounts (not MetaMask AA).
+- AgentRouter: Oregon/Edge WAF 405; Singapore-primary infra ? Vercel Node `sin1`.
+
+### Ship
+- `api/ai/proxy.ts` ? Node.js runtime, region `sin1`, WAF HTML ? 502.
+- Render `AI_PROXY_URL=https://beacon-desk.vercel.app/api/ai/proxy` (permanent).
+- Killed local cloudflared/ai-relay processes.
+- `scripts/ai-relay.mts` marked DEV-ONLY.
+
+---
+
 ## 2026-08-07 - Real GPT narrate via residential AI relay
 
 ### Root cause

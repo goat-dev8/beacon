@@ -43,6 +43,7 @@
   "devDependencies": {
     "@types/node": "^22.15.0",
     "@types/pg": "^8.11.11",
+    "@vercel/node": "^5.9.5",
     "typescript": "^5.8.3",
     "vitest": "^3.1.2"
   },
