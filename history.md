@@ -835,3 +835,26 @@ Reopen a finished job: http://localhost:5173/app?job=<uuid>
 ### Hotfix ? Security policy migration
 Stale Redis policies blocked `@fassets` / `@liquidity` etc. `loadPolicy` now unions OS agent rollout + chain 14 (drops legacy `video` agent id).
 
+
+## 2026-08-07 - Full rails E2E + AI keys on Render + Safe-swap intent fix
+
+### Tick loop
+- Stopped background 5m heartbeat tick (user request).
+
+### Research
+- Wrote `research/flare-rails-e2e-2026-08.md` from Flare DevHub MCP + docs (x402, OFT, Smart Accounts USDT0, SparkDEX honesty).
+
+### Critical: Render env wipe recovery
+- Brief PUT of AI-only keys wiped other Render env vars.
+- Restored **112** keys from local `.env` (includes AgentRouter Claude/GPT + settler + Redis + vault/desk).
+- Render **live** again; vault 12.5 · bridge agent-ready.
+
+### Chat / UX fixes
+- `wantsSafeHelp` no longer swallows `swap … from Beacon Safe`.
+- Swap chip/default prompt: **1 USDT0 from Beacon Safe** (was 50 > Safe balance).
+- FeatureDiscovery Swap blurb: Safe desk honesty on Coston2.
+
+### Models
+- AgentRouter local probe: claude-opus-5 / claude-opus-4-8 / gpt-5.6-sol all YES.
+- Intent check: `swap_quote:beacon_safe` + model `gpt-5.6-sol`.
+

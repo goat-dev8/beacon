@@ -512,7 +512,9 @@ function wantsSafeHelp(message: string): boolean {
   const m = message.toLowerCase().trim();
   // Bare chip-style "Safe" / "@safe" — avoid matching "is it safe to swap".
   if (/^@?safe$/.test(m)) return true;
-  return /@safe\b|beacon safe|open safe|spend policy|fund (the )?safe|deposit (into |to )?(beacon )?safe|from (the )?(beacon )?safe|agent vault|prepaid (ai )?budget/.test(
+  // "swap 1 USDT0 from Beacon Safe" is a Safe-funded swap, not onboarding help.
+  if (/\b(swap|bridge|oft|layerzero|quote)\b/.test(m)) return false;
+  return /@safe\b|beacon safe|open safe|spend policy|fund (the )?safe|deposit (into |to )?(beacon )?safe|help me (with )?beacon safe|set (spend )?policy|agent vault|prepaid (ai )?budget/.test(
     m,
   );
 }

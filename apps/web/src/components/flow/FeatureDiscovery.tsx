@@ -28,8 +28,8 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
   {
     id: "swap",
     title: "Swap",
-    blurb: "Quote and execute SparkDEX pairs with live pricing before you sign.",
-    prompt: "Swap 50 USDT0 to FXRP",
+    blurb: "Spend MockUSDT0 from Beacon Safe into FXRP on Coston2 — agent executes, no MetaMask popup.",
+    prompt: "Swap 1 USDT0 to FXRP from Beacon Safe",
     icon: ArrowLeftRight,
     accent: true,
   },
