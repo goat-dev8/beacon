@@ -28,9 +28,15 @@ Living log of what was done. No secrets in this file.
 - Local `.env`: `BEACON_SWAP_DESK_ADDRESS` (not committed). Render must set the same for live API.
 
 ### Deploy follow-up
-- Vercel first build failed: approveStatus lacked `failed`. Fixed + rebuilt.
-- **GitHub:** pending push after TS fix.
-- Render: `BEACON_SWAP_DESK_ADDRESS` set; deploy `5b78a70`.
+- Vercel first build failed: `approveStatus` lacked `failed`. Fixed in `02ab74c`.
+- **GitHub main:** `02ab74c`
+- **Render `beacon-api`:** live with `BEACON_SWAP_DESK_ADDRESS` → https://beacon-api-97gl.onrender.com
+- **Vercel `beacon-desk` + `beacon`:** Production **READY** on `02ab74c` → https://beacon-desk.vercel.app
+
+### Chrome E2E (live)
+- UI: **Spend from Beacon Safe · Coston2** + **Execute from Beacon Safe** (no Mainnet MetaMask).
+- 1 MockUSDT0 → ~0.96 FXRP confirmed; FXRP wallet **18.48 → 19.45**.
+- Fulfill explorer: `0x53000df1…` · Execution panel **COSTON2**.
 
 ---
 
