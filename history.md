@@ -39,6 +39,10 @@ Living log of what was done. No secrets in this file.
 | EOA OFT fallback | User FXRP + C2FLR | User | Yes |
 | SparkDEX | Mainnet only | User EOA | Yes (chain 14) |
 
+### Loop tick 89
+- Retest heartbeat green; agent bridge + Safe swap still primary on Coston2.
+- Live: executor ~3.6 FXRP · Safe 12.5 · maxSpend 10 · paused false · Render/Vercel on `780a473`.
+
 ---
 
 ## 2026-08-07 - Coston2 Safe swap (no Mainnet MetaMask)
