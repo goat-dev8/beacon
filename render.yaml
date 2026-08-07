@@ -50,6 +50,24 @@ services:
         sync: false
       - key: AI_REQUIRE_REAL
         value: "true"
+      - key: ANTHROPIC_BASE_URL
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OPENAI_BASE_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AI_MODEL_PROMPT_ENGINEER
+        sync: false
+      - key: BEACON_AGENT_VAULT_ADDRESS
+        sync: false
+      - key: BEACON_SWAP_DESK_ADDRESS
+        sync: false
+      - key: SETTLER_PRIVATE_KEY
+        sync: false
+      - key: SETTLER_ADDRESS
+        sync: false
       - key: DEPLOYER_PRIVATE_KEY
         sync: false
       - key: DEPLOYER_ADDRESS

@@ -5,7 +5,7 @@ import { runBeaconAgentChat } from "../packages/shared/src/flareAgents.ts";
 const wallet = "0x3be57a5b65265d3704f846b93600308154fec794";
 const cases: Array<[string, string]> = [
   ["swap", "swap 0.5 USDT0 to FXRP"],
-  ["bridge", "bridge 1 FXRP to Sepolia"],
+  ["bridge", "bridge 0.5 FXRP to Sepolia"],
   ["pay", "pay with x402"],
   ["fassets", "Redeem FAssets"],
   ["portfolio", "Analyze my Portfolio"],

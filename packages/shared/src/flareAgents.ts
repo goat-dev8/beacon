@@ -1,4 +1,4 @@
-import { chatCompletion, displayModelName, isAiConfigured } from "./ai.js";
+import { chatCompletion, chatForRole, displayModelName, isAiConfigured } from "./ai.js";
 import { loadEnv, type BeaconEnv } from "./env.js";
 import {
   buildTradeSignal,
@@ -604,27 +604,19 @@ async function narrate(opts: {
     };
   }
   try {
-    const result = await chatCompletion(
+    const result = await chatForRole("quote", [
       {
-        model,
-        temperature: 0.4,
-        maxTokens: 500,
-        messages: [
-          {
-            role: "system",
-            content: `${AGENT_SYSTEM[opts.intent]}
+        role: "system",
+        content: `${AGENT_SYSTEM[opts.intent]}
 Speak like Claude/ChatGPT: warm, clear, concise. Never invent transaction hashes.
 Never mention AgentRouter, providers keys, APIs, calldata, HTML, or internal errors.
 Never dump addresses unless the user asks. Prefer natural language.
-MockUSDT0 is for Beacon pay/escrow only. SparkDEX swaps execute on Flare Mainnet (router has no Coston2 bytecode).
+MockUSDT0 is for Beacon pay/escrow and Beacon Safe spends on Coston2. Prefer Safe desk swaps on Coston2 (no MetaMask). SparkDEX Uniswap V3 execute is Flare Mainnet EOA-only when the user explicitly asks for Mainnet DEX.
 Pipeline: Intent → Clarify → Quote → Policy → Pay → Execute → Observe → Receipt → History → Resume.
 Situation for this turn:\n${opts.situation}`,
-          },
-          { role: "user", content: opts.userMessage },
-        ],
       },
-      opts.env,
-    );
+      { role: "user", content: opts.userMessage },
+    ], { temperature: 0.4, maxTokens: 500, env: opts.env });
     const returnedModel = result.model ?? model;
     return {
       text: sanitizeAssistantText(result.content),

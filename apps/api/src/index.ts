@@ -49,6 +49,7 @@ import {
   COSTON2_USDT0,
   chatCompletionStream,
   resolveModelForRole,
+  resolveAiBaseUrl,
   isAiConfigured,
   type BeaconAgentId,
   type ConversationState,
@@ -160,6 +161,14 @@ app.get("/health", async () => ({
   chainId: env.CHAIN_ID,
   network: env.NETWORK_NAME,
   flareRequired: (env.FLARE_REQUIRED || "true").toLowerCase() !== "false",
+  aiConfigured: isAiConfigured(env),
+  aiBaseHost: (() => {
+    try {
+      return new URL(resolveAiBaseUrl(env)).host;
+    } catch {
+      return null;
+    }
+  })(),
   flareRails: {
     escrow: env.BEACON_ESCROW,
     x402Token: env.X402_TOKEN_ADDRESS,

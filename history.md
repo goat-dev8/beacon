@@ -858,3 +858,33 @@ Stale Redis policies blocked `@fassets` / `@liquidity` etc. `loadPolicy` now uni
 - AgentRouter local probe: claude-opus-5 / claude-opus-4-8 / gpt-5.6-sol all YES.
 - Intent check: `swap_quote:beacon_safe` + model `gpt-5.6-sol`.
 
+
+## 2026-08-07 - Full 10-rail E2E (Chrome + on-chain) + Render AI env + faucet
+
+### Stopped
+- Background 5m tick loop killed (user request).
+
+### Research
+- `research/flare-rails-e2e-2026-08.md` from Flare DevHub MCP + docs map.
+
+### Chat bugs fixed
+- `wantsSafeHelp` no longer swallows `swap … from Beacon Safe`.
+- Swap chip default **1 USDT0 from Beacon Safe** (was 50 > Safe bal).
+- Narrate uses `chatForRole` (Claude/GPT fallbacks).
+- `/health` exposes `aiConfigured` + `aiBaseHost`.
+- `render.yaml` lists AI/vault/settler `sync: false` keys.
+
+### Render env
+- Per-key PUT for AgentRouter AI + settler/vault/desk (verified lengths).
+- Executor faucet: **+100 C2FLR** (was ~19.5 < OFT fee 22.95 ? MetaMask fallback).
+
+### Real txs (no MetaMask agent path)
+- Safe swap 1 USDT0: spend `0xc08a7c25…` fulfill `0xbdbe62d7…` · FXRP wallet ~18.37
+- Agent bridge 0.5 FXRP Sepolia: `0xe47cdee6…`
+
+### Security
+- Safe **10.5** · spent **3.5/50** · max **10**/tx · **not paused**
+
+### Matrix
+- Local MATRIX_GREEN with `beacon_safe` + `beacon_agent` after faucet.
+
