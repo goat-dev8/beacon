@@ -197,3 +197,11 @@ Security Center (Chrome): Safe **10.5** USDT0 · spent **3.5/50** · max **10**/
 3. **Pollinations OpenAI-compatible** `text.pollinations.ai/openai` � verified WORKS from cloud; no laptop
 
 Local cloudflared/ai-relay processes were killed and must not be restarted for production.
+
+
+## 10. Cloud AI verified (no laptop)
+
+- Vercel force redeploy: 402 Payment Required (UI may stay on 052f8c3 until billing fixed).
+- Render cdffc95: /v1/ai/probe ok via gen.pollinations.ai for claude-opus-5 + gpt-5.6-sol.
+- Chat displayModel=gpt-5.6-sol-2026-07-09. Local relay/cloudflared killed.
+
