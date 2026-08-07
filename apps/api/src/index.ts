@@ -209,6 +209,7 @@ app.get("/v1/ai/probe", async () => {
   return {
     ok: results.some((r) => r.works),
     configured: true,
+    proxy: Boolean(env.AI_PROXY_URL && env.AI_PROXY_SECRET),
     host: (() => {
       try {
         return new URL(resolveAiBaseUrl(env)).host;
@@ -221,6 +222,7 @@ app.get("/v1/ai/probe", async () => {
       ok: r.works,
       status: r.status,
       latencyMs: r.latencyMs,
+      baseUrl: r.baseUrl,
       error: r.error ? String(r.error).slice(0, 160) : undefined,
     })),
   };

@@ -108,6 +108,9 @@ export const envSchema = z.object({
 
   AI_BASE_URL: optionalString,
   AI_API_KEY: optionalString,
+  /** Vercel Edge proxy — bypasses AgentRouter WAF blocks on Render egress (405). */
+  AI_PROXY_URL: optionalString,
+  AI_PROXY_SECRET: optionalString,
   AI_MODEL_GENERATOR: optionalString,
   AI_MODEL_JUDGE: optionalString,
   AI_MODEL_QUOTE: optionalString,

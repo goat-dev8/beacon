@@ -74,6 +74,19 @@ export function resolveAiApiKey(env: BeaconEnv = loadEnv()): string {
   return env.AI_API_KEY || env.OPENAI_API_KEY || env.ANTHROPIC_API_KEY || "";
 }
 
+export function resolveAiProxyUrl(env: BeaconEnv = loadEnv()): string {
+  return (env.AI_PROXY_URL || "").replace(/\/$/, "");
+}
+
+export function resolveAiProxySecret(env: BeaconEnv = loadEnv()): string {
+  return env.AI_PROXY_SECRET || "";
+}
+
+/** True when a Vercel (or other) egress proxy is configured to bypass WAF blocks. */
+export function hasAiProxy(env: BeaconEnv = loadEnv()): boolean {
+  return Boolean(resolveAiProxyUrl(env) && resolveAiProxySecret(env));
+}
+
 export function resolveModelForRole(role: AiRole, env: BeaconEnv = loadEnv()): string {
   switch (role) {
     case "generator":
@@ -90,6 +103,7 @@ export function resolveModelForRole(role: AiRole, env: BeaconEnv = loadEnv()): s
 }
 
 export function isAiConfigured(env: BeaconEnv = loadEnv()): boolean {
+  if (hasAiProxy(env)) return true;
   return Boolean(resolveAiApiKey(env) && resolveAiBaseUrl(env));
 }
 
@@ -116,11 +130,109 @@ function normalizeOpenAiBase(baseUrl: string): string {
   return `${trimmed}/v1`;
 }
 
+type CompletionPayload = {
+  model: string;
+  messages: ChatMessage[];
+  temperature?: number;
+  max_tokens: number;
+  stream?: boolean;
+};
+
+/**
+ * Prefer Vercel proxy when configured (Render Oregon → AgentRouter is WAF-blocked).
+ * Fall back to direct AgentRouter; on 405 retry via proxy if available.
+ */
+async function postChatCompletions(
+  payload: CompletionPayload,
+  env: BeaconEnv,
+  opts: { preferProxy?: boolean; timeoutMs?: number } = {},
+): Promise<{ response: Response; text: string; via: "proxy" | "direct" }> {
+  const apiKey = resolveAiApiKey(env);
+  const baseUrl = resolveAiBaseUrl(env);
+  const proxyUrl = resolveAiProxyUrl(env);
+  const proxySecret = resolveAiProxySecret(env);
+  const timeoutMs = opts.timeoutMs ?? 45_000;
+  const body = JSON.stringify(payload);
+
+  const tryProxy = async (): Promise<{ response: Response; text: string; via: "proxy" }> => {
+    if (!proxyUrl || !proxySecret) {
+      throw new Error("AI_PROXY_URL/AI_PROXY_SECRET not configured");
+    }
+    const response = await fetch(proxyUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${proxySecret}`,
+        "x-beacon-proxy-secret": proxySecret,
+      },
+      body,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const text = await response.text();
+    return { response, text, via: "proxy" };
+  };
+
+  const tryDirect = async (): Promise<{ response: Response; text: string; via: "direct" }> => {
+    if (!apiKey) throw new Error("AI_API_KEY is not configured");
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: buildAgentRouterHeaders(apiKey),
+      body,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const text = await response.text();
+    return { response, text, via: "direct" };
+  };
+
+  const preferProxy = opts.preferProxy ?? hasAiProxy(env);
+
+  if (preferProxy && hasAiProxy(env)) {
+    try {
+      const proxied = await tryProxy();
+      if (proxied.response.ok) return proxied;
+      // Proxy up but upstream failed — still return (caller handles status).
+      if (proxied.response.status !== 401 && proxied.response.status !== 503) {
+        return proxied;
+      }
+    } catch {
+      // fall through to direct
+    }
+  }
+
+  if (!apiKey && hasAiProxy(env)) {
+    return tryProxy();
+  }
+  if (!apiKey) throw new Error("AI_API_KEY is not configured");
+
+  const direct = await tryDirect();
+  // Render/datacenter WAF: 405 + HTML → retry once via Vercel proxy.
+  if (
+    !direct.response.ok &&
+    direct.response.status === 405 &&
+    hasAiProxy(env) &&
+    !preferProxy
+  ) {
+    try {
+      return await tryProxy();
+    } catch {
+      return direct;
+    }
+  }
+  return direct;
+}
+
 /** Stream Agent Router tokens; yields text deltas. Failures throw — never invent content. */
 export async function* chatCompletionStream(
   req: ChatCompletionRequest,
   env: BeaconEnv = loadEnv(),
 ): AsyncGenerator<string, void, unknown> {
+  // Proxy path is non-stream (Edge forwards full JSON). Use non-stream completion then yield once.
+  if (hasAiProxy(env)) {
+    const full = await chatCompletion(req, env);
+    if (full.content) yield full.content;
+    return;
+  }
+
   const apiKey = resolveAiApiKey(env);
   const baseUrl = resolveAiBaseUrl(env);
   if (!apiKey) throw new Error("AI_API_KEY is not configured");
@@ -174,28 +286,27 @@ export async function chatCompletion(
   req: ChatCompletionRequest,
   env: BeaconEnv = loadEnv(),
 ): Promise<ChatCompletionResult> {
-  const apiKey = resolveAiApiKey(env);
-  const baseUrl = resolveAiBaseUrl(env);
-  if (!apiKey) {
+  if (!resolveAiApiKey(env) && !hasAiProxy(env)) {
     throw new Error("AI_API_KEY is not configured");
   }
 
   const started = Date.now();
   let response: Response | null = null;
   let text = "";
+  let via: "proxy" | "direct" = "direct";
   for (let attempt = 1; attempt <= 3; attempt++) {
-    response = await fetch(`${baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: buildAgentRouterHeaders(apiKey),
-      body: JSON.stringify({
+    const result = await postChatCompletions(
+      {
         model: req.model,
         temperature: req.temperature ?? 0.2,
         max_tokens: req.maxTokens ?? 2048,
         messages: req.messages,
-      }),
-      signal: AbortSignal.timeout(45_000),
-    });
-    text = await response.text();
+      },
+      env,
+    );
+    response = result.response;
+    text = result.text;
+    via = result.via;
     if (response.ok) break;
     // Retry transient upstream capacity / gateway errors.
     if (![429, 502, 503, 504].includes(response.status) || attempt === 3) break;
@@ -234,7 +345,7 @@ export async function chatCompletion(
     content,
     model: data.model ?? req.model,
     latencyMs,
-    raw,
+    raw: { ...(typeof raw === "object" && raw ? raw : { body: raw }), _via: via },
   };
 }
 
@@ -283,22 +394,19 @@ export async function probeModels(
   env: BeaconEnv = loadEnv(),
 ): Promise<AiProbeResult[]> {
   const baseUrl = resolveAiBaseUrl(env);
-  const apiKey = resolveAiApiKey(env);
   const results: AiProbeResult[] = [];
 
   for (const model of models) {
     const started = Date.now();
     try {
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: "POST",
-        headers: buildAgentRouterHeaders(apiKey),
-        body: JSON.stringify({
+      const { response, text, via } = await postChatCompletions(
+        {
           model,
           max_tokens: 32,
           messages: [{ role: "user", content: "Reply with exactly: WORKS" }],
-        }),
-      });
-      const text = await response.text();
+        },
+        env,
+      );
       let contentPreview = text.slice(0, 120);
       try {
         const parsed = JSON.parse(text) as {
@@ -312,7 +420,7 @@ export async function probeModels(
       }
       results.push({
         model,
-        baseUrl,
+        baseUrl: via === "proxy" ? `${resolveAiProxyUrl(env)}→${baseUrl}` : baseUrl,
         status: response.status,
         latencyMs: Date.now() - started,
         error: response.ok ? "" : contentPreview,

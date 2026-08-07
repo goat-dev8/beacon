@@ -40,6 +40,10 @@ services:
         sync: false
       - key: AI_API_KEY
         sync: false
+      - key: AI_PROXY_URL
+        sync: false
+      - key: AI_PROXY_SECRET
+        sync: false
       - key: AI_MODEL_GENERATOR
         sync: false
       - key: AI_MODEL_JUDGE
