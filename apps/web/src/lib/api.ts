@@ -398,7 +398,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  executeSafeSwap: (body: {
+    executeSafeSwap: (body: {
     amountInUnits: string;
     recipient: string;
     slippageBps?: number;
@@ -417,6 +417,26 @@ export const api = {
       honesty: string;
       error?: string;
     }>("/v1/vault/safe-swap/execute", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  executeAgentBridge: (body: {
+    amountFxrpUnits: string;
+    recipient: string;
+    destination: string;
+  }) =>
+    request<{
+      ok: boolean;
+      approveHash: string | null;
+      sendHash: string;
+      explorerSend: string;
+      layerZeroScanUrl: string;
+      amountDisplay: string;
+      destination: string;
+      dstEid: number;
+      peer: string;
+      honesty: string;
+    }>("/v1/agents/bridge/execute", {
       method: "POST",
       body: JSON.stringify(body),
     }),

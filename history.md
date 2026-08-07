@@ -4,6 +4,24 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-07 - Agent OFT Bridge (no MetaMask) + why Safe ≠ bridge fee
+
+### Why Bridge showed MetaMask
+- Beacon Safe holds **MockUSDT0 only**; OFT needs **FXRP + C2FLR msg.value**.
+- Vault `execute` cannot pay LayerZero native fee → EOA MetaMask was the old path.
+
+### Fix shipped
+- `agentBridge.ts` + `POST /v1/agents/bridge/execute` — executor signs approve+send.
+- Optional Safe MockUSDT0→FXRP top-up to executor when inventory low.
+- UI: **Execute with Beacon Agent** (`mode=beacon_agent`).
+- Research: `research/agent-bridge-oft-2026-08.md`.
+
+### On-chain smoke
+- **1 FXRP → Sepolia** agent-signed (no MetaMask).
+- Send `0xae7fdcaa…` on Coston2 explorer · LayerZero Scan linked.
+
+---
+
 ## 2026-08-07 - Coston2 Safe swap (no Mainnet MetaMask)
 
 ### Root cause

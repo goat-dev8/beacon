@@ -67,4 +67,11 @@ export {
 export * from "./marketIntel.js";
 export * from "./portfolioDesk.js";
 export * from "./oftBridge.js";
+export {
+  prepareBeaconAgentBridge,
+  executeBeaconAgentBridge,
+  agentBridgeReadiness,
+  type AgentBridgeQuote,
+  type AgentBridgeExecuteResult,
+} from "./agentBridge.js";
 export * from "./flareAgents.js";

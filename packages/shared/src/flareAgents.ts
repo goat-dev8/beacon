@@ -15,6 +15,7 @@ import {
 } from "./oftBridge.js";
 import { discoverSparkDexPools, prepareSparkDexSwap } from "./sparkDex.js";
 import { prepareBeaconSafeSwap, resolveSwapDeskAddress } from "./safeSwap.js";
+import { prepareBeaconAgentBridge } from "./agentBridge.js";
 import { readAgentVaultStatus, resolveAgentVaultAddress } from "./vaultClient.js";
 import { readFassetsDesk } from "./fassetsStatus.js";
 import { readYieldVaultDesk } from "./yieldVaults.js";
@@ -273,6 +274,10 @@ export type AgentCard =
       fxrpBalance: string;
       network: string;
       note: string;
+      mode?: "beacon_agent" | "eoa_metamask";
+      requiresMetaMask?: boolean;
+      fromSafe?: boolean;
+      honesty?: string;
     }
   | {
       type: "bridge_prepare";
@@ -293,6 +298,12 @@ export type AgentCard =
       warning: string;
       layerZeroScanBase: string;
       deliveryHint?: string;
+      mode?: "beacon_agent" | "eoa_metamask";
+      requiresMetaMask?: boolean;
+      fromSafe?: boolean;
+      safeSpendUsdt0?: string;
+      honesty?: string;
+      executor?: string;
     }
   | {
       type: "bridge_routes";
@@ -1843,7 +1854,53 @@ export async function runBeaconAgentChat(opts: {
         Boolean(state.amountInUnits || amount);
 
       if (!confirmed) {
-        // Quote phase: DO NOT emit bridge_routes alongside bridge_quote
+        // Prefer Beacon Agent OFT (executor FXRP + C2FLR) — no MetaMask
+        const agentQ = await prepareBeaconAgentBridge(
+          { amountFxrpUnits: amount, recipient: wallet, destination: dest },
+          env,
+        );
+        if (agentQ.ok) {
+          cards.push({
+            type: "bridge_quote",
+            title: agentQ.fromSafe
+              ? "Bridge quote · Beacon Safe → Agent OFT"
+              : "Bridge quote · Beacon Agent OFT",
+            destination: dest,
+            dstEid: route.eid,
+            amountDisplay: amount,
+            nativeFeeDisplay: agentQ.nativeFeeDisplay,
+            wallet,
+            fxrpBalance: agentQ.executorFxrpDisplay,
+            network: "Flare Testnet Coston2",
+            note: agentQ.fromSafe
+              ? `Safe top-up ~${agentQ.safeSpendUsdt0} MockUSDT0→FXRP, then agent OFT. Fee ≈ ${agentQ.nativeFeeDisplay}. No MetaMask.`
+              : `Agent executor OFT send. Fee ≈ ${agentQ.nativeFeeDisplay}. No MetaMask.`,
+            mode: "beacon_agent",
+            requiresMetaMask: false,
+            fromSafe: agentQ.fromSafe,
+            honesty: agentQ.honesty,
+          });
+          const narr = await narrate({
+            intent: "bridge",
+            userMessage: opts.message,
+            situation: `Agent bridge quote ${amount} FXRP→${dest}. Fee ${agentQ.nativeFeeDisplay}. fromSafe=${agentQ.fromSafe}. No MetaMask. Ask confirm.`,
+            fallback: agentQ.fromSafe
+              ? `Ready: **Beacon Safe** funds FXRP, then agent bridges **${amount} FXRP → ${dest}** (fee ≈ ${agentQ.nativeFeeDisplay}). Reply **confirm** — no MetaMask.`
+              : `Ready: **Beacon Agent** bridges **${amount} FXRP → ${dest}** (fee ≈ ${agentQ.nativeFeeDisplay}). Reply **confirm** — no MetaMask.`,
+            env,
+          });
+          return {
+            agentId: "bridge",
+            text: narr.text,
+            cards,
+            model: narr.model,
+            displayModel: narr.displayModel,
+            paid: true,
+            state: { intent: "bridge", phase: "await_confirm", bridgeTo: dest, amountInUnits: amount },
+          };
+        }
+
+        // Fallback: EOA MetaMask path
         let quotePreview;
         try {
           quotePreview = await prepareFxrpOftBridge(
@@ -1854,13 +1911,13 @@ export async function runBeaconAgentChat(opts: {
           const msg = err instanceof Error ? err.message : String(err);
           cards.push({
             type: "insufficient",
-            title: "Could not quote bridge fee",
-            summary: msg,
+            title: "Could not quote bridge",
+            summary: `${agentQ.error} · EOA quote: ${msg}`,
             faucetHref: "https://faucet.flare.network/coston2",
           });
           return {
             agentId: "bridge",
-            text: `I couldn’t get an on-chain **quoteSend** fee for **${amount} FXRP → ${dest}**: ${msg}`,
+            text: `Agent bridge unavailable (${agentQ.error}). EOA quote also failed: ${msg}`,
             cards,
             model: "beacon-local",
             displayModel: displayModelName("beacon-local", { fallback: true }),
@@ -1871,7 +1928,7 @@ export async function runBeaconAgentChat(opts: {
 
         cards.push({
           type: "bridge_quote",
-          title: "Bridge quote",
+          title: "Bridge quote · MetaMask EOA",
           destination: dest,
           dstEid: route.eid,
           amountDisplay: amount,
@@ -1879,13 +1936,16 @@ export async function runBeaconAgentChat(opts: {
           wallet,
           fxrpBalance: fxrpBal.formatted,
           network: "Flare Testnet Coston2",
-          note: `LayerZero messaging fee from quoteSend on OFT Adapter. Delivery to ${dest} is tracked separately on LayerZero Scan, we do not invent destination fills.`,
+          note: `Agent OFT unavailable (${agentQ.error}). Fallback: your wallet FXRP + C2FLR fee via MetaMask.`,
+          mode: "eoa_metamask",
+          requiresMetaMask: true,
+          honesty: agentQ.honesty,
         });
         const narr = await narrate({
           intent: "bridge",
           userMessage: opts.message,
-          situation: `Present bridge quote briefly. Amount ${amount} FXRP to ${dest}. Fee about ${quotePreview.nativeFeeDisplay}. Ask them to confirm, do not dump raw decimals or markdown walls.`,
-          fallback: `Ready to bridge ${amount} FXRP to ${dest}. Messaging fee ≈ ${quotePreview.nativeFeeDisplay}. Confirm to open Approve + Send.`,
+          situation: `EOA fallback bridge quote ${amount} FXRP to ${dest}. Fee ${quotePreview.nativeFeeDisplay}. MetaMask required.`,
+          fallback: `Agent inventory short — bridge **${amount} FXRP → ${dest}** from your wallet (fee ≈ ${quotePreview.nativeFeeDisplay}). Confirm for MetaMask Approve + Send.`,
           env,
         });
         return {
@@ -1899,18 +1959,71 @@ export async function runBeaconAgentChat(opts: {
         };
       }
 
-      // Prepare phase: DO NOT emit bridge_routes alongside bridge_prepare
+      // Prepare phase
       const finalAmount = amount || state.amountInUnits || "1";
+      const agentPrep = await prepareBeaconAgentBridge(
+        { amountFxrpUnits: finalAmount, recipient: wallet, destination: dest },
+        env,
+      );
+      if (agentPrep.ok) {
+        cards.push({
+          type: "bridge_prepare",
+          title: agentPrep.fromSafe
+            ? "Spend Safe + Agent OFT · Coston2"
+            : "Execute with Beacon Agent · Coston2",
+          destination: dest,
+          dstEid: route.eid,
+          peer: route.peer,
+          amountLD: "0",
+          amountDisplay: finalAmount,
+          minAmountLD: "0",
+          nativeFee: agentPrep.nativeFee,
+          nativeFeeDisplay: agentPrep.nativeFeeDisplay,
+          approveTo: agentPrep.approveTo,
+          sendTo: agentPrep.sendTo,
+          approveData: agentPrep.approveData,
+          sendData: agentPrep.sendData,
+          docs: agentPrep.docs,
+          warning: agentPrep.fromSafe
+            ? `Safe ~${agentPrep.safeSpendUsdt0} MockUSDT0→FXRP, then agent OFT ${finalAmount} FXRP→${dest}. Fee ≈ ${agentPrep.nativeFeeDisplay}. No MetaMask.`
+            : `Agent OFT ${finalAmount} FXRP→${dest}. Fee ≈ ${agentPrep.nativeFeeDisplay}. No MetaMask.`,
+          layerZeroScanBase: agentPrep.layerZeroScanBase,
+          deliveryHint: agentPrep.deliveryHint,
+          mode: "beacon_agent",
+          requiresMetaMask: false,
+          fromSafe: agentPrep.fromSafe,
+          safeSpendUsdt0: agentPrep.safeSpendUsdt0,
+          honesty: agentPrep.honesty,
+          executor: agentPrep.executor,
+        });
+        const narr = await narrate({
+          intent: "bridge",
+          userMessage: opts.message,
+          situation: `Prepared agent bridge ${finalAmount} FXRP→${dest}. No MetaMask.`,
+          fallback: `Prepared. Tap **Execute with Beacon Agent** — OFT on **Coston2**, fee ≈ ${agentPrep.nativeFeeDisplay} (no MetaMask).`,
+          env,
+        });
+        return {
+          agentId: "bridge",
+          text: narr.text,
+          cards,
+          model: narr.model,
+          displayModel: narr.displayModel,
+          paid: true,
+          state: { intent: "bridge", phase: "ready_execute", bridgeTo: dest, amountInUnits: finalAmount },
+        };
+      }
+
       if (parseFloat(fxrpBal.formatted) + 1e-9 < parseFloat(finalAmount)) {
         cards.push({
           type: "insufficient",
           title: "Not enough FXRP",
-          summary: `You have ${fxrpBal.formatted} FXRP on Coston2 but need ${finalAmount}. Swap USDT0→FXRP or mint FXRP via FAssets docs first.`,
+          summary: `Agent: ${agentPrep.error}. Wallet has ${fxrpBal.formatted} FXRP; need ${finalAmount}.`,
           faucetHref: "https://faucet.flare.network/coston2",
         });
         return {
           agentId: "bridge",
-          text: `You only have **${fxrpBal.formatted} FXRP** on Coston2. Fund FXRP first, then tell me the amount again.`,
+          text: `Agent bridge blocked (${agentPrep.error}). Wallet FXRP **${fxrpBal.formatted}** — fund agent/Safe or your wallet.`,
           cards,
           model: "beacon-local",
           displayModel: displayModelName("beacon-local", { fallback: true }),
@@ -1939,16 +2052,18 @@ export async function runBeaconAgentChat(opts: {
         approveData: prep.approveData,
         sendData: prep.sendData,
         docs: prep.docs,
-        warning:
-          `Bridge ${finalAmount} FXRP to ${dest}. Approve FXRP if needed, then OFT send. Fee ≈ ${prep.nativeFeeDisplay}. After source confirms: decode GUID → LayerZero Scan → dest OFTReceived (Beacon never invents fills).`,
+        warning: `EOA fallback: Approve FXRP then OFT send. Fee ≈ ${prep.nativeFeeDisplay}. (${agentPrep.error})`,
         layerZeroScanBase: prep.layerZeroScanBase,
         deliveryHint: prep.deliveryHint,
+        mode: "eoa_metamask",
+        requiresMetaMask: true,
+        honesty: agentPrep.honesty,
       });
       const narr = await narrate({
         intent: "bridge",
         userMessage: opts.message,
-        situation: `User confirmed bridge of ${finalAmount} FXRP to ${dest}. Short confirm, point to Approve + Send card. Fee ${prep.nativeFeeDisplay}. Do not dump raw decimals.`,
-        fallback: `Confirmed. Use Approve + Send below, fee ≈ ${prep.nativeFeeDisplay}. Explorer and LayerZero Scan appear after the source tx confirms.`,
+        situation: `EOA MetaMask bridge prepare ${finalAmount} FXRP→${dest}.`,
+        fallback: `Confirmed. Use **Approve + Send** in MetaMask, fee ≈ ${prep.nativeFeeDisplay}.`,
         env,
       });
       return {

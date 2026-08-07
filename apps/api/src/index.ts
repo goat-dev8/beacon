@@ -43,6 +43,9 @@ import {
   executeBeaconSafeSwap,
   ensureSafeSwapPolicy,
   readSwapDeskStatus,
+  prepareBeaconAgentBridge,
+  executeBeaconAgentBridge,
+  agentBridgeReadiness,
   COSTON2_USDT0,
   chatCompletionStream,
   resolveModelForRole,
@@ -927,6 +930,27 @@ app.post("/v1/agents/bridge/prepare", async (req) => {
     .parse(req.body ?? {});
   const prep = await prepareFxrpOftBridge(body, env);
   return { ok: true, prep };
+});
+
+app.get("/v1/agents/bridge/agent-ready", async () => {
+  const status = await agentBridgeReadiness(env);
+  return { ok: true, status };
+});
+
+app.post("/v1/agents/bridge/execute", async (req) => {
+  const body = z
+    .object({
+      amountFxrpUnits: z.string().min(1),
+      recipient: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
+      destination: z.string().min(2),
+      preferSafeFunding: z.boolean().optional(),
+    })
+    .parse(req.body ?? {});
+  const result = await executeBeaconAgentBridge(body, env);
+  if (!result.ok) {
+    throw new AppError("VALIDATION", { message: result.error });
+  }
+  return { ok: true, ...result };
 });
 
 const agentChatSchema = z.object({

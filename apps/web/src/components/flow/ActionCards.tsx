@@ -668,11 +668,14 @@ export function ActionCard({
   if (card.type === "bridge_prepare") {
     const lzScanBase = String(card.layerZeroScanBase ?? "https://testnet.layerzeroscan.com/tx/");
     const fee = formatNativeFeeDisplay(String(card.nativeFeeDisplay ?? ""));
+    const isAgent = card.mode === "beacon_agent" || card.requiresMetaMask === false;
     return (
       <div className="overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface)]">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--p-border)] px-4 py-3">
           <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-accent-text)]">Confirm in wallet</p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-accent-text)]">
+              {isAgent ? "Beacon Agent · Coston2" : "Confirm in wallet"}
+            </p>
             <p className="mt-1 font-display text-base font-semibold">
               {formatTokenAmount(String(card.amountDisplay ?? ""), "FXRP")}
               <span className="mx-2 text-[var(--p-muted)]">→</span>
@@ -684,6 +687,14 @@ export function ActionCard({
             <p className="font-display text-lg font-semibold tabular-nums text-[var(--p-accent-text)]">{fee}</p>
           </div>
         </div>
+
+        {isAgent ? (
+          <p className="px-4 pt-3 text-xs text-signal">
+            Agent executor signs OFT on Coston2 — no MetaMask.
+            {card.fromSafe ? " Safe MockUSDT0 tops up FXRP first." : ""}
+          </p>
+        ) : null}
+        {card.honesty ? <p className="px-4 pt-2 text-xs text-amber-200/90">{String(card.honesty)}</p> : null}
 
         <div className="space-y-2 px-4 py-4">
           <StatusRow label="Approve FXRP" status={approveStatus} hash={approveHash} chainId={114} />
@@ -705,41 +716,72 @@ export function ActionCard({
                   setBusy(true);
                   setError(null);
                   try {
-                    const result = await executeOftBridge({
-                      approveTo: card.approveTo as Address,
-                      approveData: card.approveData as Hex,
-                      sendTo: card.sendTo as Address,
-                      sendData: card.sendData as Hex,
-                      nativeFee: BigInt(String(card.nativeFee)),
-                      onStep: (s) => {
-                        if (s.step === "approve") {
-                          setApproveStatus(s.status);
-                          if (s.hash) setApproveHash(s.hash);
-                        }
-                        if (s.step === "send") {
-                          setSendStatus(s.status);
-                          if (s.hash) setSendHash(s.hash);
-                        }
-                      },
-                    });
-                    if (result.approveHash) setApproveHash(result.approveHash);
-                    setSendHash(result.sendHash);
-                    setSendStatus("confirmed");
-                    onBalancesRefresh();
-                    onTxConfirmed?.({
-                      kind: "bridge",
-                      title: `FXRP OFT → ${String(card.destination ?? "peer")}`,
-                      hash: result.sendHash,
-                      explorerUrl: explorerTx(result.sendHash, 114),
-                      meta: {
-                        flarePrimitive: "LayerZero OFT · FAssets FXRP",
-                        layerZeroScan: `${lzScanBase}${result.sendHash}`,
-                        destination: card.destination,
-                      },
-                    });
+                    if (isAgent) {
+                      setApproveStatus("pending");
+                      const result = await api.executeAgentBridge({
+                        amountFxrpUnits: String(card.amountDisplay),
+                        recipient: wallet,
+                        destination: String(card.destination),
+                      });
+                      if (!result.sendHash) throw new Error("Agent bridge failed");
+                      if (result.approveHash) {
+                        setApproveHash(result.approveHash);
+                        setApproveStatus("confirmed");
+                      } else {
+                        setApproveStatus("skipped");
+                      }
+                      setSendHash(result.sendHash);
+                      setSendStatus("confirmed");
+                      onBalancesRefresh();
+                      onTxConfirmed?.({
+                        kind: "bridge",
+                        title: `Agent OFT FXRP → ${String(card.destination ?? "peer")}`,
+                        hash: result.sendHash,
+                        explorerUrl: explorerTx(result.sendHash, 114),
+                        meta: {
+                          flarePrimitive: "Beacon Agent · LayerZero OFT",
+                          layerZeroScan: result.layerZeroScanUrl ?? `${lzScanBase}${result.sendHash}`,
+                          destination: card.destination,
+                        },
+                      });
+                    } else {
+                      const result = await executeOftBridge({
+                        approveTo: card.approveTo as Address,
+                        approveData: card.approveData as Hex,
+                        sendTo: card.sendTo as Address,
+                        sendData: card.sendData as Hex,
+                        nativeFee: BigInt(String(card.nativeFee)),
+                        onStep: (s) => {
+                          if (s.step === "approve") {
+                            setApproveStatus(s.status);
+                            if (s.hash) setApproveHash(s.hash);
+                          }
+                          if (s.step === "send") {
+                            setSendStatus(s.status);
+                            if (s.hash) setSendHash(s.hash);
+                          }
+                        },
+                      });
+                      if (result.approveHash) setApproveHash(result.approveHash);
+                      setSendHash(result.sendHash);
+                      setSendStatus("confirmed");
+                      onBalancesRefresh();
+                      onTxConfirmed?.({
+                        kind: "bridge",
+                        title: `FXRP OFT → ${String(card.destination ?? "peer")}`,
+                        hash: result.sendHash,
+                        explorerUrl: explorerTx(result.sendHash, 114),
+                        meta: {
+                          flarePrimitive: "LayerZero OFT · FAssets FXRP",
+                          layerZeroScan: `${lzScanBase}${result.sendHash}`,
+                          destination: card.destination,
+                        },
+                      });
+                    }
                   } catch (e) {
                     setError(e instanceof Error ? e.message : "Bridge send failed");
                     setSendStatus((prev) => (prev === "pending" ? "failed" : prev));
+                    setApproveStatus((prev) => (prev === "pending" ? "failed" : prev));
                   } finally {
                     setBusy(false);
                   }
@@ -747,7 +789,13 @@ export function ActionCard({
               }}
               className="rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink disabled:opacity-50"
             >
-              {busy ? "Confirm in wallet…" : "Approve + Send"}
+              {busy
+                ? isAgent
+                  ? "Executing…"
+                  : "Confirm in wallet…"
+                : isAgent
+                  ? "Execute with Beacon Agent"
+                  : "Approve + Send"}
             </button>
           )}
         </div>
