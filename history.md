@@ -44,6 +44,10 @@ Living log of what was done. No secrets in this file.
 - Desk + policy remain configured; Render/Vercel on Safe-swap commits (`02ab74c` / history `bd02cf6`).
 - **Render + Vercel:** live/READY on Safe-swap stack → https://beacon-api-97gl.onrender.com · https://beacon-desk.vercel.app
 
+### Loop tick 81
+- Retest tick green; Safe swap path still primary on Coston2.
+- History commit `297619a` pushed; Render/Vercel tracking latest.
+
 ---
 
 ## 2026-08-07 - Loop deep retest + Safe intent / vault validation
