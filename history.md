@@ -15,10 +15,29 @@ Living log of what was done. No secrets in this file.
 - Optional Safe MockUSDT0→FXRP top-up to executor when inventory low.
 - UI: **Execute with Beacon Agent** (`mode=beacon_agent`).
 - Research: `research/agent-bridge-oft-2026-08.md`.
+- Risk copy: prefer Safe/@swap on Coston2 (not “use SparkDEX Mainnet” as default).
+- `scripts/feature-matrix.mts` — chat matrix for 10 rails.
 
 ### On-chain smoke
 - **1 FXRP → Sepolia** agent-signed (no MetaMask).
 - Send `0xae7fdcaa…` on Coston2 explorer · LayerZero Scan linked.
+
+### Live E2E (Chrome + matrix) · `92d3b97`
+- Render `beacon-api` **live** `92d3b97`; Vercel `beacon-desk` READY on same.
+- `/v1/agents/bridge/agent-ready`: executor ~4.6 FXRP · Safe MockUSDT0 12.5 · pause off.
+- **MATRIX_GREEN** — swap(`beacon_safe`), bridge(`beacon_agent`), x402, FAssets, portfolio, signals, yield, research, risk, Safe desk.
+- Chrome Bridge: quote → Confirm → **Execute with Beacon Agent** (no MetaMask).
+  - Approve `0xc6dd8613…` · Send `0x29f52777…`
+  - Explorer: https://coston2-explorer.flare.network/tx/0x29f52777b6f36c12ce532e93864ba4d42acfd4578c027d39f684a631ad0ef89a
+  - LZ Scan: https://testnet.layerzeroscan.com/tx/0x29f52777b6f36c12ce532e93864ba4d42acfd4578c027d39f684a631ad0ef89a
+
+### Rails honesty
+| Rail | Asset | Signer | MetaMask? |
+|------|--------|--------|-----------|
+| Safe swap desk | MockUSDT0→FXRP | Executor | No |
+| Agent OFT bridge | FXRP + C2FLR fee | Executor | No |
+| EOA OFT fallback | User FXRP + C2FLR | User | Yes |
+| SparkDEX | Mainnet only | User EOA | Yes (chain 14) |
 
 ---
 

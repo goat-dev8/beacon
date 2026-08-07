@@ -94,7 +94,7 @@ export async function buildMarketIntelligence(opts?: {
 
   let recommendedAction =
     signal.bias === "risk-on"
-      ? "Consider a sized USDT0→FXRP exposure only after your own risk checks; use @swap on Flare Mainnet SparkDEX."
+      ? "Consider a sized USDT0→FXRP exposure only after your own risk checks; prefer @swap from Beacon Safe on Coston2 (agent spend). SparkDEX Mainnet is an optional EOA path."
       : signal.bias === "risk-off"
         ? "Prefer staying in USDT0 / smaller size; revisit when FTSO bias improves."
         : "No strong directional edge — wait or use @signals for another FTSO read.";
