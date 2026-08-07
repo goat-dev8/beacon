@@ -151,7 +151,7 @@ async function postChatCompletions(
   const baseUrl = resolveAiBaseUrl(env);
   const proxyUrl = resolveAiProxyUrl(env);
   const proxySecret = resolveAiProxySecret(env);
-  const timeoutMs = opts.timeoutMs ?? 45_000;
+  const timeoutMs = opts.timeoutMs ?? 90_000;
   const body = JSON.stringify(payload);
 
   const tryProxy = async (): Promise<{ response: Response; text: string; via: "proxy" }> => {
@@ -189,13 +189,12 @@ async function postChatCompletions(
   if (preferProxy && hasAiProxy(env)) {
     try {
       const proxied = await tryProxy();
-      if (proxied.response.ok) return proxied;
-      // Proxy up but upstream failed — still return (caller handles status).
-      if (proxied.response.status !== 401 && proxied.response.status !== 503) {
-        return proxied;
-      }
-    } catch {
-      // fall through to direct
+      // Never fall through to direct when proxy is configured — cloud egress is WAF-blocked.
+      return proxied;
+    } catch (err) {
+      throw err instanceof Error
+        ? err
+        : new Error(`AI proxy failed: ${String(err)}`);
     }
   }
 
@@ -424,7 +423,11 @@ export async function probeModels(
         status: response.status,
         latencyMs: Date.now() - started,
         error: response.ok ? "" : contentPreview,
-        works: response.ok,
+        works:
+          response.ok &&
+          !/^\s*</.test(text) &&
+          !/<!doctype/i.test(text) &&
+          /"content"\s*:/.test(text),
         contentPreview,
       });
     } catch (err) {
