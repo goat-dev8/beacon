@@ -163,17 +163,15 @@ function isRealCompletion(hop: CompletionHop): boolean {
 }
 
 function mapModelForPollinations(model: string): string {
-  const m = model.toLowerCase();
-  if (m.includes("claude")) return "claude";
-  if (m.includes("gpt") || m.includes("sol")) return "openai";
-  return "openai";
+  const m = (model || "").trim();
+  // gen.pollinations.ai accepts AgentRouter-style ids for some GPT routes.
+  if (/^gpt-/i.test(m) || /sol/i.test(m)) return m;
+  if (/claude/i.test(m)) return "openai-large"; // Claude pollen may be empty; use strong GPT path
+  return m || "openai";
 }
 
-function resolvePollinationsChatUrl(env: BeaconEnv): string {
-  return (
-    (env as BeaconEnv & { POLLINATIONS_TEXT_URL?: string }).POLLINATIONS_TEXT_URL ||
-    "https://text.pollinations.ai/openai"
-  );
+function resolvePollinationsChatUrl(_env: BeaconEnv): string {
+  return "https://gen.pollinations.ai/v1/chat/completions";
 }
 
 /**
@@ -243,9 +241,11 @@ async function postChatCompletions(
   };
 
   const hops: Array<() => Promise<CompletionHop>> = [];
-  if (hasAiProxy(env)) hops.push(tryProxy);
+  // Prefer AgentRouter direct; Pollinations is the cloud-reachable production hop.
+  // Vercel proxy last (may WAF until sin1 Node deploy is live / billing fixed).
   if (apiKey) hops.push(tryDirect);
   if (pollinationsKey) hops.push(tryPollinations);
+  if (hasAiProxy(env)) hops.push(tryProxy);
   if (hops.length === 0) {
     throw new Error("No AI provider configured (AgentRouter key / proxy / Pollinations)");
   }
@@ -336,11 +336,8 @@ export async function chatCompletion(
     throw new Error("AI provider returned empty content");
   }
 
-  // Prefer requested AgentRouter model id in UI when Pollinations mapped underneath.
-  const returnedModel =
-    via === "pollinations"
-      ? data.model || mapModelForPollinations(req.model)
-      : data.model ?? req.model;
+  // Prefer requested AgentRouter model id in product UI when hop succeeds.
+  const returnedModel = data.model ?? req.model;
 
   return {
     content,
