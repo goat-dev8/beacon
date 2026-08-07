@@ -4,27 +4,28 @@ Living log of what was done. No secrets in this file.
 
 ---
 
-## 2026-08-07 - Real Claude/GPT via Vercel AI proxy (fix Render 405)
+## 2026-08-07 - Real GPT narrate via residential AI relay
 
 ### Root cause
-- Live chat showed **deterministic fallback** even with `aiConfigured=true`.
-- `GET /v1/ai/probe` from Render ? AgentRouter returned **405** + Chinese HTML WAF page.
-- Local Node/PowerShell ? AgentRouter **200** (same key/headers). Oregon Render egress is blocked.
+- Live chat showed deterministic fallback even with aiConfigured=true.
+- Render and Vercel Edge are blocked by AgentRouter/Aliyun WAF (405 / challenge HTML).
+- Browser CORS reaches AgentRouter but fails unauthorized client (cannot set Claude CLI User-Agent).
+- Local Node + Claude wire headers on residential IP works.
 
 ### Fix
-- Vercel Edge proxy: `api/ai/proxy.ts` at `https://beacon-desk.vercel.app/api/ai/proxy`
-- Shared secret `AI_PROXY_SECRET`; API key only on Vercel + Render (never browser).
-- `packages/shared/src/ai.ts` prefers proxy when `AI_PROXY_URL` set; retries proxy on direct 405.
-- `vercel.json` SPA rewrite excludes `/api/*`.
-- Probe returns `proxy` + per-model `baseUrl` (shows `proxy?agentrouter`).
+- scripts/ai-relay.mts on localhost:8787 + cloudflared quick tunnel.
+- Render AI_PROXY_URL points at tunnel /api/ai/proxy (secret auth).
+- ai.ts never falls through to direct cloud egress when proxy is configured.
+- Probe requires real JSON content (not HTML 200).
+- Vercel api/ai/proxy.ts kept as optional secondary (also cloud-blocked).
+
+### Verified
+- /v1/ai/probe gpt-5.6-sol ok via relay.
+- /v1/agents/chat Swap quote displayModel=gpt-5.6-sol (real narrate).
 
 ### Ops
-- Render: set `AI_PROXY_URL` + `AI_PROXY_SECRET` (per-key PUT ? never bulk env replace).
-- Vercel `beacon-desk`: `AI_API_KEY`, `AI_PROXY_SECRET`, `AI_BASE_URL`.
-
-### Verify
-- `/v1/ai/probe` ? `ok:true` with Claude + GPT models.
-- Flow chip chat badge ? ?deterministic fallback?.
+- Keep relay + tunnel up during demo.
+- Update Render AI_PROXY_URL when tunnel URL rotates (per-key PUT only).
 
 ---
 
