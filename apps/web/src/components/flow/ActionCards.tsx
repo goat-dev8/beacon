@@ -467,13 +467,14 @@ export function ActionCard({
     const symbolIn = String(card.symbolIn ?? "USDT0");
     const symbolOut = String(card.symbolOut ?? "FXRP");
     const est = String(card.estimatedOut ?? card.estimatedFxrp);
-    const chainId = Number(card.chainId ?? 14);
+    const isSafe = card.mode === "beacon_safe" || card.requiresMetaMask === false;
+    const chainId = Number(card.chainId ?? (isSafe ? 114 : 14));
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-accent-text)]">{card.title}</p>
           <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal">
-            {String(card.flarePrimitive ?? "SparkDEX")}
+            {String(card.flarePrimitive ?? (isSafe ? "Beacon Safe" : "SparkDEX"))}
           </span>
         </div>
         <p className="mt-2 text-sm text-[var(--p-fg)]/80">
@@ -481,17 +482,30 @@ export function ActionCard({
           {" → "}
           <span className="text-[var(--p-accent-text)]">~{est} {symbolOut}</span>
           {" · "}
-          {String(card.network ?? "Flare Mainnet")}
+          {String(card.network ?? (isSafe ? "Flare Testnet Coston2" : "Flare Mainnet"))}
         </p>
         <p className="mt-1 text-xs text-[var(--p-muted)]">{String(card.warning)}</p>
         {card.honesty ? <p className="mt-1 text-xs text-amber-200/90">{String(card.honesty)}</p> : null}
-        {card.requiresChainSwitch ? (
+        {isSafe ? (
+          <p className="mt-2 text-xs text-signal">
+            Agent executor spends from Beacon Safe on Coston2 — no MetaMask, no Mainnet switch.
+          </p>
+        ) : card.requiresChainSwitch ? (
           <p className="mt-2 text-xs text-signal">MetaMask will switch to Flare Mainnet (chain 14) before signing.</p>
         ) : null}
 
         <div className="mt-4 space-y-2">
-          <StatusRow label={`Approve ${symbolIn}`} status={approveStatus} hash={approveHash} chainId={chainId} />
-          <StatusRow label="Swap" status={swapStatus} hash={swapHash} chainId={chainId} />
+          {isSafe ? (
+            <>
+              <StatusRow label="Safe spend" status={approveStatus} hash={approveHash} chainId={chainId} />
+              <StatusRow label="Desk fulfill" status={swapStatus} hash={swapHash} chainId={chainId} />
+            </>
+          ) : (
+            <>
+              <StatusRow label={`Approve ${symbolIn}`} status={approveStatus} hash={approveHash} chainId={chainId} />
+              <StatusRow label="Swap" status={swapStatus} hash={swapHash} chainId={chainId} />
+            </>
+          )}
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
@@ -509,37 +523,62 @@ export function ActionCard({
                   setBusy(true);
                   setError(null);
                   try {
-                    const result = await executeSparkDexSwap({
-                      approveTo: card.approveTo as Address,
-                      approveData: card.approveData as Hex,
-                      swapTo: card.swapTo as Address,
-                      swapData: card.swapData as Hex,
-                      chainId,
-                      onStep: (s) => {
-                        if (s.step === "approve") {
-                          setApproveStatus(s.status);
-                          if (s.hash) setApproveHash(s.hash);
-                        }
-                        if (s.step === "swap") {
-                          setSwapStatus(s.status);
-                          if (s.hash) setSwapHash(s.hash);
-                        }
-                      },
-                    });
-                    if (result.approveHash) setApproveHash(result.approveHash);
-                    setSwapHash(result.swapHash);
-                    setSwapStatus("confirmed");
-                    onBalancesRefresh();
-                    onTxConfirmed?.({
-                      kind: "swap",
-                      title: `SparkDEX ${symbolIn}→${symbolOut} · ${String(card.amountInDisplay ?? "")}`,
-                      hash: result.swapHash,
-                      explorerUrl: explorerTx(result.swapHash, chainId),
-                      meta: { flarePrimitive: "SparkDEX · Flare Mainnet", chainId },
-                    });
+                    if (isSafe) {
+                      setApproveStatus("pending");
+                      const result = await api.executeSafeSwap({
+                        amountInUnits: String(card.amountInDisplay),
+                        recipient: wallet,
+                        slippageBps: Number(card.slippageBps ?? 100),
+                      });
+                      if (!("spendHash" in result) || !result.spendHash) {
+                        throw new Error((result as { error?: string }).error || "Safe swap failed");
+                      }
+                      setApproveHash(result.spendHash);
+                      setApproveStatus("confirmed");
+                      setSwapHash(result.fulfillHash);
+                      setSwapStatus("confirmed");
+                      onBalancesRefresh();
+                      onTxConfirmed?.({
+                        kind: "swap",
+                        title: `Beacon Safe ${symbolIn}→${symbolOut} · ${String(card.amountInDisplay ?? "")}`,
+                        hash: result.fulfillHash,
+                        explorerUrl: explorerTx(result.fulfillHash, chainId),
+                        meta: { flarePrimitive: "Beacon Safe · Coston2", chainId },
+                      });
+                    } else {
+                      const result = await executeSparkDexSwap({
+                        approveTo: card.approveTo as Address,
+                        approveData: card.approveData as Hex,
+                        swapTo: card.swapTo as Address,
+                        swapData: card.swapData as Hex,
+                        chainId,
+                        onStep: (s) => {
+                          if (s.step === "approve") {
+                            setApproveStatus(s.status);
+                            if (s.hash) setApproveHash(s.hash);
+                          }
+                          if (s.step === "swap") {
+                            setSwapStatus(s.status);
+                            if (s.hash) setSwapHash(s.hash);
+                          }
+                        },
+                      });
+                      if (result.approveHash) setApproveHash(result.approveHash);
+                      setSwapHash(result.swapHash);
+                      setSwapStatus("confirmed");
+                      onBalancesRefresh();
+                      onTxConfirmed?.({
+                        kind: "swap",
+                        title: `SparkDEX ${symbolIn}→${symbolOut} · ${String(card.amountInDisplay ?? "")}`,
+                        hash: result.swapHash,
+                        explorerUrl: explorerTx(result.swapHash, chainId),
+                        meta: { flarePrimitive: "SparkDEX · Flare Mainnet", chainId },
+                      });
+                    }
                   } catch (e) {
                     setError(e instanceof Error ? e.message : "Swap failed");
                     setSwapStatus((prev) => (prev === "pending" ? "failed" : prev));
+                    setApproveStatus((prev) => (prev === "pending" ? "failed" : prev));
                   } finally {
                     setBusy(false);
                   }
@@ -547,7 +586,15 @@ export function ActionCard({
               }}
               className="rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink disabled:opacity-50"
             >
-              {busy ? "Signing…" : card.requiresChainSwitch ? "Switch + Approve + Swap" : "Approve + Swap"}
+              {busy
+                ? isSafe
+                  ? "Executing…"
+                  : "Signing…"
+                : isSafe
+                  ? "Execute from Beacon Safe"
+                  : card.requiresChainSwitch
+                    ? "Switch + Approve + Swap"
+                    : "Approve + Swap"}
             </button>
           )}
           <a
@@ -564,7 +611,7 @@ export function ActionCard({
           <p className="mt-3 text-sm text-[var(--p-accent-text)]">
             Swap confirmed.{" "}
             <a
-              href={explorerTx(swapHash, Number(card.chainId ?? 14))}
+              href={explorerTx(swapHash, chainId)}
               target="_blank"
               rel="noreferrer"
               className="underline underline-offset-2"

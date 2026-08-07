@@ -398,6 +398,28 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  executeSafeSwap: (body: {
+    amountInUnits: string;
+    recipient: string;
+    slippageBps?: number;
+    address?: string;
+  }) =>
+    request<{
+      ok: boolean;
+      spendHash: string;
+      fulfillHash: string;
+      amountIn: string;
+      amountOut: string;
+      recipient: string;
+      explorerSpend: string;
+      explorerFulfill: string;
+      chainId: number;
+      honesty: string;
+      error?: string;
+    }>("/v1/vault/safe-swap/execute", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 export type AgentVaultStatus =

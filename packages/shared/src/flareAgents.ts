@@ -14,6 +14,8 @@ import {
   resolveOftRouteByChain,
 } from "./oftBridge.js";
 import { discoverSparkDexPools, prepareSparkDexSwap } from "./sparkDex.js";
+import { prepareBeaconSafeSwap, resolveSwapDeskAddress } from "./safeSwap.js";
+import { readAgentVaultStatus, resolveAgentVaultAddress } from "./vaultClient.js";
 import { readFassetsDesk } from "./fassetsStatus.js";
 import { readYieldVaultDesk } from "./yieldVaults.js";
 import { buildMarketIntelligence } from "./marketIntel.js";
@@ -130,12 +132,15 @@ export type AgentCard =
       honesty?: string;
       flarePrimitive?: string;
       pairsHint?: string[];
-      quoteSource?: "QuoterV2";
+      quoteSource?: "QuoterV2" | "FTSO+SwapDesk";
       estimateBasis?: string;
       slippageBps?: number;
       priceImpactVsFtsoBps?: number | null;
       ftsoMidOut?: string;
       amountOutMinimum?: string;
+      mode?: "beacon_safe" | "sparkdex_mainnet";
+      requiresMetaMask?: boolean;
+      vaultBalanceDisplay?: string;
     }
   | {
       type: "swap_prepare";
@@ -162,13 +167,18 @@ export type AgentCard =
       fee?: number;
       honesty?: string;
       requiresChainSwitch?: boolean;
+      requiresMetaMask?: boolean;
+      mode?: "beacon_safe" | "sparkdex_mainnet";
+      vault?: string;
+      desk?: string;
       flarePrimitive?: string;
-      quoteSource?: "QuoterV2";
+      quoteSource?: "QuoterV2" | "FTSO+SwapDesk";
       estimateBasis?: string;
       slippageBps?: number;
       priceImpactVsFtsoBps?: number | null;
       ftsoMidOut?: string;
       quoter?: string;
+      vaultBalanceDisplay?: string;
     }
   | {
       type: "yield_vaults";
@@ -944,14 +954,16 @@ export async function runBeaconAgentChat(opts: {
       cards.push({
         type: "insufficient",
         title: "Connect your wallet",
-        summary: "Connect MetaMask. SparkDEX execute requires Flare Mainnet (chain 14). Coston2 is for FTSO / OFT / x402 (MockUSDT0).",
+        summary:
+          "Connect MetaMask as the FXRP recipient. Funded Beacon Safe swaps stay on Coston2 (agent executes — no Mainnet switch). SparkDEX Mainnet remains optional for EOA pairs.",
         faucetHref: "https://faucet.flare.network/coston2",
       });
       const narr = await narrate({
         intent: "swap",
         userMessage: opts.message,
-        situation: "Wallet missing. Explain SparkDEX is Mainnet; show discovered pairs. MockUSDT0 is Coston2 x402 only.",
-        fallback: `SparkDEX live pairs are on **Flare Mainnet**. Connect your wallet, then say e.g. **swap 1 USDT0 to FXRP**. Coston2 **MockUSDT0** is for Beacon pay/escrow only.`,
+        situation:
+          "Wallet missing. Prefer Coston2 Beacon Safe spend when funded; SparkDEX is Mainnet-only bytecode.",
+        fallback: `Connect your wallet (FXRP recipient). Prefer **Beacon Safe** on **Coston2** after deposit — agent executes without MetaMask Mainnet. SparkDEX pairs exist on Mainnet only.`,
         env,
       });
       return {
@@ -963,6 +975,252 @@ export async function runBeaconAgentChat(opts: {
         paid: true,
         state: { intent: "swap", phase: "clarify" },
       };
+    }
+
+    const fxrpC2 = await resolveFxrpAddress(env);
+    const vaultAddr = resolveAgentVaultAddress(env);
+    const deskAddr = resolveSwapDeskAddress(env);
+    const vaultStatus = vaultAddr
+      ? await readAgentVaultStatus({ address: vaultAddr, env }).catch(() => null)
+      : null;
+    const safeBalDisplay =
+      vaultStatus && vaultStatus.configured ? vaultStatus.balanceDisplay : "0";
+
+    const [usdtBal, fxrpBal] = await Promise.all([
+      readErc20Balance(COSTON2_USDT0, wallet, env).catch(() => ({
+        formatted: "0",
+        raw: 0n,
+        decimals: 6,
+        symbol: "USDT0",
+      })),
+      readErc20Balance(fxrpC2, wallet, env).catch(() => ({
+        formatted: "0",
+        raw: 0n,
+        decimals: 6,
+        symbol: "FXRP",
+      })),
+    ]);
+
+    let amount = extractAmount(opts.message) ?? state.amountInUnits ?? null;
+    if (amount === "all") {
+      amount =
+        vaultStatus && vaultStatus.configured && Number(vaultStatus.balanceDisplay) > 0
+          ? vaultStatus.balanceDisplay
+          : usdtBal.formatted;
+    }
+
+    const msg = opts.message.toLowerCase();
+    const wantsFxrpToUsdt =
+      /fxrp\s*(to|→|->)\s*usdt|swap\s*fxrp/.test(msg) && !/usdt0?\s*(to|→|->)\s*fxrp/.test(msg);
+    const wantsWflr = /wflr|wnat|wflare/.test(msg);
+    const preferSafe =
+      Boolean(deskAddr && vaultAddr) &&
+      !wantsFxrpToUsdt &&
+      !wantsWflr &&
+      env.CHAIN_ID === 114;
+
+    let tokenIn = dep.usdt0;
+    let tokenOut = dep.fxrp;
+    if (wantsFxrpToUsdt) {
+      tokenIn = dep.fxrp;
+      tokenOut = dep.usdt0;
+    } else if (wantsWflr && /to\s*fxrp|→\s*fxrp/.test(msg)) {
+      tokenIn = dep.wnat;
+      tokenOut = dep.fxrp;
+    } else if (wantsWflr && /fxrp.*wflr|to\s*wflr/.test(msg)) {
+      tokenIn = dep.fxrp;
+      tokenOut = dep.wnat;
+    } else if (state.swapTokenIn && state.swapTokenOut) {
+      tokenIn = state.swapTokenIn;
+      tokenOut = state.swapTokenOut;
+    }
+
+    if (!amount) {
+      pushSwapPairs();
+      cards.push({
+        type: "swap_clarify",
+        title: "How much should we swap?",
+        wallet,
+        usdt0Balance: usdtBal.formatted,
+        fxrpBalance: fxrpBal.formatted,
+        faucetHref: "https://faucet.flare.network/coston2",
+      });
+      const narr = await narrate({
+        intent: "swap",
+        userMessage: opts.message,
+        situation: `Ask amount. Beacon Safe balance ${safeBalDisplay} MockUSDT0. Prefer Coston2 Safe path when funded; SparkDEX is Mainnet-only.`,
+        fallback: `Beacon Safe holds **${safeBalDisplay} MockUSDT0**. Say e.g. **swap 1 USDT0 to FXRP** — if Safe is funded, the agent spends on **Coston2** (no MetaMask Mainnet). SparkDEX remains Mainnet-only for EOA pairs.`,
+        env,
+      });
+      return {
+        agentId: "swap",
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent: "swap", phase: "clarify", swapTokenIn: tokenIn, swapTokenOut: tokenOut },
+      };
+    }
+
+    const confirmed =
+      wantsConfirm(opts.message) &&
+      (state.phase === "await_confirm" || state.phase === "ready_execute") &&
+      Boolean(state.amountInUnits || amount);
+
+    // --- Prefer Coston2 Beacon Safe (no Mainnet MetaMask) ---
+    if (preferSafe) {
+      const safeQuote = await prepareBeaconSafeSwap(
+        { amountInUnits: amount, recipient: wallet },
+        env,
+      );
+      if (safeQuote.ok) {
+        if (!confirmed) {
+          cards.push({
+            type: "swap_quote",
+            title: "Swap quote · Beacon Safe (Coston2)",
+            amountInDisplay: amount,
+            estimatedFxrp: safeQuote.estimatedOut,
+            estimatedOut: safeQuote.estimatedOut,
+            symbolIn: safeQuote.symbolIn,
+            symbolOut: safeQuote.symbolOut,
+            xrpUsd: safeQuote.xrpUsd,
+            wallet,
+            usdt0Balance: safeQuote.vaultBalanceDisplay,
+            network: safeQuote.network,
+            chainId: safeQuote.chainId,
+            note: `${safeQuote.estimateBasis}. Agent executes from Beacon Safe — no MetaMask, no Mainnet switch.`,
+            honesty: safeQuote.honesty,
+            flarePrimitive: "Beacon Safe + FTSO",
+            quoteSource: safeQuote.quoteSource,
+            estimateBasis: safeQuote.estimateBasis,
+            slippageBps: safeQuote.slippageBps,
+            amountOutMinimum: safeQuote.amountOutMinimum,
+            mode: "beacon_safe",
+            requiresMetaMask: false,
+            vaultBalanceDisplay: safeQuote.vaultBalanceDisplay,
+          });
+          const narr = await narrate({
+            intent: "swap",
+            userMessage: opts.message,
+            situation: `Safe quote ${amount} MockUSDT0 → ~${safeQuote.estimatedOut} FXRP on Coston2. No MetaMask. Ask confirm.`,
+            fallback: `Beacon Safe quote: **${amount} MockUSDT0 ≈ ${safeQuote.estimatedOut} FXRP** on **Coston2** (FTSO-synced desk).\n\n${safeQuote.honesty}\n\nReply **confirm** — agent spends from Safe (no MetaMask).`,
+            env,
+          });
+          return {
+            agentId: "swap",
+            text: narr.text,
+            cards,
+            model: narr.model,
+            displayModel: narr.displayModel,
+            paid: true,
+            state: {
+              intent: "swap",
+              phase: "await_confirm",
+              amountInUnits: amount,
+              swapTokenIn: safeQuote.tokenIn,
+              swapTokenOut: safeQuote.tokenOut,
+            },
+          };
+        }
+
+        const finalAmount = amount || state.amountInUnits || "1";
+        const safePrep = await prepareBeaconSafeSwap(
+          { amountInUnits: finalAmount, recipient: wallet },
+          env,
+        );
+        if (!safePrep.ok) {
+          return {
+            agentId: "swap",
+            text: safePrep.error,
+            cards,
+            model: "beacon-local",
+            displayModel: displayModelName("beacon-local", { fallback: true }),
+            paid: true,
+            state: { intent: "swap", phase: "clarify" },
+          };
+        }
+        cards.push({
+          type: "swap_prepare",
+          title: "Spend from Beacon Safe · Coston2",
+          tokenIn: safePrep.tokenIn,
+          tokenOut: safePrep.tokenOut,
+          router: safePrep.desk,
+          amountIn: safePrep.amountIn,
+          amountInDisplay: safePrep.amountInDisplay,
+          amountOutMinimum: safePrep.amountOutMinimum,
+          estimatedFxrp: safePrep.estimatedOut,
+          estimatedOut: safePrep.estimatedOut,
+          symbolIn: safePrep.symbolIn,
+          symbolOut: safePrep.symbolOut,
+          approveTo: safePrep.vault,
+          swapTo: safePrep.desk,
+          approveData: "0x",
+          swapData: "0x",
+          docs: safePrep.docs,
+          warning: `${safePrep.symbolIn}→${safePrep.symbolOut} from Beacon Safe on Coston2. Executor signs — no MetaMask.`,
+          chainId: safePrep.chainId,
+          network: safePrep.network,
+          honesty: safePrep.honesty,
+          requiresChainSwitch: false,
+          requiresMetaMask: false,
+          mode: "beacon_safe",
+          vault: safePrep.vault,
+          desk: safePrep.desk,
+          flarePrimitive: "Beacon Safe + FTSO",
+          quoteSource: safePrep.quoteSource,
+          estimateBasis: safePrep.estimateBasis,
+          slippageBps: safePrep.slippageBps,
+          vaultBalanceDisplay: safePrep.vaultBalanceDisplay,
+        });
+        const narr = await narrate({
+          intent: "swap",
+          userMessage: opts.message,
+          situation: `Prepared Safe spend ${finalAmount} MockUSDT0→FXRP on Coston2. No MetaMask.`,
+          fallback: `Prepared. Tap **Execute from Beacon Safe** — agent spends on **Coston2** (no MetaMask, no Mainnet).`,
+          env,
+        });
+        return {
+          agentId: "swap",
+          text: narr.text,
+          cards,
+          model: narr.model,
+          displayModel: narr.displayModel,
+          paid: true,
+          state: {
+            intent: "swap",
+            phase: "ready_execute",
+            amountInUnits: finalAmount,
+            swapTokenIn: safePrep.tokenIn,
+            swapTokenOut: safePrep.tokenOut,
+          },
+        };
+      }
+      // Safe preferred but not ready — explain and fall through to Mainnet only if user wants non-Safe pairs
+      if (!wantsFxrpToUsdt && !wantsWflr) {
+        cards.push({
+          type: "insufficient",
+          title: "Beacon Safe not ready for this swap",
+          summary: safeQuote.error,
+          faucetHref: "/flow/security",
+        });
+        const narr = await narrate({
+          intent: "swap",
+          userMessage: opts.message,
+          situation: `Safe path failed: ${safeQuote.error}. Stay on Coston2 — do not push Mainnet switch as the primary fix.`,
+          fallback: `${safeQuote.error}\n\nDeposit MockUSDT0 to **Beacon Safe** and set spend caps (or ask desk to sync policy). We stay on **Coston2** — SparkDEX Mainnet is a separate EOA path.`,
+          env,
+        });
+        return {
+          agentId: "swap",
+          text: narr.text,
+          cards,
+          model: narr.model,
+          displayModel: narr.displayModel,
+          paid: true,
+          state: { intent: "swap", phase: "clarify", amountInUnits: amount },
+        };
+      }
     }
 
     if (dep.network === "none" || !discovered.pairs.length) {
@@ -984,70 +1242,6 @@ export async function runBeaconAgentChat(opts: {
         state: { intent: "swap", phase: "idle" },
       };
     }
-
-    const fxrpC2 = await resolveFxrpAddress(env);
-    const [usdtBal, fxrpBal] = await Promise.all([
-      readErc20Balance(COSTON2_USDT0, wallet, env).catch(() => ({ formatted: "0", raw: 0n, decimals: 6, symbol: "USDT0" })),
-      readErc20Balance(fxrpC2, wallet, env).catch(() => ({ formatted: "0", raw: 0n, decimals: 6, symbol: "FXRP" })),
-    ]);
-
-    let amount = extractAmount(opts.message) ?? state.amountInUnits ?? null;
-    if (amount === "all") amount = usdtBal.formatted;
-
-    const msg = opts.message.toLowerCase();
-    const wantsFxrpToUsdt = /fxrp\s*(to|→|->)\s*usdt|swap\s*fxrp/.test(msg) && !/usdt0?\s*(to|→|->)\s*fxrp/.test(msg);
-    const wantsWflr = /wflr|wnat|wflare/.test(msg);
-
-    let tokenIn = dep.usdt0;
-    let tokenOut = dep.fxrp;
-    if (wantsFxrpToUsdt) {
-      tokenIn = dep.fxrp;
-      tokenOut = dep.usdt0;
-    } else if (wantsWflr && /to\s*fxrp|→\s*fxrp/.test(msg)) {
-      tokenIn = dep.wnat;
-      tokenOut = dep.fxrp;
-    } else if (wantsWflr && /fxrp.*wflr|to\s*wflr/.test(msg)) {
-      tokenIn = dep.fxrp;
-      tokenOut = dep.wnat;
-    } else if (state.swapTokenIn && state.swapTokenOut) {
-      tokenIn = state.swapTokenIn;
-      tokenOut = state.swapTokenOut;
-    }
-
-    if (!amount) {
-      // Clarify phase: discovery pairs allowed
-      pushSwapPairs();
-      cards.push({
-        type: "swap_clarify",
-        title: "How much should we swap?",
-        wallet,
-        usdt0Balance: usdtBal.formatted,
-        fxrpBalance: fxrpBal.formatted,
-        faucetHref: "https://faucet.flare.network/coston2",
-      });
-      const pairNames = discovered.pairs.map((p) => `${p.symbolA}/${p.symbolB}`).join(", ");
-      const narr = await narrate({
-        intent: "swap",
-        userMessage: opts.message,
-        situation: `Ask amount + direction. Liquid pairs: ${pairNames}. Honesty: execute on Flare Mainnet. Coston2 MockUSDT0 for x402 only.`,
-        fallback: `Liquid SparkDEX pairs: **${pairNames}**.\n\nSay e.g. **swap 1 USDT0 to FXRP** (execute on **Flare Mainnet**). Coston2 desk: ${usdtBal.formatted} USDT0 · ${fxrpBal.formatted} FXRP.`,
-        env,
-      });
-      return {
-        agentId: "swap",
-        text: narr.text,
-        cards,
-        model: narr.model,
-        displayModel: narr.displayModel,
-        paid: true,
-        state: { intent: "swap", phase: "clarify", swapTokenIn: tokenIn, swapTokenOut: tokenOut },
-      };
-    }
-
-    const confirmed =
-      wantsConfirm(opts.message) &&
-      (state.phase === "await_confirm" || state.phase === "ready_execute") &&
-      Boolean(state.amountInUnits || amount);
 
     if (!confirmed) {
       // Quote phase: DO NOT emit swap_pairs alongside swap_quote
@@ -1097,6 +1291,8 @@ export async function runBeaconAgentChat(opts: {
         priceImpactVsFtsoBps: prepPreview.priceImpactVsFtsoBps,
         ftsoMidOut: prepPreview.ftsoMidOut,
         amountOutMinimum: prepPreview.amountOutMinimum,
+        mode: "sparkdex_mainnet",
+        requiresMetaMask: true,
       });
       const narr = await narrate({
         intent: "swap",
@@ -1169,6 +1365,8 @@ export async function runBeaconAgentChat(opts: {
       fee: prep.fee,
       honesty: prep.honesty,
       requiresChainSwitch: prep.requiresChainSwitch,
+      requiresMetaMask: true,
+      mode: "sparkdex_mainnet",
       flarePrimitive: "SparkDEX QuoterV2",
       quoteSource: prep.quoteSource,
       estimateBasis: prep.estimateBasis,

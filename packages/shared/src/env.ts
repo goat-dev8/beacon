@@ -160,6 +160,8 @@ export const envSchema = z.object({
   BEACON_CREDIT: optionalString,
   /** Optional until BeaconAgentVault is deployed on Coston2. */
   BEACON_AGENT_VAULT_ADDRESS: optionalString,
+  /** Coston2 MockUSDT0→FXRP desk for Safe executor spends (not SparkDEX). */
+  BEACON_SWAP_DESK_ADDRESS: optionalString,
 
   S3_ENDPOINT: optionalString,
   S3_BUCKET: optionalString,

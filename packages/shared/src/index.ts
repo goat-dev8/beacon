@@ -53,6 +53,17 @@ export {
 export * from "./fassetsStatus.js";
 export * from "./yieldVaults.js";
 export * from "./vaultClient.js";
+export {
+  prepareBeaconSafeSwap,
+  executeBeaconSafeSwap,
+  ensureSafeSwapPolicy,
+  readSwapDeskStatus,
+  resolveSwapDeskAddress,
+  ftsoFxrpOutPerUsdt0X18,
+  ERC20_TRANSFER_SELECTOR,
+  type SafeSwapQuote,
+  type SafeSwapExecuteResult,
+} from "./safeSwap.js";
 export * from "./marketIntel.js";
 export * from "./portfolioDesk.js";
 export * from "./oftBridge.js";

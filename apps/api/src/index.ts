@@ -39,6 +39,10 @@ import {
   prepareAgentVaultSetPolicy,
   prepareAgentVaultSetPaused,
   prepareAgentVaultSetExecutor,
+  prepareBeaconSafeSwap,
+  executeBeaconSafeSwap,
+  ensureSafeSwapPolicy,
+  readSwapDeskStatus,
   COSTON2_USDT0,
   chatCompletionStream,
   resolveModelForRole,
@@ -1346,6 +1350,47 @@ app.post("/v1/vault/prepare", async (req) => {
       throw new AppError("VALIDATION", { message: "Unknown vault action." });
   }
   return { ok: true, prep };
+});
+
+app.get("/v1/vault/swap-desk", async () => {
+  const status = await readSwapDeskStatus(env);
+  return { ok: true, status };
+});
+
+app.post("/v1/vault/safe-swap/prepare", async (req) => {
+  const body = z
+    .object({
+      amountInUnits: z.string().min(1),
+      recipient: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
+      slippageBps: z.number().int().min(0).max(1000).optional(),
+      address: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
+    })
+    .parse(req.body ?? {});
+  const quote = await prepareBeaconSafeSwap(body, env);
+  if (!quote.ok) {
+    throw new AppError("VALIDATION", { message: quote.error });
+  }
+  return { ok: true, quote };
+});
+
+app.post("/v1/vault/safe-swap/execute", async (req) => {
+  const body = z
+    .object({
+      amountInUnits: z.string().min(1),
+      recipient: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
+      slippageBps: z.number().int().min(0).max(1000).optional(),
+      address: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
+      syncPolicy: z.boolean().optional(),
+    })
+    .parse(req.body ?? {});
+  if (body.syncPolicy !== false) {
+    await ensureSafeSwapPolicy(env);
+  }
+  const result = await executeBeaconSafeSwap(body, env);
+  if (!result.ok) {
+    throw new AppError("VALIDATION", { message: result.error });
+  }
+  return { ok: true, ...result };
 });
 
 /** Security Center policies — persisted in Redis when available. */

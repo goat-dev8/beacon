@@ -4,6 +4,31 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-07 - Coston2 Safe swap (no Mainnet MetaMask)
+
+### Root cause
+- SparkDEX SwapRouter/QuoterV2 have **bytecode on Flare Mainnet (14) only**; Coston2 published addresses are **empty**.
+- Flow still prepared Mainnet swaps → UI “Switch to Flare Mainnet”.
+- Live MockUSDT0 has **no approve/transferFrom** — Safe spend must `execute(token.transfer)`.
+- Vault `execute()` existed on-chain but was **not wired** in API/agent; spend caps were **0**.
+
+### Fix shipped
+- Deployed **BeaconCoston2SwapDesk** `0x36c17ca6Aa2b61b13f7c4B5A59629320a8B4dF29` (FTSO-synced MockUSDT0→FXRP).
+- Seeded **5 FXRP** inventory; set Safe policy **10/tx · 50 window**; allowlisted `transfer`.
+- API: `POST /v1/vault/safe-swap/prepare|execute` + desk status.
+- Agent prefers **Beacon Safe on Coston2** for USDT0→FXRP; UI **Execute from Beacon Safe** (no MetaMask).
+- Research writeup: `research/coston2-safe-swap-2026-08.md`.
+
+### On-chain smoke
+- **0.5 MockUSDT0 → ~0.48253 FXRP** to test wallet (executor signed).
+- Spend `0x07f3139f…` · Fulfill `0x2c906ed2…` on Coston2 explorer.
+- Safe balance after: **13.5** MockUSDT0 (was 14.0).
+
+### Env
+- Local `.env`: `BEACON_SWAP_DESK_ADDRESS` (not committed). Render must set the same for live API.
+
+---
+
 ## 2026-08-07 - Loop deep retest + Safe intent / vault validation
 
 ### Fixes shipped (`ffa0dfe`, `6fe0f25`)
