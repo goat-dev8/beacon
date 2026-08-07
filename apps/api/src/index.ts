@@ -207,7 +207,7 @@ app.get("/v1/ai/probe", async () => {
     env,
   );
   return {
-    ok: results.some((r) => r.ok),
+    ok: results.some((r) => r.works),
     configured: true,
     host: (() => {
       try {
@@ -218,7 +218,7 @@ app.get("/v1/ai/probe", async () => {
     })(),
     results: results.map((r) => ({
       model: r.model,
-      ok: r.ok,
+      ok: r.works,
       status: r.status,
       latencyMs: r.latencyMs,
       error: r.error ? String(r.error).slice(0, 160) : undefined,
