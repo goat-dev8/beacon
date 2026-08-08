@@ -40,20 +40,24 @@ const RAILS = [
   },
 ] as const;
 
+/** Greptile-style dashed bento — no heavy rounded cards */
 export function ProtectionStory() {
   const reduce = useReducedMotion();
 
   return (
-    <section id="protect" className="border-b border-line bg-paper py-28 md:py-40">
-      <div className="mx-auto max-w-6xl px-5">
+    <section id="protect" className="border-b border-line bg-paper py-24 md:py-32">
+      <div className="mx-auto max-w-6xl px-5 md:px-8">
+        <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">
+          [ Protect ]
+        </p>
         <h2 className="max-w-2xl font-display text-3xl font-extrabold tracking-tight text-ink md:text-5xl">
           Why each piece exists
         </h2>
         <p className="mt-4 max-w-lg text-ink-muted">
-          Visual answers, not a glossary. Tap through; every rail maps to Flare.
+          Visual answers, not a glossary. Every rail maps to Flare.
         </p>
 
-        <div className="mt-14 grid grid-flow-dense gap-3 md:grid-cols-6 md:grid-rows-2">
+        <div className="mt-14 grid grid-flow-dense gap-0 border border-dashed border-line md:grid-cols-6">
           {RAILS.map((r, i) => {
             const wide = i === 0 || i === 3;
             return (
@@ -65,8 +69,8 @@ export function ProtectionStory() {
                 transition={{ delay: reduce ? 0 : i * 0.05, duration: 0.45 }}
                 className={
                   wide
-                    ? "md:col-span-3 rounded-[12px] border border-line bg-dusk p-7 text-paper md:p-8"
-                    : "md:col-span-2 rounded-[12px] border border-line bg-surface p-6 md:p-7"
+                    ? "border-b border-r border-dashed border-line bg-dusk p-7 text-paper md:col-span-3 md:p-8"
+                    : "border-b border-r border-dashed border-line bg-surface p-6 md:col-span-2 md:p-7"
                 }
               >
                 <h3
@@ -98,13 +102,13 @@ export function ProtectionStory() {
         <div className="mt-12 flex flex-wrap items-center gap-4">
           <Link
             to="/start"
-            className="inline-flex h-12 items-center bg-signal px-7 font-display text-sm font-semibold text-ink clip-facet-right hover:brightness-105"
+            className="inline-flex h-12 items-center bg-signal px-7 font-display text-sm font-semibold text-ink clip-facet-right hover:brightness-105 active:scale-[0.98]"
           >
             Get Started
           </Link>
           <Link
             to="/flow/security"
-            className="inline-flex h-12 items-center border border-line bg-surface px-6 font-display text-sm text-ink hover:bg-paper-2"
+            className="inline-flex h-12 items-center border border-dashed border-line bg-surface px-6 font-display text-sm text-ink hover:bg-paper-2 active:scale-[0.98]"
           >
             Open Beacon Safe
           </Link>

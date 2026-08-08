@@ -56,7 +56,7 @@ export function WhyFlareSection() {
           Beacon is Flare AI OS. Every capability maps to something you can verify: prices, assets, payments, bridges, and policy.
         </p>
 
-        <div className="mt-14 grid grid-flow-dense gap-0 border border-line sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid grid-flow-dense gap-0 border border-dashed border-line sm:grid-cols-2 lg:grid-cols-3">
           {WHY_FLARE_ITEMS.map((item, i) => (
             <motion.article
               key={item.id}
@@ -64,7 +64,7 @@ export function WhyFlareSection() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ delay: reduce ? 0 : i * 0.05, duration: 0.4 }}
-              className="border-b border-r border-line bg-surface p-6 md:p-7"
+              className="border-b border-r border-dashed border-line bg-surface p-6 md:p-7"
             >
               <h3 className="font-display text-lg font-bold tracking-tight text-ink">{item.title}</h3>
               <p className="mt-3 text-sm leading-relaxed text-ink-muted">{item.body}</p>

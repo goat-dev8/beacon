@@ -36,8 +36,8 @@ export function ArchitectureStrip() {
   const [active, setActive] = useState(0);
 
   return (
-    <section id="architecture" className="border-b border-line bg-surface py-28 md:py-36">
-      <div className="mx-auto max-w-6xl px-5">
+    <section id="architecture" className="border-b border-line bg-paper py-24 md:py-32">
+      <div className="mx-auto max-w-6xl px-5 md:px-8">
         <p className="mb-3 text-center font-mono text-[11px] uppercase tracking-[0.18em] text-ink-faint">
           [ Path ]
         </p>
@@ -48,7 +48,7 @@ export function ArchitectureStrip() {
           One interactive path. Hover or tap a stage to see what Beacon does before the next step.
         </p>
 
-        <div className="mt-14 overflow-hidden rounded-[12px] border border-line bg-paper">
+        <div className="mt-14 border border-dashed border-line bg-surface">
           <div className="flex flex-col lg:flex-row">
             <div className="flex lg:w-[42%] lg:flex-col" role="tablist" aria-label="Architecture stages">
               {ARCH_STEPS.map((step, i) => (
@@ -61,8 +61,9 @@ export function ArchitectureStrip() {
                   onFocus={() => setActive(i)}
                   onClick={() => setActive(i)}
                   className={cn(
-                    "flex min-h-14 flex-1 items-center gap-3 border-b border-line px-5 py-4 text-left transition-colors lg:border-b lg:border-r",
+                    "flex min-h-14 flex-1 items-center gap-3 border-b border-dashed border-line px-5 py-4 text-left transition-colors lg:border-r",
                     active === i ? "bg-dusk text-paper" : "bg-transparent text-ink hover:bg-paper-2",
+                    i === ARCH_STEPS.length - 1 && "lg:border-b-0",
                   )}
                 >
                   <span

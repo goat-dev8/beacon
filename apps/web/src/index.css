@@ -180,6 +180,19 @@
   }
 }
 
+/* Greptile lizard-glow pattern for black-on-white Beacon asset (no invert). */
+@keyframes beacon-bind-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(57, 224, 138, 0.95))
+      drop-shadow(0 0 8px rgba(57, 224, 138, 0.5)) drop-shadow(0 0 18px rgba(57, 224, 138, 0.28));
+  }
+  50% {
+    filter: drop-shadow(0 0 2px rgba(134, 239, 172, 0.95))
+      drop-shadow(0 0 12px rgba(134, 239, 172, 0.55)) drop-shadow(0 0 22px rgba(134, 239, 172, 0.32));
+  }
+}
+
 @keyframes float-sphere {
   0%,
   100% {
@@ -213,8 +226,49 @@
     animation: beacon-glow 6s ease-in-out infinite;
   }
 
+  .beacon-bind-glow {
+    animation: beacon-bind-glow 6s ease-in-out infinite;
+    will-change: filter;
+  }
+
   .float-soft {
     animation: float-sphere 8s ease-in-out infinite;
+  }
+
+  /* Greptile-faithful paper hero: ruler ticks + crosshair stack */
+  .landing-hero {
+    background-color: var(--color-paper);
+    background-image:
+      url("data:image/svg+xml,%3Csvg width='10' height='128' xmlns='http://www.w3.org/2000/svg'%3E%3Cline x1='5' y1='0' x2='5' y2='6' stroke='%23000' stroke-width='0.75' opacity='0.06'/%3E%3Cline x1='2' y1='3' x2='8' y2='3' stroke='%23000' stroke-width='0.75' opacity='0.06'/%3E%3C/svg%3E"),
+      url("data:image/svg+xml,%3Csvg width='128' height='10' xmlns='http://www.w3.org/2000/svg'%3E%3Cline x1='3' y1='2' x2='3' y2='8' stroke='%23000' stroke-width='0.75' opacity='0.06'/%3E%3Cline x1='0' y1='5' x2='6' y2='5' stroke='%23000' stroke-width='0.75' opacity='0.06'/%3E%3C/svg%3E"),
+      url("data:image/svg+xml,%3Csvg width='32' height='32' xmlns='http://www.w3.org/2000/svg'%3E%3Cline x1='16' y1='13' x2='16' y2='19' stroke='%23000' stroke-width='0.75' opacity='0.05'/%3E%3Cline x1='13' y1='16' x2='19' y2='16' stroke='%23000' stroke-width='0.75' opacity='0.05'/%3E%3C/svg%3E");
+    background-size: 10px 128px, 128px 10px, 32px 32px;
+  }
+
+  .landing-crosshair-tick {
+    background-image: url("data:image/svg+xml,%3Csvg width='20' height='6' xmlns='http://www.w3.org/2000/svg'%3E%3Cline x1='10' y1='0' x2='10' y2='6' stroke='%233D3B4F' stroke-width='0.75'/%3E%3Cline x1='7' y1='3' x2='13' y2='3' stroke='%233D3B4F' stroke-width='0.75'/%3E%3C/svg%3E");
+    background-position: 50% 50%;
+    background-repeat: repeat-x;
+  }
+
+  .landing-slate {
+    background-color: #1a1924;
+    color: #f7f8f8;
+  }
+
+  .landing-slate-grid {
+    background-image: url("data:image/svg+xml,%3Csvg width='32' height='32' xmlns='http://www.w3.org/2000/svg'%3E%3Cline x1='16' y1='13' x2='16' y2='19' stroke='%23fff' stroke-width='0.75' opacity='0.08'/%3E%3Cline x1='13' y1='16' x2='19' y2='16' stroke='%23fff' stroke-width='0.75' opacity='0.08'/%3E%3C/svg%3E");
+    background-size: 32px 32px;
+  }
+
+  .landing-hatch {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 6px,
+      rgba(42, 39, 53, 0.04) 6px,
+      rgba(42, 39, 53, 0.04) 12px
+    );
   }
 
   .clip-facet-left {
@@ -243,6 +297,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .beacon-glow,
+    .beacon-bind-glow,
     .float-soft {
       animation: none !important;
     }

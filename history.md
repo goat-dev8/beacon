@@ -4,6 +4,21 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-08 - GREPTILE-FAITHFUL LANDING (bind hero)
+
+### Design read
+Match greptile.com structure/motion via Ditto clone + Chrome scroll study. Beacon copy/story/image only. Dials: variance 8 / motion 6–7 / density 4. Paper crosshair + dashed rails + facet CTAs. Product shell stays Linear-mapped dark.
+
+### Shipped
+1. Hero: Greptile layout (H1 top / CTA bottom), dashed rails, `halftone-beacon-bind.png` (white punched transparent) + `beacon-bind-glow` (no image box).
+2. Sections: HeroTrustStrip, ManifestoQuote, dark StoryHowItWorks, dashed Architecture/Protect/Why Flare, QualityBand + PixelWave, contracts, final dusk CTA.
+3. Navbar: sticky paper bar + signal announcement + facet CTAs.
+
+### Verify
+`npm run build` · Chrome `http://127.0.0.1:4173/` hero bind + section scroll
+
+---
+
 ## 2026-08-08 - FINAL PRODUCT REDESIGN (story-first)
 
 ### Design read

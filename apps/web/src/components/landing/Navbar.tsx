@@ -9,7 +9,7 @@ export function AnnouncementBar() {
       role="region"
       aria-label="Announcement"
     >
-      <p className="flex items-center gap-2 text-center font-mono text-sm font-medium tracking-[0.35px] text-ink max-md:text-[0.6875rem]">
+      <p className="flex flex-wrap items-center justify-center gap-2 text-center font-mono text-sm font-medium tracking-[0.35px] text-ink max-md:text-[0.6875rem]">
         <span className="max-md:hidden">Beacon: Flare AI OS. Signal to Quote to Policy to Pay to Execute to Receipt.</span>
         <span className="hidden max-md:inline">Signal to receipt on Flare.</span>
         <Link to="/start" className="underline hover:opacity-80">
@@ -20,18 +20,19 @@ export function AnnouncementBar() {
   );
 }
 
+/** Greptile-style sticky nav: white surface, mono caps, facet CTAs */
 export function Navbar() {
   return (
     <>
       <AnnouncementBar />
       <header className="sticky top-11 z-50 border-b border-line bg-surface/95 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-5">
+        <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between gap-4 px-5 md:px-8">
           <Link to="/" className="inline-flex items-center gap-2.5 text-ink" aria-label="Beacon home">
             <BeaconMark className="size-7 text-ink" />
             <span className="font-display text-lg font-bold tracking-tight">Beacon</span>
           </Link>
 
-          <nav className="hidden items-center gap-6 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-muted lg:flex">
+          <nav className="hidden items-center gap-5 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-muted lg:flex">
             <a href="#story" className="hover:text-ink">
               Story
             </a>

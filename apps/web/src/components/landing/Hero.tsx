@@ -2,38 +2,86 @@ import { motion, useReducedMotion } from "motion/react";
 import { Link } from "react-router-dom";
 import { FacetCtaPair } from "@/components/ui/Button";
 
+/**
+ * Greptile-faithful hero (structure only):
+ * - paper + crosshair ruled background
+ * - dashed vertical rails
+ * - H1 top-left, CTA bottom-left
+ * - halftone asset absolute, bind-to-bg (no card), signal outline glow
+ */
 export function Hero() {
   const reduce = useReducedMotion();
 
   return (
-    <section className="relative overflow-hidden border-b border-line bg-paper">
+    <section className="landing-hero relative overflow-hidden border-b border-line">
+      {/* Vertical dashed rails — Greptile blueprint edges */}
       <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 90% 60% at 75% 10%, rgba(57,224,138,0.18), transparent 55%), radial-gradient(ellipse 50% 45% at 5% 90%, rgba(42,39,53,0.07), transparent 50%)",
-        }}
+        className="pointer-events-none absolute inset-y-0 left-8 hidden w-px border-l border-dashed border-line md:block"
         aria-hidden
       />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-paper via-paper/88 to-transparent" aria-hidden />
+      <div
+        className="pointer-events-none absolute inset-y-0 right-8 hidden w-px border-r border-dashed border-line md:block"
+        aria-hidden
+      />
 
-      <div className="relative mx-auto grid min-h-[100dvh] max-w-7xl items-center gap-10 px-6 pb-24 pt-20 md:grid-cols-[1.05fr_0.95fr] md:px-16 md:pb-28 md:pt-24">
+      {/* Bound beacon — no container, no solid bg; grid shows through */}
+      <motion.div
+        className="pointer-events-none absolute -right-8 bottom-0 z-[1] hidden w-[min(52vw,36rem)] select-none md:block lg:-right-4 lg:w-[min(48vw,42rem)] xl:w-[44rem]"
+        initial={reduce ? false : { opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.12, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+        aria-hidden
+      >
+        <div className={reduce ? undefined : "beacon-bind-glow"}>
+          <img
+            src="/brand/halftone-beacon-bind.png"
+            alt=""
+            width={704}
+            height={704}
+            className="h-auto w-full object-contain object-bottom"
+            draggable={false}
+          />
+        </div>
+      </motion.div>
+
+      {/* Mobile bind image */}
+      <div
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] mx-auto w-[78%] max-w-sm opacity-40 md:hidden"
+        aria-hidden
+      >
+        <img
+          src="/brand/halftone-beacon-bind.png"
+          alt=""
+          width={640}
+          height={640}
+          className="h-auto w-full object-contain object-bottom opacity-50"
+          draggable={false}
+        />
+      </div>
+
+      <div className="relative z-10 mx-auto flex min-h-[min(100dvh,52rem)] max-w-7xl flex-col justify-between px-6 pb-16 pt-20 md:px-16 md:pb-24 md:pt-24">
         <motion.div
-          className="w-full max-w-5xl"
-          initial={reduce ? false : { opacity: 0, y: 18 }}
+          initial={reduce ? false : { opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         >
-          <p className="font-display text-2xl font-extrabold tracking-tight text-ink md:text-3xl">
-            Beacon
-          </p>
-          <h1 className="mt-4 max-w-5xl font-display text-[clamp(2.75rem,5.2vw,5rem)] font-extrabold leading-[1.02] tracking-[-0.04em] text-ink">
-            Flare AI OS that settles with receipts
+          <h1 className="max-w-[14ch] font-display text-[clamp(2.75rem,6.5vw,5.5rem)] font-extrabold leading-[0.98] tracking-[-0.04em] text-ink">
+            The Flare
+            <br />
+            AI OS.
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-muted md:text-xl">
+        </motion.div>
+
+        <motion.div
+          className="relative z-10 max-w-lg pb-4"
+          initial={reduce ? false : { opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.08, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <p className="text-xl leading-relaxed tracking-tight text-ink-muted md:text-2xl">
             Talk once. Policy gates spend. Flare rails execute. Explorer proof closes the loop.
           </p>
-          <div className="mt-9 flex flex-wrap items-center gap-4">
+          <div className="mt-6">
             <FacetCtaPair
               left="Get Started"
               right="Open Flow"
@@ -42,52 +90,40 @@ export function Hero() {
               size="lg"
             />
           </div>
-        </motion.div>
-
-        <motion.div
-          className="relative mx-auto w-full max-w-md justify-self-end"
-          initial={reduce ? false : { opacity: 0, scale: 0.94 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.12, duration: 0.65, ease: [0.16, 1, 0.3, 1] }}
-          aria-hidden
-        >
-          <div
-            className="aspect-square w-full overflow-hidden rounded-[12px] border border-line bg-dusk"
-            style={{
-              boxShadow: "0 24px 60px -20px rgba(42,39,53,0.35)",
-            }}
+          <Link
+            to="/start"
+            className="mt-4 inline-flex items-center gap-1 font-mono text-sm tracking-[0.35px] text-ink-muted underline underline-offset-4 hover:text-ink"
           >
-            <img
-              src="/brand/halftone-beacon.png"
-              alt=""
-              className="h-full w-full object-contain p-8"
-              width={640}
-              height={640}
-              style={{
-                filter:
-                  "invert(1) drop-shadow(0 0 1px rgba(57,224,138,0.85)) drop-shadow(0 0 18px rgba(57,224,138,0.35))",
-              }}
-            />
-          </div>
+            onboard with Beacon
+          </Link>
         </motion.div>
       </div>
     </section>
   );
 }
 
+/** Greptile-style ruled strip under hero — Beacon rails as wordmarks */
 export function HeroTrustStrip() {
   const rails = ["FTSO", "SparkDEX", "LayerZero", "x402", "FAssets", "Beacon Safe", "FCC"];
   return (
-    <div className="border-b border-line bg-surface py-8">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-8 gap-y-3 px-5">
+    <div className="border-b border-line bg-paper">
+      <div className="flex items-center gap-6 px-6 py-2 md:px-16">
+        <div className="h-1.5 flex-1 opacity-30 landing-crosshair-tick" aria-hidden />
+        <p className="relative shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-muted">
+          <span className="absolute inset-x-[-0.25rem] inset-y-[-0.125rem] -z-10 bg-signal/25" aria-hidden />
+          Built on Flare rails
+        </p>
+        <div className="h-1.5 flex-1 opacity-30 landing-crosshair-tick" aria-hidden />
+      </div>
+      <div className="grid grid-cols-2 border-t border-dashed border-line sm:grid-cols-4 lg:grid-cols-7">
         {rails.map((r) => (
-          <span key={r} className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-faint">
+          <div
+            key={r}
+            className="flex h-14 items-center justify-center border-b border-r border-dashed border-line font-mono text-[11px] uppercase tracking-[0.16em] text-ink-faint last:border-r-0"
+          >
             {r}
-          </span>
+          </div>
         ))}
-        <Link to="/start" className="font-mono text-[11px] uppercase tracking-[0.16em] text-signal-deep hover:underline">
-          Start the path
-        </Link>
       </div>
     </div>
   );
