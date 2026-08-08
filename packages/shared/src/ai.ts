@@ -244,10 +244,11 @@ async function postChatCompletions(
   };
 
   const hops: Array<() => Promise<CompletionHop>> = [];
-  // Production (Render): Pollinations is the proven reachable hop for gpt-5.6-sol.
-  // Then Vercel sin1 proxy → upstream. Direct last (often WAF on cloud ASNs).
-  if (pollinationsKey) hops.push(tryPollinations);
+  // Production: Vercel proxy uses AI Gateway OIDC for openai/gpt-5.6-sol.
+  // Pollinations is secondary (may require pollen balance). Direct is last
+  // because AgentRouter WAF rejects Render/Vercel cloud ASNs.
   if (hasAiProxy(env)) hops.push(tryProxy);
+  if (pollinationsKey) hops.push(tryPollinations);
   if (apiKey) hops.push(tryDirect);
   if (hops.length === 0) {
     throw new Error("No AI provider configured (gpt-5.6-sol key / proxy / Pollinations)");

@@ -1,10 +1,11 @@
 /**
  * Production AI proxy — Vercel Node.js serverless (NOT Edge).
- * AgentRouter/Aliyun WAF blocks many cloud Edge/Oregon ASNs (HTTP 405 + zh-cn HTML).
- * Node.js serverless in Singapore (`sin1`) matches AgentRouter's primary region.
  *
- * Auth: x-beacon-proxy-secret or Authorization Bearer <AI_PROXY_SECRET>
- * Never expose AI_API_KEY to the browser.
+ * Primary: Vercel AI Gateway via deployment OIDC (no static model key).
+ * Model: openai/gpt-5.6-sol.
+ *
+ * Auth from Render: x-beacon-proxy-secret or Bearer <AI_PROXY_SECRET>.
+ * Never expose provider credentials to the browser.
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
@@ -13,32 +14,6 @@ export const config = {
   regions: ["sin1"],
   maxDuration: 120,
 };
-
-function buildAgentRouterHeaders(apiKey: string): Record<string, string> {
-  return {
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${apiKey}`,
-    "x-api-key": apiKey,
-    "anthropic-version": "2023-06-01",
-    "User-Agent": "claude-cli/2.1.158 (external, sdk-cli)",
-    "anthropic-beta":
-      "claude-code-20250219,interleaved-thinking-2025-05-14,effort-2025-11-24,redact-thinking-2026-02-12",
-    "anthropic-dangerous-direct-browser-access": "true",
-    "x-app": "cli",
-    "X-Stainless-Lang": "js",
-    "X-Stainless-Package-Version": "0.39.0",
-    "X-Stainless-OS": "linux",
-    "X-Stainless-Arch": "x64",
-    "X-Stainless-Runtime": "node",
-    "X-Stainless-Runtime-Version": process.version,
-  };
-}
-
-function normalizeOpenAiBase(baseUrl: string): string {
-  const trimmed = baseUrl.replace(/\/$/, "");
-  if (trimmed.endsWith("/v1")) return trimmed;
-  return `${trimmed}/v1`;
-}
 
 function readSecret(req: VercelRequest): string {
   const header = req.headers["x-beacon-proxy-secret"];
@@ -73,29 +48,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ error: "unauthorized" });
   }
 
-  const apiKey =
-    process.env.AI_API_KEY ||
-    process.env.OPENAI_API_KEY ||
-    process.env.ANTHROPIC_API_KEY ||
-    "";
-  if (!apiKey) {
-    return res.status(503).json({ error: "ai_key_missing" });
-  }
-
-  const baseUrl = normalizeOpenAiBase(
-    process.env.AI_BASE_URL || process.env.OPENAI_BASE_URL || "https://agentrouter.org/v1",
-  );
-
   const body = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
   if (!body || typeof body !== "object" || !body.model || !Array.isArray(body.messages)) {
     return res.status(400).json({ error: "invalid_body" });
   }
 
-  const upstream = await fetch(`${baseUrl}/chat/completions`, {
+  const oidcHeader = req.headers["x-vercel-oidc-token"];
+  const oidcToken =
+    (typeof oidcHeader === "string" ? oidcHeader : "") ||
+    process.env.VERCEL_OIDC_TOKEN ||
+    "";
+  if (!oidcToken) {
+    return res.status(503).json({
+      error: "vercel_oidc_missing",
+      hint: "Redeploy the Vercel project so the function receives deployment OIDC.",
+    });
+  }
+
+  const requested = String(body.model || "gpt-5.6-sol");
+  const gatewayModel = requested.includes("/") ? requested : `openai/${requested}`;
+  const upstream = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
     method: "POST",
-    headers: buildAgentRouterHeaders(apiKey),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${oidcToken}`,
+    },
     body: JSON.stringify({
-      model: body.model,
+      model: gatewayModel,
       messages: body.messages,
       temperature: body.temperature ?? 0.2,
       max_tokens: body.max_tokens ?? body.maxTokens ?? 2048,
@@ -105,17 +84,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   });
 
   const text = await upstream.text();
-  const looksHtml = /^\s*</.test(text) || /<!doctype/i.test(text) || /aliyun_waf/i.test(text);
+  const looksHtml = /^\s*</.test(text) || /<!doctype/i.test(text);
   if (looksHtml) {
     return res.status(502).json({
-      error: "upstream_waf_blocked",
+      error: "gateway_html_error",
       status: upstream.status,
       region: "sin1",
-      hint: "AgentRouter WAF rejected this egress ASN",
+      hint: "Vercel AI Gateway returned a non-JSON response.",
     });
   }
 
   res.status(upstream.status);
+  res.setHeader("x-beacon-model-route", gatewayModel);
   res.setHeader(
     "Content-Type",
     upstream.headers.get("content-type") || "application/json; charset=utf-8",
