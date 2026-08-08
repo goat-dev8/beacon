@@ -20,7 +20,12 @@ Living log of what was done. No secrets in this file.
 5. DeskContextStrip / Security / Flow copy aligned.
 
 ### Verify
-Forge escrow prepaid tests · typecheck · web build · Chrome E2E · Render/Vercel after env BEACON_ESCROW update.
+Forge escrow prepaid tests · typecheck · 34 unit tests · web build  
+On-chain smoke: Safe lock + refund  
+Production approve-safe job `e1876f6c-…` → AUTHORIZED → CLOSED/PASS (`lockTx` `0x9b69…ea68`, `spendTx` `0x745e…a934`)  
+Render `BEACON_ESCROW=0xE68c…1C7E` · Vercel `beacon-desk` JOBS/Agent Jobs UI · Safe page prepaid copy  
+Chrome: Flow history rails + Safe LIVE · API MATRIX health/vault/signals/fassets/yield/portfolio/bridge 200  
+Pushed `be1741d` · `c448faa`
 
 ---
 
