@@ -20,7 +20,10 @@ Wrote `AGENT_JOBS_CHARGE_FIX_RESEARCH.md` (Flare x402/EIP-3009/Safe prepaid + pr
 5. FlareRails Safe vs wallet timelines; clearer failure copy.
 
 ### Verify
-typecheck · tests · web build · documents Safe E2E after Render deploy.
+typecheck · 34 tests · web build  
+Production documents Safe job `b6131d87-…` → generation_done → CLOSED/PASS · Math School Document Pack on desk  
+Safe timeline shows vault.execute + lockPrepaid · balance charged  
+Research: `AGENT_JOBS_CHARGE_FIX_RESEARCH.md` · pushed `9ef6795`
 
 ---
 

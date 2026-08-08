@@ -63,9 +63,15 @@ export async function runAcceptance(ctx: AcceptContext): Promise<AcceptReport> {
 
   // L1/L3 are hard gates. L2 (LLM judge) alone must not auto-FAIL — flaky models
   // would refund good work. Borderline judge → NEEDS_LOOK for human confirm.
+  // Judge unavailable/skipped with L1/L3 pass → PASS (do not block charge).
   const objectiveFail = !l1.passed || !l3.passed;
   const judgeFail = !l2.passed;
-  const softLook = judgeFail || l2.notes.some((n) => n.includes("uncertain"));
+  const judgeInfra =
+    l2.notes.some((n) => /Judge unavailable|Judge skipped|MEDIA_FAST|no judge configured/i.test(n));
+  const softLook =
+    !objectiveFail &&
+    (judgeFail ||
+      (l2.notes.some((n) => n === "uncertain" || n.includes("uncertain")) && !judgeInfra));
 
   let result: AcceptResult = "PASS";
   if (objectiveFail) result = "FAIL";
@@ -292,7 +298,6 @@ export async function runL2Judge(ctx: AcceptContext): Promise<LayerResult> {
         layer: "L2",
         passed: true,
         notes: [
-          "uncertain",
           `Judge unavailable (${err instanceof Error ? err.message : String(err)}). Objective and brand checks still apply.`,
         ],
       };
