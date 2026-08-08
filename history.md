@@ -17,7 +17,8 @@ Flare AI OS marketing + onboarding for judges/builders. Greptile-inspired story-
 5. Honesty unchanged: Safe prepaid escrow, EIP-3009 fallback, FCC = SIMULATED_TEE.
 
 ### Verify
-web build · Chrome landing `/` · `/start` · `/flow` after complete
+web build · Chrome landing `/` · `/start` · `/flow` after complete  
+Pushed `4707a69`
 
 ---
 
