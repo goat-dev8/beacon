@@ -14,11 +14,11 @@ export function ManifestoQuote() {
   return (
     <section className="border-b border-line bg-paper py-16 md:py-20">
       <div className="mx-auto max-w-4xl px-5 text-center md:px-8">
-        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-faint">[ Manifesto ]</p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-faint">[ Flare AI OS ]</p>
         <blockquote className="mt-6 font-display text-2xl font-medium leading-snug tracking-tight text-ink md:text-4xl md:leading-[1.15]">
-          &ldquo;Talk once. Policy gates spend. Flare rails execute. Explorer proof closes the loop.&rdquo;
+          &ldquo;Flare gives Beacon its rails. Beacon turns language into priced, gated, settled, proven work.&rdquo;
         </blockquote>
-        <p className="mt-6 font-mono text-sm text-ink-muted">Beacon · Flare AI OS</p>
+        <p className="mt-6 font-mono text-sm text-ink-muted">Signal · Quote · Policy · Pay · Execute · Receipt</p>
       </div>
     </section>
   );
@@ -39,10 +39,10 @@ export function WhatIsBeacon() {
             transition={{ duration: 0.45 }}
           >
             <h2 className="max-w-xl font-display text-3xl font-extrabold tracking-tight text-ink md:text-5xl">
-              What Beacon is
+              Flare strength, one conversation
             </h2>
             <p className="mt-5 max-w-lg text-lg leading-relaxed text-ink-muted">
-              Beacon is Flare AI OS: a conversation that turns market intent into quote, policy, payment, execution, and an explorer receipt.
+              Beacon does not invent a chain story. It runs yours on Flare: live FTSO signal, Safe policy, FCC checks, x402 pay, and explorer receipts you can open.
             </p>
           </motion.div>
           <motion.div

@@ -9,9 +9,9 @@ export function AnnouncementBar() {
       role="region"
       aria-label="Announcement"
     >
-      <p className="flex flex-wrap items-center justify-center gap-2 text-center font-mono text-sm font-medium tracking-[0.35px] text-ink max-md:text-[0.6875rem]">
-        <span className="max-md:hidden">Beacon: Flare AI OS. Signal to Quote to Policy to Pay to Execute to Receipt.</span>
-        <span className="hidden max-md:inline">Signal to receipt on Flare.</span>
+        <p className="flex flex-wrap items-center justify-center gap-2 text-center font-mono text-sm font-medium tracking-[0.35px] text-ink max-md:text-[0.6875rem]">
+        <span className="max-md:hidden">Beacon on Flare: FTSO signal, Safe policy, x402 settle, explorer proof.</span>
+        <span className="hidden max-md:inline">Beacon on Flare. Signal to proof.</span>
         <Link to="/start" className="underline hover:opacity-80">
           Get Started
         </Link>

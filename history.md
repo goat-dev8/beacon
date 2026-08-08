@@ -4,7 +4,22 @@ Living log of what was done. No secrets in this file.
 
 ---
 
-## 2026-08-08 - GREPTILE-FAITHFUL LANDING (bind hero)
+## 2026-08-08 - BEACON MARK + HERO STORY
+
+### Design read
+Brandkit: B fused with lighthouse; mint beam = Flare signal (#39e08a). PNG mark (not SVG) for nav + favicon. Hero copy leads with Flare rails strength.
+
+### Shipped
+1. `public/brand/beacon-mark.png` + `beacon-mark-on-dark.png`, favicon PNG set, apple-touch.
+2. `BeaconMark` uses PNG img; product rail + landing nav.
+3. Hero: "Where intent becomes proof." + Flare-native body (FTSO / FCC / x402 / SparkDEX / LZ / FAssets / explorers).
+4. Manifesto + announcement + What-is copy aligned to Flare strength.
+
+### Verify
+`npm run build` · favicon PNG in index.html
+
+---
+
 
 ### Design read
 Match greptile.com structure/motion via Ditto clone + Chrome scroll study. Beacon copy/story/image only. Dials: variance 8 / motion 6–7 / density 4. Paper crosshair + dashed rails + facet CTAs. Product shell stays Linear-mapped dark.

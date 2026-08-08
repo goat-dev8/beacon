@@ -1,36 +1,39 @@
 import { motion } from "motion/react";
+import { cn } from "@/lib/utils";
 
-/** Original Beacon mark — signal rising from a base. */
-/** Original Beacon mark — geometric signal tower. */
-export function BeaconMark({ className = "size-8" }: { className?: string }) {
+/**
+ * Beacon mark — B fused with lighthouse + Flare signal beam (PNG, not SVG).
+ * Use `onDark` inside product-shell dark surfaces.
+ */
+export function BeaconMark({
+  className = "size-8",
+  onDark = false,
+}: {
+  className?: string;
+  onDark?: boolean;
+}) {
   return (
-    <svg viewBox="0 0 64 64" className={className} aria-hidden>
-      <rect x="28" y="18" width="8" height="28" rx="1" fill="currentColor" />
-      <rect x="24" y="46" width="16" height="6" rx="1" fill="currentColor" />
-      <path
-        d="M20 28c6-8 18-8 24 0"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <path
-        d="M14 22c10-12 26-12 36 0"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        opacity={0.45}
-      />
-      <circle cx="32" cy="14" r="4" fill="currentColor" />
-    </svg>
+    <img
+      src={onDark ? "/brand/beacon-mark-on-dark.png" : "/brand/beacon-mark.png"}
+      alt=""
+      width={64}
+      height={64}
+      className={cn("shrink-0 object-contain", className)}
+      draggable={false}
+    />
   );
 }
 
-export function BeaconWordmark({ className }: { className?: string }) {
+export function BeaconWordmark({
+  className,
+  onDark = false,
+}: {
+  className?: string;
+  onDark?: boolean;
+}) {
   return (
-    <span className={`inline-flex items-center gap-2.5 text-ink ${className ?? ""}`}>
-      <BeaconMark className="size-7 text-ink" />
+    <span className={cn("inline-flex items-center gap-2.5 text-ink", className)}>
+      <BeaconMark className="size-7" onDark={onDark} />
       <span className="font-display text-xl font-bold tracking-tight">Beacon</span>
     </span>
   );
