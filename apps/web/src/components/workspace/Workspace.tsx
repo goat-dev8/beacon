@@ -22,7 +22,7 @@ import { api, ApiError, subscribeJobEvents } from "@/lib/api";
 import type { JobStatus, QuoteDto, ServiceId } from "@/lib/types";
 import { formatEta, cn } from "@/lib/utils";
 import { LIVE_STATUSES, statusLabel, statusProgress, TERMINAL_STATUSES } from "@/lib/status";
-import { Button, FacetCtaPair } from "@/components/ui/Button";
+import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { BeaconMark } from "@/components/diagrams/BeaconDiagrams";
@@ -33,6 +33,8 @@ import {
   shortAddress,
 } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
+import { DeskContextStrip } from "@/components/workspace/DeskContextStrip";
+import { ResultExperience } from "@/components/workspace/ResultExperience";
 import { NETWORK, CONTRACTS } from "@/lib/chain";
 import { FLARE_STEPS, flareStepState } from "@/lib/flareSteps";
 
@@ -376,6 +378,13 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
           </div>
         )}
 
+        <DeskContextStrip
+          escrowLockedDisplay={
+            lockTx && quote?.priceDisplay ? quote.priceDisplay : null
+          }
+          lockTx={lockTx}
+        />
+
         <AnimatePresence mode="wait">
           {step === "choose" && (
             <motion.div
@@ -410,27 +419,43 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 )}
                 {servicesQuery.data?.services.map((s, i, all) => {
                   const Icon = ICONS[s.id] ?? FileText;
-                  // The last tile stretches so the grid never ends on an empty cell.
                   const isLast = i === all.length - 1;
+                  const videoSoon = s.id === "video";
                   return (
                     <button
                       key={s.id}
                       type="button"
+                      disabled={videoSoon}
                       onClick={() => {
+                        if (videoSoon) return;
                         setServiceId(s.id);
                         setStep("describe");
                       }}
                       className={cn(
-                        "border-b border-r border-line bg-surface p-5 text-left transition-colors hover:bg-paper-2",
-                        serviceId === s.id && "bg-signal/15",
+                        "border-b border-r border-line bg-surface p-5 text-left transition-colors",
+                        videoSoon
+                          ? "cursor-not-allowed opacity-60"
+                          : "hover:bg-paper-2",
+                        serviceId === s.id && !videoSoon && "bg-signal/15",
                         isLast && all.length % 2 === 1 && "sm:col-span-2",
                         isLast && all.length % 3 === 1 && "lg:col-span-3",
                         isLast && all.length % 3 === 2 && "lg:col-span-2",
                       )}
                     >
-                      <Icon className="size-5 text-ink" />
+                      <div className="flex items-start justify-between gap-2">
+                        <Icon className="size-5 text-ink" />
+                        {videoSoon && (
+                          <span className="rounded-full border border-line px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-ink-faint">
+                            Coming soon
+                          </span>
+                        )}
+                      </div>
                       <p className="mt-3 font-display text-lg font-bold">{s.name}</p>
-                      <p className="mt-1 text-sm text-ink-muted">{s.description}</p>
+                      <p className="mt-1 text-sm text-ink-muted">
+                        {videoSoon
+                          ? "Video generation is coming soon."
+                          : s.description}
+                      </p>
                     </button>
                   );
                 })}
@@ -648,7 +673,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
           )}
 
           {step === "result" && status && (
-            <ResultPanel
+            <ResultExperience
               status={status}
               jobId={jobId!}
               quote={quote}
@@ -658,6 +683,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               onLook={(d) => look.mutate(d)}
               lookPending={look.isPending}
               onNew={resetJob}
+              FlareRails={FlareRails}
             />
           )}
         </AnimatePresence>
@@ -862,277 +888,5 @@ function FlareRails({
         </div>
       )}
     </section>
-  );
-}
-
-function ResultPanel({
-  status,
-  jobId,
-  quote,
-  lockTx,
-  acceptance,
-  artifacts,
-  onLook,
-  lookPending,
-  onNew,
-}: {
-  status: JobStatus;
-  jobId: string;
-  quote: QuoteDto | null;
-  lockTx: string | null;
-  acceptance: import("@/lib/types").AcceptanceSummary | null;
-  artifacts: Array<{ id: string; kind: string; uri: string; meta?: Record<string, unknown> | null }>;
-  onLook: (d: "accept" | "reject") => void;
-  lookPending: boolean;
-  onNew: () => void;
-}) {
-  const passed = status === "PASSED" || status === "CLOSED" || status === "SETTLING";
-  const failed = status === "FAILED" || status === "REFUSING";
-  const needsLook = status === "NEEDS_LOOK";
-
-  const primary =
-    artifacts.find((a) => a.kind === "video") ??
-    artifacts.find((a) => a.kind === "image") ??
-    artifacts.find((a) => a.kind === "draft") ??
-    artifacts.find((a) => a.kind === "document") ??
-    artifacts.find((a) => a.kind === "captions") ??
-    artifacts[0];
-
-  const contentQuery = useQuery({
-    queryKey: ["artifact-content", jobId, primary?.id],
-    queryFn: () => api.artifactContent(jobId, primary!.id),
-    enabled: Boolean(primary?.id),
-  });
-
-  const receiptQuery = useQuery({
-    queryKey: ["job-receipt", jobId],
-    queryFn: () => api.jobReceipt(jobId),
-    enabled: passed || failed,
-  });
-
-  const settleTx =
-    receiptQuery.data?.receipt?.txHash ??
-    receiptQuery.data?.receipt?.payment?.txHash ??
-    null;
-  const paidDisplay =
-    quote?.priceDisplay ??
-    (receiptQuery.data?.receipt?.payment?.amountUsdt0
-      ? `$${(Number(receiptQuery.data.receipt.payment.amountUsdt0) / 1e6).toFixed(2)}`
-      : null);
-
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const selectedId = activeId ?? primary?.id ?? null;
-
-  const selectedQuery = useQuery({
-    queryKey: ["artifact-content", jobId, selectedId],
-    queryFn: () => api.artifactContent(jobId, selectedId!),
-    enabled: Boolean(selectedId),
-  });
-
-  const body = selectedQuery.data?.content ?? contentQuery.data?.content;
-  const bodyKind = selectedQuery.data?.kind ?? primary?.kind ?? "result";
-  const bodyMime = selectedQuery.data?.mimeType ?? "";
-  const isVideo = bodyKind === "video" || bodyMime.startsWith("video/");
-  const isImage =
-    !isVideo &&
-    (bodyKind === "image" || bodyMime.startsWith("image/") || bodyMime.includes("svg"));
-  const rawSrc =
-    selectedId != null ? api.artifactRawUrl(jobId, selectedId) : null;
-
-  return (
-    <motion.div
-      key="result"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mx-auto w-full max-w-2xl"
-    >
-      <h1 className="font-display text-3xl font-extrabold tracking-tight">
-        {needsLook
-          ? "Needs a quick look"
-          : passed
-            ? "Done"
-            : failed
-              ? "Not charged"
-              : statusLabel(status)}
-      </h1>
-      <p className="mt-2 text-ink-muted">
-        {needsLook && "Quality is uncertain. Accept to settle, or reject with no charge."}
-        {passed && paidDisplay && `Paid ${paidDisplay} · quality checks passed`}
-        {passed && !paidDisplay && "Quality checks passed"}
-        {failed &&
-          (acceptance?.summary ??
-            "This job did not pass. You were not charged, escrow is refunded.")}
-      </p>
-
-      {/* Agent-style result transcript */}
-      {(passed || needsLook) && (
-        <article className="mt-8 border border-line bg-surface shadow-[0_1px_0_rgba(42,39,53,0.04)]">
-          <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-5 py-3">
-            <div>
-              <p className="font-mono text-[11px] uppercase tracking-widest text-ink-faint">
-                Result · {bodyKind}
-              </p>
-              <p className="mt-0.5 text-sm text-ink-muted">Beacon finished this for you</p>
-            </div>
-            {selectedQuery.isFetching && (
-              <Loader2 className="size-4 animate-spin text-ink-faint" aria-hidden />
-            )}
-          </header>
-
-          {artifacts.length > 1 && (
-            <div className="flex flex-wrap gap-2 border-b border-dashed border-line px-5 py-3">
-              {artifacts.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => setActiveId(a.id)}
-                  className={cn(
-                    "px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider",
-                    (selectedId === a.id ? "bg-signal text-ink" : "bg-paper-2 text-ink-muted"),
-                  )}
-                >
-                  {a.kind}
-                </button>
-              ))}
-            </div>
-          )}
-
-          <div className="max-h-[min(70vh,640px)] overflow-y-auto px-5 py-6">
-            {selectedQuery.isError && (
-              <p className="text-sm text-danger">Could not load this file. Try another tab.</p>
-            )}
-            {!selectedQuery.isError && !body && selectedQuery.isLoading && (
-              <div className="space-y-3">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-              </div>
-            )}
-            {body && isImage && bodyMime.includes("svg") && (
-              <div
-                className="overflow-hidden border border-line bg-paper [&_svg]:h-auto [&_svg]:w-full"
-                dangerouslySetInnerHTML={{ __html: body }}
-              />
-            )}
-            {isImage && rawSrc && !bodyMime.includes("svg") && (
-              <img
-                src={rawSrc}
-                alt={`${bodyKind} result`}
-                className="mx-auto max-h-[min(70vh,640px)] w-full object-contain"
-              />
-            )}
-            {isVideo && rawSrc && (
-              <video
-                src={rawSrc}
-                controls
-                playsInline
-                autoPlay
-                muted
-                loop
-                className="mx-auto max-h-[min(70vh,640px)] w-full bg-ink"
-              />
-            )}
-            {isImage && rawSrc && bodyMime.includes("svg") && (
-              <p className="mt-3">
-                <a href={rawSrc} target="_blank" rel="noreferrer" className="font-mono text-xs text-signal-deep underline">
-                  Open image file →
-                </a>
-              </p>
-            )}
-            {body && !isImage && !isVideo && (
-              <div className="prose-beacon whitespace-pre-wrap font-sans text-[15px] leading-7 text-ink">
-                {body}
-              </div>
-            )}
-            {!body && !isImage && !isVideo && !selectedQuery.isLoading && !selectedQuery.isError && (
-              <p className="text-sm text-ink-muted">
-                No preview available for this artifact type.
-              </p>
-            )}
-            {selectedQuery.data?.truncated && (
-              <p className="mt-4 font-mono text-[11px] text-ink-faint">Preview truncated.</p>
-            )}
-          </div>
-        </article>
-      )}
-
-      {acceptance?.notes && acceptance.notes.length > 0 && (
-        <ul className="mt-4 space-y-1 border border-dashed border-line bg-paper px-4 py-3 font-mono text-xs text-ink-muted">
-          {acceptance.notes.slice(0, 8).map((n) => (
-            <li key={n}>· {n}</li>
-          ))}
-        </ul>
-      )}
-
-      {needsLook && (
-        <div className="mt-6 flex gap-3">
-          <Button disabled={lookPending} onClick={() => onLook("accept")}>
-            Accept
-          </Button>
-          <Button variant="danger" disabled={lookPending} onClick={() => onLook("reject")}>
-            Reject
-          </Button>
-        </div>
-      )}
-
-      <FlareRails status={status} lockTx={lockTx} settleTx={settleTx} compact />
-
-      <div className="mt-6 border border-line bg-surface p-5">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-ink-faint">Receipt</p>
-        <dl className="mt-3 space-y-2 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt className="text-ink-muted">Job</dt>
-            <dd className="font-mono text-xs text-ink">{jobId.slice(0, 8)}…</dd>
-          </div>
-          {paidDisplay && (
-            <div className="flex justify-between gap-4">
-              <dt className="text-ink-muted">Amount</dt>
-              <dd>{failed ? "$0.00" : paidDisplay}</dd>
-            </div>
-          )}
-          <div className="flex justify-between gap-4">
-            <dt className="text-ink-muted">Status</dt>
-            <dd>{statusLabel(status)}</dd>
-          </div>
-          {lockTx && (
-            <div className="flex justify-between gap-4">
-              <dt className="text-ink-muted">Lock tx</dt>
-              <dd>
-                <a
-                  href={`${NETWORK.explorer}/tx/${lockTx}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-mono text-xs text-signal-deep underline"
-                >
-                  {lockTx.slice(0, 10)}…
-                </a>
-              </dd>
-            </div>
-          )}
-          {settleTx && (
-            <div className="flex justify-between gap-4">
-              <dt className="text-ink-muted">Settle tx</dt>
-              <dd>
-                <a
-                  href={`${NETWORK.explorer}/tx/${settleTx}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-mono text-xs text-signal-deep underline"
-                >
-                  {settleTx.slice(0, 10)}…
-                </a>
-              </dd>
-            </div>
-          )}
-        </dl>
-      </div>
-
-      <div className="mt-6">
-        <FacetCtaPair left="Home" right="New job" leftTo="/" />
-        <Button className="mt-3" variant="ghost" onClick={onNew}>
-          Start another job
-        </Button>
-      </div>
-    </motion.div>
   );
 }

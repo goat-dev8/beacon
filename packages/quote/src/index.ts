@@ -325,14 +325,14 @@ export async function evaluateSealedFit(
     };
   }
 
-  const heuristicNoFit =
-    input.serviceId === "video" && (input.durationSeconds ?? 0) > 120
-      ? "Video longer than 120s exceeds the current Bound Work template. Shorten the brief or split into clips."
-      : undefined;
-
-  if (heuristicNoFit) {
-    return { capability: "NO_FIT", reason: heuristicNoFit };
+  if (input.serviceId === "video") {
+    return {
+      capability: "NO_FIT",
+      reason: "Video generation is coming soon. Pick Coding, Documents, Images, or another live service.",
+    };
   }
+
+  const heuristicNoFit = undefined;
 
   // Catalog services are supported — do not let the quote model invent "unsupported".
   // Optional AI pass only soft-warns; never blocks coding/documents/etc.
@@ -422,5 +422,5 @@ export const SERVICE_CATALOG: Array<{ id: ServiceId; name: string; description: 
   { id: "presentations", name: "Presentation", description: "Decks from brief and assets" },
   { id: "planning", name: "Planning", description: "Goals, milestones, risks" },
   { id: "agents", name: "Agents", description: "Agent briefs, tools, guardrails" },
-  { id: "video", name: "Video", description: "Ads, social packs, captioned cuts" },
+  { id: "video", name: "Video", description: "Coming soon — video generation is not available yet" },
 ];
