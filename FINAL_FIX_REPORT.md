@@ -56,12 +56,20 @@ Store under `docs/screenshots/` when re-shot on production SHA.
 - Hardware FCC when Flare public path is ready  
 - Optional Safe-funded Bound Work escrow (new contracts)
 
-## Verification run (local)
+## Verification run (local + live)
 
 - `npm run typecheck` — pass  
 - `npm test` — 34 pass  
 - `npm run web:build` — pass  
+- GitHub `main` @ `e6c5368` pushed  
+- Vercel desk READY; Render API `live` @ `e6c5368`  
+- Live API: `GET /v1/services` → **13** services; coding quote **`$0.008` FIT** with breakdown  
+- Chrome Bound Work: coding brief → micro quote + settlement timeline (no unsupported error)  
+- Chrome Safe: owner `0x3bE5…c794`, remaining **46.5**, usage bar, Emergency **LIVE**, Pause/Revoke enabled  
+- Chrome Flow: Safe swap card **chain 114**, copy **no MetaMask, no Mainnet switch**
 
 ## Deploy / push
 
-See `history.md` entry for this ship (commit SHA + URLs).
+- Commit: `e6c5368`  
+- Desk: https://beacon-desk.vercel.app  
+- API: https://beacon-api-97gl.onrender.com  
