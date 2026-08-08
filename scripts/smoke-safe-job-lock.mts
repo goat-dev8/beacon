@@ -1,0 +1,22 @@
+import "dotenv/config";
+import { executeSafeJobLock } from "../packages/shared/src/safeJobLock.ts";
+import { loadEnv } from "../packages/shared/src/env.ts";
+import { Contract, JsonRpcProvider, Wallet } from "ethers";
+import { jobIdToBytes32 } from "../packages/shared/src/ids.ts";
+import { randomUUID } from "node:crypto";
+
+const env = loadEnv();
+const jobId = randomUUID();
+console.log("jobId", jobId);
+console.log("vault", env.BEACON_AGENT_VAULT_ADDRESS, "escrow", env.BEACON_ESCROW);
+const lock = await executeSafeJobLock({ jobId, amountUsdt0Display: "0.01" }, env);
+console.log(JSON.stringify(lock, null, 2));
+if (!lock.ok) process.exit(1);
+const key = (env.SETTLER_PRIVATE_KEY || env.DEPLOYER_PRIVATE_KEY || "").trim();
+const k = key.startsWith("0x") ? key : `0x${key}`;
+const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
+const wallet = new Wallet(k, provider);
+const escrow = new Contract(env.BEACON_ESCROW!, ["function refund(bytes32)"], wallet);
+const tx = await escrow.refund(jobIdToBytes32(jobId));
+const r = await tx.wait();
+console.log("refunded", r?.hash ?? tx.hash);

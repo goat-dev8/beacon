@@ -56,6 +56,7 @@ export {
 export * from "./fassetsStatus.js";
 export * from "./yieldVaults.js";
 export * from "./vaultClient.js";
+export * from "./safeJobLock.js";
 export {
   prepareBeaconSafeSwap,
   executeBeaconSafeSwap,

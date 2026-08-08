@@ -373,7 +373,7 @@ export function SecurityPage() {
 
         <footer className="border-t border-[var(--p-border)] pt-6 text-center">
           <p className="text-xs text-[var(--p-faint)]">
-            Bound Work escrow is separate. Per-job locks use BeaconEscrow, not this Safe pool.
+            Agent Jobs prefer this Safe: vault.execute(transfer→escrow) + lockPrepaid. Wallet EIP-3009 remains as fallback.
           </p>
           <p className="mt-1 font-mono text-[10px] text-[var(--p-faint)]">
             {NETWORK.name} · Beacon Safe

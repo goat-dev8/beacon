@@ -45,6 +45,7 @@ import {
   readSwapDeskStatus,
   executeBeaconAgentBridge,
   agentBridgeReadiness,
+  executeSafeJobLock,
   COSTON2_USDT0,
   chatCompletionStream,
   resolveModelForRole,
@@ -425,9 +426,12 @@ const eip3009AuthSchema = z.object({
 
 const approveSchema = z.object({
   offerId: z.string().uuid(),
+  /** "safe" = server locks from Beacon Safe (no MetaMask). "wallet" = EIP-3009 (default). */
+  mode: z.enum(["safe", "wallet"]).optional(),
   authorization: eip3009AuthSchema.optional(),
-  /** On-chain BeaconEscrow.lockWithAuthorization tx hash (Coston2). */
+  /** On-chain BeaconEscrow lock tx hash (Coston2). */
   lockTxHash: z.string().optional(),
+  spendTxHash: z.string().optional(),
 });
 
 app.post("/v1/jobs/:id/approve", async (req) => {
@@ -437,15 +441,6 @@ app.post("/v1/jobs/:id/approve", async (req) => {
 
   if (job.status !== JobStatus.QUOTED) {
     throw new AppError("INVALID_TRANSITION");
-  }
-
-  // Flare rails are the product: paid jobs must carry EIP-3009 auth from Coston2 lock.
-  const flareRequired = (env.FLARE_REQUIRED || "true").toLowerCase() !== "false";
-  if (flareRequired && !body.authorization?.signature) {
-    throw new AppError("VALIDATION", {
-      message:
-        "Flare Coston2 EIP-3009 authorization required. Sign TransferWithAuthorization and lock via BeaconEscrow before approve.",
-    });
   }
 
   const offer = await pool.query(
@@ -458,13 +453,52 @@ app.post("/v1/jobs/:id/approve", async (req) => {
     throw new AppError("OFFER_EXPIRED");
   }
 
-  const payer = body.authorization?.payer;
   const priceRaw = offer.rows[0].price_usdt0;
-  // price_usdt0 is stored as 6-decimal integer units
+  const priceDisplay =
+    typeof priceRaw === "bigint" || typeof priceRaw === "number" || /^\d+$/.test(String(priceRaw))
+      ? (Number(priceRaw) / 1e6).toFixed(6)
+      : String(priceRaw);
+
+  const flareRequired = (env.FLARE_REQUIRED || "true").toLowerCase() !== "false";
+  const mode = body.mode ?? (body.authorization?.signature ? "wallet" : undefined);
+
+  let lockTxHash = body.lockTxHash ?? null;
+  let spendTxHash = body.spendTxHash ?? null;
+  let payer = body.authorization?.payer ?? null;
+  let authPayload: Record<string, unknown> = { ...(body.authorization ?? {}) };
+
+  if (mode === "safe") {
+    const lock = await executeSafeJobLock(
+      { jobId, amountUsdt0Display: priceDisplay },
+      env,
+    );
+    if (!lock.ok) {
+      throw new AppError("VALIDATION", { message: lock.error });
+    }
+    lockTxHash = lock.lockTxHash;
+    spendTxHash = lock.spendTxHash;
+    payer = lock.vault;
+    authPayload = {
+      mode: "beacon_safe",
+      payer: lock.vault,
+      amount: lock.amount,
+      spendTxHash: lock.spendTxHash,
+      lockTxHash: lock.lockTxHash,
+      honesty: lock.honesty,
+    };
+  } else {
+    if (flareRequired && !body.authorization?.signature) {
+      throw new AppError("VALIDATION", {
+        message:
+          "Fund Beacon Safe and use Pay from Safe, or sign EIP-3009 TransferWithAuthorization for wallet escrow.",
+      });
+    }
+  }
+
   const amountUsdt0 =
     typeof priceRaw === "bigint" || typeof priceRaw === "number" || /^\d+$/.test(String(priceRaw))
       ? Number(priceRaw) / 1e6
-      : parseUsdt0Display(body.authorization?.amount ?? "0");
+      : parseUsdt0Display(body.authorization?.amount ?? priceDisplay);
 
   if (payer) {
     await assertPolicyAllows(redis, {
@@ -483,8 +517,9 @@ app.post("/v1/jobs/:id/approve", async (req) => {
       body.offerId,
       userId,
       JSON.stringify({
-        ...(body.authorization ?? {}),
-        lockTxHash: body.lockTxHash ?? null,
+        ...authPayload,
+        lockTxHash,
+        spendTxHash,
         chainId: env.CHAIN_ID,
         network: env.NETWORK_NAME,
       }),
@@ -499,7 +534,82 @@ app.post("/v1/jobs/:id/approve", async (req) => {
     await recordSpendUsdt0(redis, payer, amountUsdt0);
   }
 
-  return { jobId, status: next, offerId: body.offerId };
+  return {
+    jobId,
+    status: next,
+    offerId: body.offerId,
+    mode: mode ?? "wallet",
+    lockTxHash,
+    spendTxHash,
+  };
+});
+
+/** Explicit Safe approve alias — same as approve with mode=safe. */
+app.post("/v1/jobs/:id/approve-safe", async (req) => {
+  const jobId = (req.params as { id: string }).id;
+  const body = z.object({ offerId: z.string().uuid() }).parse(req.body ?? {});
+  (req as { body: unknown }).body = { offerId: body.offerId, mode: "safe" };
+  // Re-dispatch by calling shared logic via internal fetch pattern — inline duplicate avoided:
+  // Fastify doesn't re-enter easily; invoke by reconstructing.
+  const job = await getJob(jobId);
+  if (job.status !== JobStatus.QUOTED) throw new AppError("INVALID_TRANSITION");
+  const offer = await pool.query(
+    `SELECT id, expires_at, price_usdt0 FROM offers WHERE id = $1 AND job_id = $2`,
+    [body.offerId, jobId],
+  );
+  if (offer.rowCount === 0) throw new AppError("VALIDATION", { message: "Quote not found for this job." });
+  if (new Date(offer.rows[0].expires_at).getTime() < Date.now()) {
+    await updateJobStatus(jobId, JobStatus.EXPIRED);
+    throw new AppError("OFFER_EXPIRED");
+  }
+  const priceRaw = offer.rows[0].price_usdt0;
+  const priceDisplay =
+    typeof priceRaw === "bigint" || typeof priceRaw === "number" || /^\d+$/.test(String(priceRaw))
+      ? (Number(priceRaw) / 1e6).toFixed(6)
+      : String(priceRaw);
+  const lock = await executeSafeJobLock({ jobId, amountUsdt0Display: priceDisplay }, env);
+  if (!lock.ok) throw new AppError("VALIDATION", { message: lock.error });
+  const amountUsdt0 = Number(priceRaw) / 1e6;
+  await assertPolicyAllows(redis, {
+    wallet: lock.vault,
+    serviceId: String(job.service_id ?? ""),
+    amountUsdt0,
+    agentId: "desk",
+  });
+  const userId = job.user_id ?? (await ensureGuestUser());
+  await pool.query(
+    `INSERT INTO authorizations (offer_id, user_id, eip3009_payload, valid_before, status)
+     VALUES ($1, $2, $3::jsonb, to_timestamp($4), 'active')`,
+    [
+      body.offerId,
+      userId,
+      JSON.stringify({
+        mode: "beacon_safe",
+        payer: lock.vault,
+        amount: lock.amount,
+        spendTxHash: lock.spendTxHash,
+        lockTxHash: lock.lockTxHash,
+        honesty: lock.honesty,
+        chainId: env.CHAIN_ID,
+        network: env.NETWORK_NAME,
+      }),
+      Math.floor(Date.now() / 1000) + 3600,
+    ],
+  );
+  const next = transition(JobStatus.QUOTED, "user_approve");
+  await updateJobStatus(jobId, next);
+  if (redis) await redis.lpush("q:pipeline", jobId);
+  await recordSpendUsdt0(redis, lock.vault, amountUsdt0);
+  return {
+    jobId,
+    status: next,
+    offerId: body.offerId,
+    mode: "safe",
+    lockTxHash: lock.lockTxHash,
+    spendTxHash: lock.spendTxHash,
+    explorerLock: lock.explorerLock,
+    explorerSpend: lock.explorerSpend,
+  };
 });
 
 app.get("/v1/jobs/:id", async (req) => {

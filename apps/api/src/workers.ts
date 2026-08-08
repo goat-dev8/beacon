@@ -212,8 +212,14 @@ async function settleJob(db: pg.Pool, redis: Redis, jobId: string): Promise<void
         validBefore?: string;
         nonce?: string;
         signature?: string;
+        mode?: string;
+        lockTxHash?: string;
       };
-      if (auth?.payer && auth?.signature && auth?.nonce && env.BEACON_ESCROW) {
+      const escrowLocked =
+        Boolean(auth?.lockTxHash) ||
+        auth?.mode === "beacon_safe" ||
+        Boolean(auth?.signature && auth?.nonce);
+      if (escrowLocked && env.BEACON_ESCROW) {
         const escrow = new Contract(
           env.BEACON_ESCROW,
           ["function releaseToPayee(bytes32 jobId)"],

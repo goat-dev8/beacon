@@ -936,7 +936,7 @@ export function ActionCard({
         )}
         {typeof card.deskHref === "string" && card.deskHref ? (
           <Link to={card.deskHref} className="mt-3 inline-flex text-sm text-[var(--p-accent-text)] underline-offset-2 hover:underline">
-            Open Bound Work desk
+            Open Agent Jobs
           </Link>
         ) : null}
       </div>

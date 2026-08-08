@@ -4,6 +4,26 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-08 - FINAL ARCHITECTURE: Agent Jobs Safe-prepaid (Flare-native)
+
+### Research (official Flare only)
+- EIP-3009: signature must recover to `from` — Safe cannot pay escrow via forged TransferWithAuthorization.
+- Flare Smart Accounts = XRPL personal accounts ≠ MetaMask Beacon Safe.
+- Closest compliant design: fund Safe once → `vault.execute(transfer→escrow)` → `escrow.lockPrepaid` → generate → release/refund to vault.
+- Wrote `ARCHITECTURE_AUDIT.md` with docs links.
+
+### Shipped
+1. `BeaconEscrow.lockPrepaid` + `lockedTotal` / `freeBalance`; redeployed Coston2 `0xE68c22621314977f00c85D89e4f5b10573C51C7E` (owner=settler).
+2. `safeJobLock.ts` + `POST /v1/jobs/:id/approve-safe` + approve `mode=safe`.
+3. Workers settle/refund Safe prepaid locks.
+4. Rename Bound Work → **Agent Jobs**; primary CTA Pay from Beacon Safe; wallet EIP-3009 fallback.
+5. DeskContextStrip / Security / Flow copy aligned.
+
+### Verify
+Forge escrow prepaid tests · typecheck · web build · Chrome E2E · Render/Vercel after env BEACON_ESCROW update.
+
+---
+
 ## 2026-08-08 - Bound Work flagship (Safe honesty + Result UX)
 
 ### Research
@@ -826,7 +846,7 @@ cd apps/web && npm run build   # tsc -b && vite build
 | MockUSDT0 | `0x6fd8a72a972040f3153894BBd0d829a58f1Fe86c` |
 | X402Facilitator | `0x1f409a809cE6e8A4467C1fD40943aC40169f4779` |
 | BeaconJobRegistry | `0x100a3E24909DE25B9CAe75Ba665Be6F893b98889` |
-| BeaconEscrow | `0x68E29567a9eC60D6ADb71901CE187C22Cc087138` |
+| BeaconEscrow | `0xE68c22621314977f00c85D89e4f5b10573C51C7E` (prepaid; replaces `0x68E2…7138`) |
 
 Deployer/payee: `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034`  
 Explorer: https://coston2-explorer.flare.network

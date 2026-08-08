@@ -91,11 +91,20 @@ export const api = {
       signature: string;
       lockTxHash?: string;
     },
+    opts?: { mode?: "safe" | "wallet" },
   ) =>
-    request<{ jobId: string; status: string; offerId: string }>(`/v1/jobs/${jobId}/approve`, {
+    request<{
+      jobId: string;
+      status: string;
+      offerId: string;
+      mode?: string;
+      lockTxHash?: string | null;
+      spendTxHash?: string | null;
+    }>(`/v1/jobs/${jobId}/approve`, {
       method: "POST",
       body: JSON.stringify({
         offerId,
+        mode: opts?.mode ?? (authorization?.signature ? "wallet" : undefined),
         authorization: authorization
           ? {
               payer: authorization.payer,
@@ -109,6 +118,20 @@ export const api = {
           : undefined,
         lockTxHash: authorization?.lockTxHash,
       }),
+    }),
+  approveJobFromSafe: (jobId: string, offerId: string) =>
+    request<{
+      jobId: string;
+      status: string;
+      offerId: string;
+      mode: string;
+      lockTxHash: string;
+      spendTxHash: string;
+      explorerLock?: string;
+      explorerSpend?: string;
+    }>(`/v1/jobs/${jobId}/approve-safe`, {
+      method: "POST",
+      body: JSON.stringify({ offerId }),
     }),
   getJob: (jobId: string) =>
     request<{

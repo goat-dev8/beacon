@@ -10,7 +10,7 @@ export const CONTRACTS = {
   token: (import.meta.env.VITE_X402_TOKEN_ADDRESS ??
     "0x6fd8a72a972040f3153894BBd0d829a58f1Fe86c") as `0x${string}`,
   escrow: (import.meta.env.VITE_BEACON_ESCROW ??
-    "0x68E29567a9eC60D6ADb71901CE187C22Cc087138") as `0x${string}`,
+    "0xE68c22621314977f00c85D89e4f5b10573C51C7E") as `0x${string}`,
   facilitator: (import.meta.env.VITE_X402_FACILITATOR_ADDRESS ??
     "0x1f409a809cE6e8A4467C1fD40943aC40169f4779") as `0x${string}`,
   jobRegistry: (import.meta.env.VITE_BEACON_JOB_REGISTRY ??

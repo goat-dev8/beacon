@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { shortAddress } from "@/lib/wallet";
 import { cn } from "@/lib/utils";
 
-/** Live Safe + Flare rails context for Bound Work (honest: escrow ≠ Safe spend). */
+/** Live Safe + Flare rails context for Agent Jobs (Safe prepaid or EIP-3009 wallet). */
 export function DeskContextStrip({
   escrowLockedDisplay,
   lockTx,
@@ -34,10 +34,10 @@ export function DeskContextStrip({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-signal-deep">
-            Flare Coston2 · Bound Work
+            Flare Coston2 · Agent Jobs
           </p>
           <p className="mt-0.5 text-sm text-ink-muted">
-            Escrow locks the job. Beacon Safe is the prepaid agent pool (separate rail).
+            Prefer Beacon Safe for job locks. Wallet EIP-3009 remains as fallback.
           </p>
         </div>
         <Link
@@ -89,14 +89,14 @@ export function DeskContextStrip({
         <Metric
           label="Job escrow"
           value={escrowLockedDisplay ? `${escrowLockedDisplay} locked` : lockTx ? "Locked" : "Not locked"}
-          hint={lockTx ? `${lockTx.slice(0, 10)}…` : "EIP-3009 → BeaconEscrow"}
+          hint={lockTx ? `${lockTx.slice(0, 10)}…` : "Safe prepaid or EIP-3009"}
         />
       </div>
 
       <ul className="flex flex-wrap gap-x-4 gap-y-1 border-t border-line px-4 py-2.5 font-mono text-[10px] text-ink-faint sm:px-5">
-        <li>x402 / EIP-3009 auth</li>
-        <li>BeaconEscrow</li>
-        <li>Beacon Safe (policy)</li>
+        <li>Beacon Safe → Escrow</li>
+        <li>x402 / EIP-3009 (fund + wallet)</li>
+        <li>BeaconEscrow lockPrepaid</li>
         <li>FTSO (Safe swaps)</li>
         <li className="text-ink-muted/70">FDC · LayerZero · FAssets: Flow only</li>
       </ul>

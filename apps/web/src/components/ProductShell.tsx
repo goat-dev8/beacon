@@ -12,7 +12,7 @@ import { api } from "@/lib/api";
 
 const NAV = [
   { to: "/flow", end: true, label: "Flow", icon: Sparkles },
-  { to: "/flow/desk", end: false, label: "Work", icon: Briefcase },
+  { to: "/flow/desk", end: false, label: "Jobs", icon: Briefcase },
   { to: "/flow/security", end: false, label: "Safe", icon: Shield },
 ];
 

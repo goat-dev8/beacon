@@ -321,7 +321,7 @@ export async function evaluateSealedFit(
   if (!CATALOG_IDS.has(input.serviceId)) {
     return {
       capability: "NO_FIT",
-      reason: `"${input.serviceId}" is not a Beacon Bound Work service. Pick one from the catalog.`,
+      reason: `"${input.serviceId}" is not an Agent Jobs service. Pick one from the catalog.`,
     };
   }
 
@@ -331,8 +331,6 @@ export async function evaluateSealedFit(
       reason: "Video generation is coming soon. Pick Coding, Documents, Images, or another live service.",
     };
   }
-
-  const heuristicNoFit = undefined;
 
   // Catalog services are supported — do not let the quote model invent "unsupported".
   // Optional AI pass only soft-warns; never blocks coding/documents/etc.

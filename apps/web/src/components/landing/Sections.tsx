@@ -159,7 +159,7 @@ export function ServicesSection() {
           Agents on Flare rails
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-center text-ink-muted">
-          Live catalog from Beacon Flow. Swap, bridge, signals, Beacon Safe, and Bound Work in one OS.
+          Live catalog from Beacon Flow. Swap, bridge, signals, Beacon Safe, and Agent Jobs in one OS.
         </p>
         <div className="mt-12 grid grid-flow-dense gap-0 border border-line sm:grid-cols-2 lg:grid-cols-3">
           {rails.map((s) => (

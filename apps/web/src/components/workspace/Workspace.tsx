@@ -227,26 +227,62 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
         priceDisplay: quote.priceDisplay,
       });
       setLockTx(auth.lockTxHash ?? null);
-      return api.approveJob(jobId, offerId, {
-        payer: auth.payer,
-        payee: auth.payee,
-        amount: auth.amount,
-        validAfter: auth.validAfter,
-        validBefore: auth.validBefore,
-        nonce: auth.nonce,
-        signature: auth.signature,
-        lockTxHash: auth.lockTxHash,
-      });
+      return api.approveJob(
+        jobId,
+        offerId,
+        {
+          payer: auth.payer,
+          payee: auth.payee,
+          amount: auth.amount,
+          validAfter: auth.validAfter,
+          validBefore: auth.validBefore,
+          nonce: auth.nonce,
+          signature: auth.signature,
+          lockTxHash: auth.lockTxHash,
+        },
+        { mode: "wallet" },
+      );
     },
     onSuccess: () => {
       setStep("live");
       setError(null);
       void qc.invalidateQueries({ queryKey: ["job", jobId] });
+      void qc.invalidateQueries({ queryKey: ["agent-vault-status"] });
     },
     onError: (err) => {
       setError(err instanceof Error ? err.message : "Approve failed.");
     },
   });
+
+  const approveSafe = useMutation({
+    mutationFn: async () => {
+      if (!jobId || !offerId || !quote) throw new Error("Missing quote.");
+      const result = await api.approveJobFromSafe(jobId, offerId);
+      setLockTx(result.lockTxHash ?? null);
+      return result;
+    },
+    onSuccess: () => {
+      setStep("live");
+      setError(null);
+      void qc.invalidateQueries({ queryKey: ["job", jobId] });
+      void qc.invalidateQueries({ queryKey: ["agent-vault-status"] });
+    },
+    onError: (err) => {
+      setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Safe approve failed.");
+    },
+  });
+
+  const vaultQuery = useQuery({
+    queryKey: ["agent-vault-status"],
+    queryFn: () => api.getVaultStatus(),
+    refetchInterval: 12_000,
+  });
+  const vaultLive = vaultQuery.data?.status?.configured ? vaultQuery.data.status : null;
+  const safeCanPay =
+    Boolean(vaultLive) &&
+    !vaultLive!.paused &&
+    vaultLive!.sessionActive &&
+    Number(vaultLive!.balanceDisplay) >= Number(quote?.priceDisplay?.replace(/^\$/, "") ?? Infinity);
 
   const look = useMutation({
     mutationFn: (decision: "accept" | "reject") => api.look(jobId!, decision),
@@ -571,16 +607,15 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                     Settlement timeline
                   </p>
                   <ol className="mt-2 space-y-1.5 text-xs text-ink-muted">
-                    <li>1. You sign EIP-3009 (one authorization)</li>
-                    <li>2. BeaconEscrow locks MockUSDT0 on Coston2</li>
-                    <li>3. Agent generates · acceptance gates run</li>
-                    <li>4. Escrow release on pass · refund on fail</li>
-                    <li>5. Receipt sealed with lock tx</li>
+                    <li>1. Prefer Pay from Beacon Safe (no MetaMask)</li>
+                    <li>2. Or sign EIP-3009 wallet auth once</li>
+                    <li>3. BeaconEscrow locks MockUSDT0 on Coston2</li>
+                    <li>4. Agent generates · acceptance gates run</li>
+                    <li>5. Escrow release on pass · refund to Safe/wallet on fail</li>
                   </ol>
                   <p className="mt-2 text-[11px] leading-relaxed text-ink-faint">
-                    Bound Work escrow is separate from Beacon Safe agent spends. Safe auto-executes
-                    allowlisted swaps after you fund it; Bound Work still needs this one owner
-                    signature to lock the job budget (Flare EIP-3009 / escrow design).
+                    Safe path: vault.execute(transfer→escrow) then lockPrepaid. EIP-3009 is only
+                    required when funding the Safe or using wallet fallback — never forged.
                   </p>
                 </div>
               </div>
@@ -616,23 +651,43 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               <div className="mt-6 flex flex-wrap items-center gap-3">
                 <Button
                   size="lg"
+                  onClick={() => approveSafe.mutate()}
+                  disabled={approveSafe.isPending || approve.isPending || !safeCanPay}
+                >
+                  {approveSafe.isPending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" /> Paying from Safe…
+                    </>
+                  ) : (
+                    "Pay from Beacon Safe"
+                  )}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="ghost"
                   onClick={() => approve.mutate()}
-                  disabled={approve.isPending || !account}
+                  disabled={approve.isPending || approveSafe.isPending || !account}
                 >
                   {approve.isPending ? (
                     <>
                       <Loader2 className="size-4 animate-spin" /> Signing & locking…
                     </>
                   ) : (
-                    "Approve"
+                    "Pay with wallet"
                   )}
                 </Button>
                 <Button variant="ghost" size="lg" onClick={() => setStep("describe")}>
                   Edit brief
                 </Button>
               </div>
-              <p className="mt-3 font-mono text-[11px] text-ink-faint">
-                Approve signs EIP-3009 and calls BeaconEscrow.lockWithAuthorization on Coston2.
+              <p className="mt-3 text-sm text-ink-muted">
+                {safeCanPay
+                  ? "Primary path: agent locks from your funded Beacon Safe within policy — no MetaMask for this job."
+                  : "Fund Beacon Safe (and set policy) for zero MetaMask job locks, or pay once with wallet EIP-3009."}
+              </p>
+              <p className="mt-1 font-mono text-[11px] text-ink-faint">
+                Wallet fallback: EIP-3009 → BeaconEscrow.lockWithAuthorization. Safe path:
+                vault.execute(transfer) → escrow.lockPrepaid.
               </p>
             </motion.div>
           )}
@@ -701,7 +756,7 @@ const STEP_LABELS: Record<Step, string> = {
 };
 
 function labelForStep(step: Step) {
-  return `Bound Work · ${STEP_LABELS[step]}`;
+  return `Agent Jobs · ${STEP_LABELS[step]}`;
 }
 
 function StepRail({ step }: { step: Step }) {
