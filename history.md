@@ -4,6 +4,19 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-08 - NEGATIVE-SPACE B MARK
+
+### Design read
+Same idea as user reference: bold B + lighthouse beam as negative space + mint lantern at the peak. Cleaner geometry, Signal `#39e08a`, PNG only.
+
+### Shipped
+Replaced `beacon-mark.png` / on-dark / favicon PNG set with the elevated negative-space lockup.
+
+### Verify
+Local assets · then push
+
+---
+
 ## 2026-08-08 - BEACON MARK + HERO STORY
 
 ### Design read
