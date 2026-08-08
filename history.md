@@ -4,6 +4,23 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-09 - SAFE UX + PAY-AUTH FIX + USDT0 RESEARCH
+
+### Pay authorization message mismatch
+Jobs “Pay from Safe” signed `amount:0.011` (UI `priceDisplay` 3 dp) while API expected `0.011000` (escrow raw / 1e6). Exact string compare failed.
+
+**Fix:** API `verifySafePayAuth` parses the signed message and compares amounts numerically; Jobs UI signs `breakdown.totalUsdt0` (6 dp) when present.
+
+### Safe page
+- Faucet CTA (`https://faucet.flare.network/coston2`) before Create Safe (C2FLR gas).
+- Actions first: status → faucet → create/deposit/policy → app limits.
+- Educational blocks (“How money moves”, “Protection story / Guardrails”) moved to bottom “Learn more”.
+
+### Token decision (keep MockUSDT0)
+Flare x402 docs require MockUSDT0 + EIP-3009. Faucet USDT0 `0xC1A5…` is for other Coston2 demos — do **not** switch Safe/Jobs rails without Facilitator redeploy + EIP-3009 proof. Research: `docs/RESEARCH_USDT0_FAUCET_VS_MOCK.md`. MASTER + README updated.
+
+---
+
 ## 2026-08-09 - PER-USER BEACON SAFE (FACTORY)
 
 ### Problem

@@ -444,6 +444,26 @@ const approveSchema = z.object({
   spendTxHash: z.string().optional(),
 });
 
+/** Normalize Safe pay amount strings so UI `$0.011` matches DB `0.011000`. */
+function normalizeUsdt0AmountDisplay(raw: string): number {
+  const n = Number(String(raw).replace(/^\$/, "").trim());
+  return Number.isFinite(n) ? n : Number.NaN;
+}
+
+function parseSafePayMessage(message: string): {
+  jobId: string;
+  offerId: string;
+  amount: string;
+} | null {
+  const lines = message.trim().split(/\r?\n/).map((l) => l.trim());
+  if (lines[0] !== "Beacon Safe pay") return null;
+  const jobId = lines.find((l) => l.startsWith("job:"))?.slice(4);
+  const offerId = lines.find((l) => l.startsWith("offer:"))?.slice(6);
+  const amount = lines.find((l) => l.startsWith("amount:"))?.slice(7);
+  if (!jobId || !offerId || amount == null || amount === "") return null;
+  return { jobId, offerId, amount };
+}
+
 async function verifySafePayAuth(opts: {
   ownerWallet: string;
   jobId: string;
@@ -452,8 +472,20 @@ async function verifySafePayAuth(opts: {
   message: string;
   signature: string;
 }): Promise<void> {
-  const expected = `Beacon Safe pay\njob:${opts.jobId}\noffer:${opts.offerId}\namount:${opts.amountDisplay}`;
-  if (opts.message.trim() !== expected) {
+  const parsed = parseSafePayMessage(opts.message);
+  if (!parsed || parsed.jobId !== opts.jobId || parsed.offerId !== opts.offerId) {
+    throw new AppError("UNAUTHORIZED", {
+      message: "Pay authorization message mismatch.",
+    });
+  }
+  const signedAmount = normalizeUsdt0AmountDisplay(parsed.amount);
+  const expectedAmount = normalizeUsdt0AmountDisplay(opts.amountDisplay);
+  // Allow UI toFixed(3) vs escrow toFixed(6) without rejecting a valid owner signature.
+  if (
+    !Number.isFinite(signedAmount) ||
+    !Number.isFinite(expectedAmount) ||
+    Math.abs(signedAmount - expectedAmount) > 1e-9
+  ) {
     throw new AppError("UNAUTHORIZED", {
       message: "Pay authorization message mismatch.",
     });

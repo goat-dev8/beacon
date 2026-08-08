@@ -1,5 +1,6 @@
 export { SafeFlowStrip } from "./SafeFlowStrip";
 export { ProtectionStory } from "./ProtectionStory";
+export { FaucetGasCard, COSTON2_FAUCET_URL } from "./FaucetGasCard";
 export { VaultPassCard } from "./VaultPassCard";
 export { DepositSection } from "./DepositSection";
 export { SpendingPolicySection } from "./SpendingPolicySection";

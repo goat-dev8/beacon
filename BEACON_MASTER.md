@@ -174,7 +174,7 @@ Agent Jobs escrow is a **product extension** (lock until acceptance), not a repl
 1. **EIP-3009 cannot forge from Safe.** Signature must recover to `from`. A contract Safe has no private key for that address. Beacon does **not** set `from = Safe` with a wallet signature. Safe jobs use `vault.execute` + `escrow.lockPrepaid`.
 2. **FCC = SIMULATED_TEE on Coston2.** Live: `SIMULATED_TEE=true`, `FCC_MODE=simulated`. Do not claim hardware Confidential Space / verified enclave.
 3. **Beacon Safe -> Flare Smart Accounts.** Smart Accounts are XRPL-controlled personal accounts. BeaconAgentVault is a MetaMask/agent policy vault.
-4. **MockUSDT0** is the documented payment asset until FXRP has official EIP-3009 in x402 guides.
+4. **MockUSDT0** (`0x6fd8…e86c`) is the payment asset for Safe / Jobs / x402 until FXRP (or faucet USDT0) has official EIP-3009 in Flare x402 guides. Faucet [Coston2](https://faucet.flare.network/coston2) supplies **C2FLR gas** (and optional USDT0/FXRP for other demos). See `docs/RESEARCH_USDT0_FAUCET_VS_MOCK.md`.
 5. **Coston2 only** for agent / Safe product rails (chain 114). SparkDEX Mainnet paths are blocked for Safe auto-spend; Safe FXRP uses SwapDesk + FTSO.
 6. **FDC** used on Flow attestation paths only - not claimed on Jobs desk.
 
@@ -309,7 +309,8 @@ Local desk (dev): `http://localhost:5173` -> API `http://127.0.0.1:3001` (when r
 
 - **Coston2 explorer:** https://coston2-explorer.flare.network  
 - **RPC default:** https://coston2-api.flare.network/ext/C/rpc  
-- **Faucet:** https://faucet.flare.network/coston2  
+- **Faucet:** https://faucet.flare.network/coston2 — request **C2FLR** before Create Safe; do **not** expect faucet USDT0 to fund Beacon Safe (use in-app MockUSDT0 mint).
+- Token research: `docs/RESEARCH_USDT0_FAUCET_VS_MOCK.md`
 - LayerZero testnet scan (bridge txs): https://testnet.layerzeroscan.com (when OFT used)
 
 ---

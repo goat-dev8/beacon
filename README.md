@@ -170,8 +170,8 @@ Keep `VITE_BEACON_ESCROW` aligned with root `BEACON_ESCROW`. Current prepaid esc
 ### MetaMask
 
 1. Add network: Coston2, chain ID `114`, RPC above, explorer above.
-2. Fund the wallet with **C2FLR** from the faucet (gas).
-3. For x402 / Safe / Agent Jobs, use Beacon **MockUSDT0** (`0x6fd8a72a972040f3153894BBd0d829a58f1Fe86c`), not only faucet USDT0. Faucet USDT0 may lack EIP-3009 `transferWithAuthorization`.
+2. Fund the wallet with **C2FLR** from the faucet (gas) — open https://faucet.flare.network/coston2, paste your address, request C2FLR **before** Create Beacon Safe.
+3. For x402 / Safe / Agent Jobs, use Beacon **MockUSDT0** (`0x6fd8a72a972040f3153894BBd0d829a58f1Fe86c`) via **Get test USDT0** on the Safe page, not faucet USDT0 (`0xC1A5…`). Faucet USDT0 is for Smart Accounts / SparkDEX demos and lacks the EIP-3009 settle path Beacon needs. Deep dive: `docs/RESEARCH_USDT0_FAUCET_VS_MOCK.md`.
 4. Stay on chain **114**. Product agent Safe swaps are Coston2-only; SparkDEX Mainnet (14) is not the default desk path.
 
 ---

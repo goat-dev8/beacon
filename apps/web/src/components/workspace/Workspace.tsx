@@ -260,9 +260,13 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     mutationFn: async () => {
       if (!jobId || !offerId || !quote) throw new Error("Missing quote.");
       if (!account) throw new Error("Connect your wallet first.");
+      // Prefer breakdown.totalUsdt0 (6 dp) so signed amount matches API escrow display.
+      const amountDisplay =
+        quote.breakdown?.totalUsdt0 ??
+        Number(quote.priceDisplay.replace(/^\$/, "")).toFixed(6);
       const result = await api.approveJobFromSafe(jobId, offerId, {
         ownerWallet: account,
-        amountDisplay: quote.priceDisplay.replace(/^\$/, ""),
+        amountDisplay,
         signMessage: (message) => signPersonalMessage(message),
       });
       setLockTx(result.lockTxHash ?? null);

@@ -49,8 +49,9 @@ export function DepositSection({
             Fund the Safe
           </h2>
           <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[var(--p-muted)]">
-            Sign once in MetaMask to move {tokenSymbol} into Beacon Safe (EIP-3009). The AI spends
-            only from this pool. Withdraw and policy stay owner-only.
+            Sign once in MetaMask to move {tokenSymbol} into Beacon Safe (EIP-3009). Mint test tokens
+            here if your wallet balance is empty — faucet USDT0 is for other Flare demos, not this
+            Safe rail.
           </p>
         </div>
       </div>

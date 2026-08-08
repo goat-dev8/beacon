@@ -12,6 +12,7 @@ import {
   DEFAULT_SAFE_POLICY,
   DepositSection,
   EmergencySection,
+  FaucetGasCard,
   ProtectionStory,
   SafeFlowStrip,
   SafeReveal,
@@ -208,10 +209,10 @@ export function SecurityPage() {
             Beacon Safe
           </p>
           <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight text-[var(--p-fg)] sm:text-4xl">
-            Beacon Safe
+            Your prepaid AI budget
           </h1>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--p-muted)]">
-            Deposit a prepaid budget so AI can spend only what you allow.
+            Gas first, then create your Safe, mint MockUSDT0, deposit, and set limits.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -245,14 +246,6 @@ export function SecurityPage() {
 
       <main className="relative mx-auto max-w-3xl space-y-8 px-5 pb-20 pt-4">
         <SafeReveal>
-          <SafeFlowStrip />
-        </SafeReveal>
-
-        <SafeReveal delay={0.04}>
-          <ProtectionStory fccMode={fccQuery.data?.mode ?? "unavailable"} />
-        </SafeReveal>
-
-        <SafeReveal delay={0.06}>
           <VaultPassCard
             status={status}
             loading={vaultQuery.isLoading}
@@ -260,18 +253,23 @@ export function SecurityPage() {
           />
         </SafeReveal>
 
+        <SafeReveal delay={0.04}>
+          <FaucetGasCard />
+        </SafeReveal>
+
         {wallet && !live && !vaultQuery.isLoading && (
-          <SafeReveal delay={0.07}>
-            <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-6">
+          <SafeReveal delay={0.06}>
+            <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
               <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-accent-text)]">
-                Your Beacon Safe
+                Step 2 · Your Beacon Safe
               </p>
-              <h2 className="mt-2 font-display text-2xl font-semibold text-[var(--p-fg)]">
+              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight text-[var(--p-fg)]">
                 Create your personal Safe
               </h2>
               <p className="mt-2 max-w-lg text-sm leading-relaxed text-[var(--p-muted)]">
                 Each wallet owns its own prepaid budget and spending policy. You will not see another
-                user’s Safe. Create yours on {NETWORK.name}, then fund and set limits.
+                user’s Safe. After you have C2FLR gas, create yours on {NETWORK.name}, then mint and
+                deposit MockUSDT0.
               </p>
               <button
                 type="button"
@@ -416,12 +414,25 @@ export function SecurityPage() {
           />
         </SafeReveal>
 
+        <div className="space-y-8 border-t border-[var(--p-border)] pt-10">
+          <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-faint)]">
+            Learn more
+          </p>
+          <SafeReveal>
+            <SafeFlowStrip />
+          </SafeReveal>
+          <SafeReveal delay={0.04}>
+            <ProtectionStory fccMode={fccQuery.data?.mode ?? "unavailable"} />
+          </SafeReveal>
+        </div>
+
         <footer className="border-t border-[var(--p-border)] pt-6 text-center">
           <p className="text-xs text-[var(--p-faint)]">
-            Agent Jobs prefer this Safe: vault.execute(transfer→escrow) + lockPrepaid. Wallet EIP-3009 remains as fallback.
+            Agent Jobs prefer this Safe: vault.execute(transfer→escrow) + lockPrepaid. Wallet EIP-3009
+            remains as fallback.
           </p>
           <p className="mt-1 font-mono text-[10px] text-[var(--p-faint)]">
-            {NETWORK.name} · Beacon Safe
+            {NETWORK.name} · Beacon Safe · MockUSDT0 rails
           </p>
         </footer>
       </main>
