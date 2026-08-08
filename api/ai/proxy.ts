@@ -11,7 +11,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 export const config = {
   runtime: "nodejs",
   regions: ["sin1"],
-  maxDuration: 60,
+  maxDuration: 120,
 };
 
 function buildAgentRouterHeaders(apiKey: string): Record<string, string> {
@@ -101,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       max_tokens: body.max_tokens ?? body.maxTokens ?? 2048,
       stream: false,
     }),
-    signal: AbortSignal.timeout(55_000),
+    signal: AbortSignal.timeout(110_000),
   });
 
   const text = await upstream.text();

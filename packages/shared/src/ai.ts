@@ -192,6 +192,8 @@ async function postChatCompletions(
   const proxySecret = resolveAiProxySecret(env);
   const pollinationsKey = env.POLLINATIONS_API_KEY || "";
   const timeoutMs = opts.timeoutMs ?? 90_000;
+  // Direct ASN often WAF-blocked from Render — fail fast and hop to Pollinations/proxy.
+  const directTimeoutMs = Math.min(timeoutMs, 12_000);
   const body = JSON.stringify(payload);
   const errors: string[] = [];
 
@@ -216,7 +218,7 @@ async function postChatCompletions(
       method: "POST",
       headers: buildAgentRouterHeaders(apiKey),
       body,
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: AbortSignal.timeout(directTimeoutMs),
     });
     return { response, text: await response.text(), via: "direct" };
   };
@@ -242,13 +244,13 @@ async function postChatCompletions(
   };
 
   const hops: Array<() => Promise<CompletionHop>> = [];
-  // Prefer AgentRouter direct; Pollinations is the cloud-reachable production hop.
-  // Vercel proxy last (may WAF until sin1 Node deploy is live / billing fixed).
-  if (apiKey) hops.push(tryDirect);
+  // Production (Render): Pollinations is the proven reachable hop for gpt-5.6-sol.
+  // Then Vercel sin1 proxy → upstream. Direct last (often WAF on cloud ASNs).
   if (pollinationsKey) hops.push(tryPollinations);
   if (hasAiProxy(env)) hops.push(tryProxy);
+  if (apiKey) hops.push(tryDirect);
   if (hops.length === 0) {
-    throw new Error("No AI provider configured (AgentRouter key / proxy / Pollinations)");
+    throw new Error("No AI provider configured (gpt-5.6-sol key / proxy / Pollinations)");
   }
 
   let last: CompletionHop | null = null;
@@ -355,16 +357,15 @@ export async function chatForRole(
 ): Promise<ChatCompletionResult> {
   const env = options.env ?? loadEnv();
   const primary = resolveModelForRole(role, env);
-  // Prefer live AgentRouter models that work in prod: Claude for prose, GPT for reliable fallback.
+  // Jobs generator: gpt-5.6-sol only (user-facing model). Quote/judge keep short fallbacks.
   const fallbacks =
     role === "quote"
-      ? [primary, "gpt-5.6-sol", "claude-opus-4-8", "claude-opus-5"]
+      ? [primary, "gpt-5.6-sol"]
       : role === "generator"
-        ? // Prefer Sol first for Jobs deliverables — Opus often WAF/timeouts on Render.
-          ["gpt-5.6-sol", primary, "claude-opus-5", "claude-opus-4-8"]
+        ? ["gpt-5.6-sol", primary].filter((m, i, a) => a.indexOf(m) === i)
         : role === "acceptance"
-          ? [primary, "gpt-5.6-sol", "claude-opus-4-8"]
-          : [primary, "claude-opus-4-8", "gpt-5.6-sol"];
+          ? [primary, "gpt-5.6-sol"]
+          : [primary, "gpt-5.6-sol"];
 
   const tried = new Set<string>();
   let lastErr: unknown;

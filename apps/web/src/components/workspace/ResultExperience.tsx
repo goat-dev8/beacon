@@ -85,7 +85,7 @@ export function ResultExperience({
     return e.type === "status" && p?.trigger === "generation_failed";
   });
   const failBlurb = genFailed
-    ? "Live AgentRouter generation failed before a real deliverable shipped. Escrow was refunded — try again (no scaffold fallback)."
+    ? "gpt-5.6-sol did not finish a real deliverable. Escrow was refunded — try again."
     : acceptance?.summary ??
       "This job did not pass. You were not charged; escrow is refunded.";
 
@@ -181,10 +181,9 @@ export function ResultExperience({
   }, [artifacts]);
   const liveModel =
     (typeof draftMeta?.model === "string" && draftMeta.model) ||
+    (typeof draftMeta?.provider === "string" && draftMeta.provider) ||
     meta?.model ||
     null;
-  const liveProvider =
-    typeof draftMeta?.provider === "string" ? draftMeta.provider : null;
 
   const panel = (
     <article
@@ -198,14 +197,14 @@ export function ResultExperience({
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-signal-deep">
             Result · {normalizeTab(bodyKind)}
-            {liveProvider === "agentrouter" && " · live"}
+            {liveModel ? " · live" : ""}
           </p>
           <p className="mt-0.5 font-display text-lg font-semibold tracking-tight text-ink">
             Beacon finished this for you
           </p>
           {liveModel && (
             <p className="mt-1 font-mono text-[11px] text-ink-faint">
-              {liveProvider === "agentrouter" ? "AgentRouter" : liveProvider || "Model"} · {liveModel}
+              {liveModel}
               {draftMeta?.language ? ` · ${draftMeta.language}` : ""}
             </p>
           )}

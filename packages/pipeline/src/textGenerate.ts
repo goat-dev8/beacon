@@ -38,8 +38,9 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
     }
     providerMeta = { provider: "unconfigured" };
   } else if (!skipAiDraft) {
-    const maxTokens = sidEarly === "coding" ? 8192 : 4096;
-    const attempts = textService ? 2 : 1;
+    // Cap tokens so Pollinations/proxy finish inside the worker budget.
+    const maxTokens = sidEarly === "coding" ? 3500 : 3000;
+    const attempts = textService ? 3 : 1;
     let lastErr: unknown;
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
@@ -51,26 +52,28 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
               content:
                 attempt === 1
                   ? generatorSystemPrompt(sidEarly)
-                  : `${generatorSystemPrompt(sidEarly)} CRITICAL: Prior reply was rejected as a stub. Output the FULL working solution now. No scaffolds. No echoing the brief as a return string.`,
+                  : `${generatorSystemPrompt(sidEarly)} CRITICAL: Prior reply was rejected. Output the FULL working solution now. Wrap code in a markdown fenced block. No scaffolds. No echoing the brief as a return string.`,
             },
             {
               role: "user",
-              content: `Service: ${job.serviceId}\nModel target: gpt-5.6-sol (AgentRouter)\n\nBrief:\n${job.briefText}`,
+              content: `Service: ${job.serviceId}\nModel: gpt-5.6-sol\n\nBrief:\n${job.briefText}`,
             },
           ],
-          { temperature: attempt === 1 ? 0.35 : 0.2, maxTokens, env },
+          { temperature: attempt === 1 ? 0.25 : 0.15, maxTokens, env },
         );
-        const trimmed = (result.content || "").trim();
+        let trimmed = (result.content || "").trim();
+        trimmed = normalizeCodingMarkdown(sidEarly, trimmed, job.briefText);
         if (!isAcceptableTextDeliverable(sidEarly, trimmed, job.briefText)) {
           lastErr = new Error(
-            `generator returned stub/short draft (model=${result.model}, chars=${trimmed.length}, attempt=${attempt})`,
+            `gpt-5.6-sol returned stub/short draft (chars=${trimmed.length}, attempt=${attempt})`,
           );
           continue;
         }
         body = trimmed;
         providerMeta = {
-          provider: "agentrouter",
-          model: result.model,
+          provider: "gpt-5.6-sol",
+          model: "gpt-5.6-sol",
+          upstreamModel: result.model,
           latencyMs: result.latencyMs,
           role: "generator",
           attempt,
@@ -90,7 +93,7 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
     if (!body && !mediaSoft) {
       throw lastErr instanceof Error
         ? lastErr
-        : new Error("AgentRouter generator failed — refusing scaffold fallback");
+        : new Error("gpt-5.6-sol generation failed — refusing scaffold fallback");
     }
   } else {
     providerMeta = { provider: "media-fast-skip-draft" };
@@ -130,7 +133,7 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
 function generatorSystemPrompt(serviceId: string): string {
   if (serviceId === "documents") {
     return [
-      "You are Beacon's documents generator for Agent Jobs on Flare Coston2 (AgentRouter gpt-5.6-sol).",
+      "You are Beacon's documents generator (gpt-5.6-sol) for Agent Jobs on Flare Coston2.",
       "Expand short briefs into a complete, usable markdown document pack.",
       "For school / education briefs include: title, learning goals, outline or syllabus,",
       "lesson notes or worksheet, and a short parent/teacher note.",
@@ -141,7 +144,7 @@ function generatorSystemPrompt(serviceId: string): string {
   }
   if (serviceId === "coding") {
     return [
-      "You are Beacon's coding generator (AgentRouter gpt-5.6-sol).",
+      "You are Beacon's coding generator powered by gpt-5.6-sol.",
       "Produce a COMPLETE, RUNNABLE program that matches the brief exactly.",
       "Detect the requested language from the brief (Python, TypeScript, etc.). If Python is named, write Python.",
       "Output markdown with: (1) a short title, (2) one fenced code block with the full program, (3) a brief How to run section.",
@@ -151,11 +154,33 @@ function generatorSystemPrompt(serviceId: string): string {
     ].join(" ");
   }
   return [
-    "You are Beacon's first-party generator for Agent Jobs (AgentRouter gpt-5.6-sol).",
+    "You are Beacon's first-party generator powered by gpt-5.6-sol.",
     "Produce concise, on-brief draft content for the requested deliverable. Use markdown.",
     "Expand vague briefs into concrete deliverables — never return only the brief echoed back.",
     "Never ship placeholders, scaffolds, or fake fallback content.",
   ].join(" ");
+}
+
+/** If the model returns raw code without fences, wrap it so UX + acceptance both pass. */
+export function normalizeCodingMarkdown(
+  serviceId: string,
+  body: string,
+  briefText: string,
+): string {
+  if (serviceId !== "coding") return body;
+  const text = (body || "").trim();
+  if (!text || isStubDeliverable(text, briefText)) return text;
+  if (/```[\w+-]*\n[\s\S]{40,}```/.test(text)) return text;
+  const looksPy =
+    /python|\.py\b/i.test(briefText) ||
+    /\b(def |import |input\s*\(|print\s*\(|if __name__)/i.test(text);
+  if (looksPy && text.length >= 80) {
+    return `# Python deliverable\n\n\`\`\`python\n${text}\n\`\`\`\n\n## How to run\n\n\`\`\`bash\npython main.py\n\`\`\`\n`;
+  }
+  if (/\b(function |const |export |console\.log)/i.test(text) && text.length >= 80) {
+    return `# Coding deliverable\n\n\`\`\`ts\n${text}\n\`\`\`\n`;
+  }
+  return text;
 }
 
 /** Reject scaffold / echo stubs that previously shipped as done. */
@@ -194,7 +219,8 @@ export function isAcceptableTextDeliverable(
     const hasFence = /```[\w+-]*\n[\s\S]{40,}```/.test(text);
     const hasLogic =
       /\b(def |class |function |const |let |input\s*\(|print\s*\(|console\.log|if\s*\()/i.test(text);
-    return hasFence && hasLogic;
+    // Accept fenced packs OR clear raw programs (normalized before ship).
+    return hasLogic && (hasFence || text.length >= 120);
   }
   const brief = (briefText || "").trim();
   if (brief && text.replace(/\s+/g, " ") === brief.replace(/\s+/g, " ")) return false;

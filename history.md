@@ -4,6 +4,22 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-08 - GPT-5.6-SOL PROD ENV + HOPS
+
+### Design read
+“Not charged” after scaffold kill: Render still had `AI_MODEL_GENERATOR=claude-opus-5`. Probe worked only via Pollinations. Direct WAF wasted budget; UI said AgentRouter.
+
+### Shipped
+1. Render + Vercel env → `AI_MODEL_GENERATOR=gpt-5.6-sol` (+ keys/proxy sync) + redeploy.
+2. Hop order: Pollinations → Vercel proxy → direct (12s fail-fast).
+3. Generator chain Sol-first; normalize raw code fences; UI says `gpt-5.6-sol` only.
+4. Worker text timeout 240s; proxy maxDuration 120s.
+
+### Verify
+`/health` pipeline `2026-08-08-gpt56sol-prod` · `/v1/ai/probe` ok · coding job CLOSED with real Python
+
+---
+
 ## 2026-08-08 - CODING JOBS: KILL SCAFFOLD FALLBACK
 
 ### Design read

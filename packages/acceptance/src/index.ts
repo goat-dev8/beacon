@@ -184,7 +184,7 @@ export function runL1Objective(ctx: AcceptContext): LayerResult {
     if (
       /Generated fallback|Replace this scaffold|live generator is reachable/i.test(preview)
     ) {
-      notes.push("Scaffold/fallback deliverable rejected — require live AgentRouter output.");
+      notes.push("Scaffold/fallback deliverable rejected — require live gpt-5.6-sol output.");
       break;
     }
     if (

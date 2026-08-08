@@ -31,7 +31,7 @@ export const FLARE_STEPS_WALLET: FlareStep[] = [
   {
     id: "generate",
     label: "Generate + compose",
-    detail: "AgentRouter draft · settlement stays on Flare Coston2",
+    detail: "gpt-5.6-sol draft · settlement stays on Flare Coston2",
     statusKey: "GENERATING",
   },
   {
@@ -77,7 +77,7 @@ export const FLARE_STEPS_SAFE: FlareStep[] = [
   {
     id: "generate",
     label: "Generate + compose",
-    detail: "AgentRouter draft · settlement stays on Flare Coston2",
+    detail: "gpt-5.6-sol draft · settlement stays on Flare Coston2",
     statusKey: "GENERATING",
   },
   {

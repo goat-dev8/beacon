@@ -69,8 +69,9 @@ async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promi
   const isVideo = String(job.service_id).toLowerCase() === "video";
   // Video needs CF + ffmpeg headroom; text/coding need AgentRouter time (gpt-5.6-sol).
   const isTextJob = !["image", "video", "voice"].includes(String(job.service_id || "").toLowerCase());
-  const lockTtl = isVideo ? 240 : isTextJob ? 300 : 180;
-  const pipelineMs = isVideo ? 150_000 : isTextJob ? 180_000 : 90_000;
+  const lockTtl = isVideo ? 240 : isTextJob ? 360 : 180;
+  // gpt-5.6-sol coding via Pollinations needs headroom for retries.
+  const pipelineMs = isVideo ? 150_000 : isTextJob ? 240_000 : 90_000;
   const locked = await redis.set(lockKey, "1", { nx: true, ex: lockTtl });
   if (!locked) return;
 

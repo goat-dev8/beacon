@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { isAcceptableTextDeliverable, isStubDeliverable } from "./textGenerate.js";
+import {
+  isAcceptableTextDeliverable,
+  isStubDeliverable,
+  normalizeCodingMarkdown,
+} from "./textGenerate.js";
 
 const brief =
   "Create a simple calculator program in Python that takes two numbers and a math operator (+, -, *, /) as input from the user, performs the calculation using conditional statements, and prints the result clearly";
@@ -22,6 +26,25 @@ Replace this scaffold with production logic once the live generator is reachable
 `;
     expect(isStubDeliverable(stub, brief)).toBe(true);
     expect(isAcceptableTextDeliverable("coding", stub, brief)).toBe(false);
+  });
+
+  it("wraps raw Python into a fenced markdown pack", () => {
+    const raw = `a = float(input("First number: "))
+op = input("Operator: ").strip()
+b = float(input("Second number: "))
+if op == "+":
+    print(a + b)
+elif op == "-":
+    print(a - b)
+elif op == "*":
+    print(a * b)
+elif op == "/":
+    print(a / b)
+else:
+    print("bad op")`;
+    const wrapped = normalizeCodingMarkdown("coding", raw, brief);
+    expect(wrapped).toContain("```python");
+    expect(isAcceptableTextDeliverable("coding", wrapped, brief)).toBe(true);
   });
 
   it("accepts a real Python calculator markdown pack", () => {
