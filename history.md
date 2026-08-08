@@ -4,6 +4,31 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-09 - PER-USER BEACON SAFE (FACTORY)
+
+### Problem
+Shared `BeaconAgentVault` made every connected wallet see the same Safe balance/policy.
+
+### Decision
+`BeaconSafeFactory` deploys one personal `BeaconAgentVault` per wallet (owner = wallet, executor = settler). Flare Smart Accounts were researched and **not** used (XRPL personal accounts ≠ MetaMask Beacon Safe).
+
+### Shipped
+1. `BeaconSafeFactory.sol` + Forge tests (8/8).
+2. Deployed Coston2 factory `0x9e88ADFB4dA7530675acC520cC9a0a818543c4F2`.
+3. Shared resolver: wallet → `factory.safeOf` (no legacy balance leak when wallet present).
+4. API: `/v1/vault/status?wallet=`, `createSafe` prepare, Jobs Safe pay requires ownerWallet + personal_sign.
+5. Frontend: Create Safe UX, wallet-scoped React Query keys, Desk/Jobs strip.
+6. Docs: `docs/PER_USER_SAFE_*.md`; `BEACON_MASTER.md` + README updated.
+7. Env on Vercel (beacon, beacon-desk) + Render `beacon-api`.
+
+### Migration
+Legacy shared vault `0xc7C6…AAF33` not auto-migrated. New wallets create empty personal Safes.
+
+### Verify
+Forge factory suite green; create Safe on `/flow/security` with two wallets and confirm isolated balances.
+
+---
+
 ## 2026-08-08 - GPT-5.6 PRODUCTION FAILURE ROOT CAUSE
 
 ### Evidence

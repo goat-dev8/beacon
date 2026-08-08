@@ -24,15 +24,15 @@ Three product surfaces (see `ARCHITECTURE_AUDIT.md`):
 |---------|----------------|
 | **Flow** | Chat OS: swap, bridge, research, signals, portfolio, risk, yield, FAssets, x402 micropays |
 | **Agent Jobs** | `/flow/desk`: paid AI generation with escrow + receipt |
-| **Safe** | `/flow/security`: fund once, set policy, pause/resume; shared balance for agent spends and jobs |
+| **Safe** | `/flow/security`: create personal Safe, fund once, set policy; **per-wallet** balance for agent spends and jobs |
 
 ### Payment paths (Agent Jobs)
 
-**Primary (Beacon Safe):** fund Safe once (EIP-3009 deposit) -> owner sets policy -> `POST /v1/jobs/:id/approve-safe` -> `vault.execute(transfer->escrow)` -> `escrow.lockPrepaid` -> generate -> acceptance -> release or refund to vault.
+**Primary (Beacon Safe):** create personal Safe → fund once (EIP-3009 deposit) → owner sets policy → `POST /v1/jobs/:id/approve-safe` (wallet + payAuth) → `vault.execute(transfer->escrow)` → `escrow.lockPrepaid` → generate → acceptance → release or refund to **that** vault.
 
 **Fallback (wallet EIP-3009):** user signs `TransferWithAuthorization` -> `escrow.lockWithAuthorization` -> generate -> release or refund to wallet.
 
-Beacon Safe is a `BeaconAgentVault` policy vault for MetaMask/agent executor use. It is **not** Flare Smart Accounts (those are XRPL personal accounts).
+Beacon Safe is a personal `BeaconAgentVault` per wallet, created via `BeaconSafeFactory`. It is **not** Flare Smart Accounts (those are XRPL personal accounts).
 
 FCC on live Coston2 is **simulated TEE** (`SIMULATED_TEE=true`, `FCC_MODE=simulated`). Do not claim a hardware enclave.
 
@@ -149,7 +149,8 @@ Copy from [`apps/web/.env.example`](./apps/web/.env.example):
 | `VITE_X402_PAYEE_ADDRESS` | Payee / settler address |
 | `VITE_BEACON_JOB_REGISTRY` | Job registry |
 | `VITE_BEACON_ESCROW` | Escrow (must match root `BEACON_ESCROW`) |
-| `VITE_BEACON_AGENT_VAULT_ADDRESS` | Beacon Safe vault |
+| `VITE_BEACON_SAFE_FACTORY_ADDRESS` | Personal Safe factory |
+| `VITE_BEACON_AGENT_VAULT_ADDRESS` | Legacy shared vault (optional) |
 
 Keep `VITE_BEACON_ESCROW` aligned with root `BEACON_ESCROW`. Current prepaid escrow in `ARCHITECTURE_AUDIT.md` / web defaults is `0xE68c22621314977f00c85D89e4f5b10573C51C7E`. Older example files may list a previous escrow; prefer the audit / live env.
 
@@ -214,7 +215,8 @@ After deploy, set the printed addresses into root `.env` and matching `VITE_*` v
 | MockUSDT0 | `0x6fd8a72a972040f3153894BBd0d829a58f1Fe86c` |
 | X402Facilitator | `0x1f409a809cE6e8A4467C1fD40943aC40169f4779` |
 | BeaconEscrow (prepaid) | `0xE68c22621314977f00c85D89e4f5b10573C51C7E` |
-| BeaconAgentVault | `0xc7C6C06Dd59173dBAf8382627d6A483Ca53AAF33` |
+| BeaconSafeFactory | `0x9e88ADFB4dA7530675acC520cC9a0a818543c4F2` |
+| BeaconAgentVault (legacy shared) | `0xc7C6C06Dd59173dBAf8382627d6A483Ca53AAF33` |
 | Executor / escrow owner / payee | `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034` |
 | Job registry (web default) | `0x100a3E24909DE25B9CAe75Ba665Be6F893b98889` |
 

@@ -161,8 +161,10 @@ export const envSchema = z.object({
   BEACON_JOB_REGISTRY: optionalString,
   BEACON_ESCROW: optionalString,
   BEACON_CREDIT: optionalString,
-  /** Optional until BeaconAgentVault is deployed on Coston2. */
+  /** Optional until BeaconAgentVault is deployed on Coston2. Legacy shared vault only. */
   BEACON_AGENT_VAULT_ADDRESS: optionalString,
+  /** Personal Safe factory — wallet → BeaconAgentVault mapping. */
+  BEACON_SAFE_FACTORY_ADDRESS: optionalString,
   /** Coston2 MockUSDT0→FXRP desk for Safe executor spends (not SparkDEX). */
   BEACON_SWAP_DESK_ADDRESS: optionalString,
 

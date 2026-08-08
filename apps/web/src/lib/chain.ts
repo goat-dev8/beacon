@@ -17,7 +17,10 @@ export const CONTRACTS = {
     "0x100a3E24909DE25B9CAe75Ba665Be6F893b98889") as `0x${string}`,
   payee: (import.meta.env.VITE_X402_PAYEE_ADDRESS ??
     "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034") as `0x${string}`,
-  /** Coston2 BeaconAgentVault — empty only if deliberately cleared. */
+  /** Personal Safe factory — wallet → BeaconAgentVault. */
+  safeFactory: (import.meta.env.VITE_BEACON_SAFE_FACTORY_ADDRESS ||
+    "0x9e88ADFB4dA7530675acC520cC9a0a818543c4F2") as `0x${string}`,
+  /** Legacy shared vault (pre-personal Safes). Prefer factory lookup. */
   agentVault: (import.meta.env.VITE_BEACON_AGENT_VAULT_ADDRESS ||
     "0xc7C6C06Dd59173dBAf8382627d6A483Ca53AAF33") as `0x${string}`,
 } as const;

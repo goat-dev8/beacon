@@ -2,9 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { api, type AgentVaultStatus, type SecurityPolicy } from "@/lib/api";
-import { shortAddress, executeAgentVaultPrep, mintTestUsdt0, getUsdt0Balance } from "@/lib/wallet";
+import { shortAddress, executeAgentVaultPrep, mintTestUsdt0, getUsdt0Balance, sendPreparedVaultTx } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
-import { CONTRACTS, NETWORK } from "@/lib/chain";
+import { NETWORK } from "@/lib/chain";
 import type { Address, Hex } from "viem";
 import { formatUnits } from "viem";
 import {
@@ -44,8 +44,6 @@ export function SecurityPage() {
   const [windowHours, setWindowHours] = useState(24);
   const [sessionHours, setSessionHours] = useState(24);
 
-  const vaultAddress = CONTRACTS.agentVault || undefined;
-
   const fccQuery = useQuery({
     queryKey: ["fcc-status"],
     queryFn: () => api.getFccStatus(),
@@ -54,8 +52,9 @@ export function SecurityPage() {
   });
 
   const vaultQuery = useQuery({
-    queryKey: ["agent-vault-status", vaultAddress ?? "unset"],
-    queryFn: () => api.getVaultStatus(vaultAddress),
+    queryKey: ["agent-vault-status", wallet ?? "none"],
+    queryFn: () => api.getVaultStatus({ wallet: wallet ?? undefined }),
+    enabled: Boolean(wallet),
     refetchInterval: 30_000,
   });
 
@@ -144,8 +143,16 @@ export function SecurityPage() {
     mutationFn: async (body: Parameters<typeof api.prepareVault>[0]) => {
       const { prep } = await api.prepareVault({
         ...body,
-        address: vaultAddress,
+        wallet: wallet ?? undefined,
+        address: live?.address,
       });
+      if (prep.action === "createSafe") {
+        const txHash = await sendPreparedVaultTx({
+          to: prep.to as Address,
+          data: (prep.data || "0x") as Hex,
+        });
+        return { prep, result: { txHash } };
+      }
       const result = await executeAgentVaultPrep({
         to: prep.to as Address,
         data: (prep.data || "0x") as Hex,
@@ -158,9 +165,13 @@ export function SecurityPage() {
       });
       return { prep, result };
     },
-    onSuccess: ({ result }) => {
-      setTxNote(`Confirmed ${shortAddress(result.txHash)}`);
-      void qc.invalidateQueries({ queryKey: ["agent-vault-status"] });
+    onSuccess: ({ result, prep }) => {
+      setTxNote(
+        prep.action === "createSafe"
+          ? `Beacon Safe created · ${shortAddress(result.txHash)}`
+          : `Confirmed ${shortAddress(result.txHash)}`,
+      );
+      void qc.invalidateQueries({ queryKey: ["agent-vault-status", wallet] });
     },
     onError: (err) => {
       setTxNote(err instanceof Error ? err.message : String(err));
@@ -248,6 +259,40 @@ export function SecurityPage() {
             sessionLabel={sessionLabel}
           />
         </SafeReveal>
+
+        {wallet && !live && !vaultQuery.isLoading && (
+          <SafeReveal delay={0.07}>
+            <section className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-6">
+              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-accent-text)]">
+                Your Beacon Safe
+              </p>
+              <h2 className="mt-2 font-display text-2xl font-semibold text-[var(--p-fg)]">
+                Create your personal Safe
+              </h2>
+              <p className="mt-2 max-w-lg text-sm leading-relaxed text-[var(--p-muted)]">
+                Each wallet owns its own prepaid budget and spending policy. You will not see another
+                user’s Safe. Create yours on {NETWORK.name}, then fund and set limits.
+              </p>
+              <button
+                type="button"
+                disabled={vaultTx.isPending}
+                onClick={() => vaultTx.mutate({ action: "createSafe", wallet })}
+                className="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--p-accent)] px-5 py-2.5 text-sm font-medium text-[var(--p-on-accent)] transition-transform active:scale-[0.98] disabled:opacity-50"
+              >
+                {vaultTx.isPending && vaultTx.variables?.action === "createSafe" ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> Creating…
+                  </>
+                ) : (
+                  "Create Beacon Safe"
+                )}
+              </button>
+              {txNote ? (
+                <p className="mt-3 font-mono text-xs text-[var(--p-muted)]">{txNote}</p>
+              ) : null}
+            </section>
+          </SafeReveal>
+        )}
 
         {live && (
           <>

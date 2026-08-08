@@ -15,7 +15,8 @@ import {
   COSTON2_CHAIN_ID_VAULT,
   COSTON2_EXPLORER_VAULT,
   readAgentVaultStatus,
-  resolveAgentVaultAddress,
+  resolveSafeFactoryAddress,
+  resolveVaultForWallet,
 } from "./vaultClient.js";
 import { ERC20_TRANSFER_SELECTOR } from "./safeSwap.js";
 
@@ -49,6 +50,10 @@ export async function executeSafeJobLock(
   params: {
     jobId: string;
     amountUsdt0Display: string;
+    /** Owner wallet whose personal Safe pays. Required when factory is live. */
+    ownerWallet?: string | null;
+    /** Explicit vault override (must be owned by ownerWallet when provided). */
+    vaultAddress?: string | null;
   },
   env: BeaconEnv = loadEnv(),
 ): Promise<
@@ -64,12 +69,27 @@ export async function executeSafeJobLock(
       explorerSpend: string;
       explorerLock: string;
       honesty: string;
+      ownerWallet?: string;
     }
-  | { ok: false; error: string }
+  | { ok: false; error: string; code?: string }
 > {
-  const vaultAddr = resolveAgentVaultAddress(env);
+  const resolved = await resolveVaultForWallet({
+    wallet: params.ownerWallet,
+    address: params.vaultAddress,
+    env,
+    personalOnly: Boolean(resolveSafeFactoryAddress(env) && params.ownerWallet),
+  });
+  const vaultAddr = resolved.address;
   const escrowAddr = (env.BEACON_ESCROW || "").trim();
-  if (!vaultAddr) return { ok: false, error: "Beacon Safe not configured." };
+  if (!vaultAddr) {
+    return {
+      ok: false,
+      error: params.ownerWallet
+        ? "SAFE_NOT_CREATED: Create your Beacon Safe before paying from Safe."
+        : "Beacon Safe not configured.",
+      code: params.ownerWallet ? "SAFE_NOT_CREATED" : "SAFE_NOT_CONFIGURED",
+    };
+  }
   if (!/^0x[a-fA-F0-9]{40}$/.test(escrowAddr)) {
     return { ok: false, error: "BEACON_ESCROW not configured." };
   }
@@ -77,8 +97,18 @@ export async function executeSafeJobLock(
   const key = executorKey(env);
   if (!key) return { ok: false, error: "Executor key missing for Safe job lock." };
 
-  const status = await readAgentVaultStatus({ address: vaultAddr, env });
+  const status = await readAgentVaultStatus({ address: vaultAddr, env, personalOnly: false });
   if (!status.configured) return { ok: false, error: status.note };
+
+  if (params.ownerWallet) {
+    if (status.owner.toLowerCase() !== params.ownerWallet.toLowerCase()) {
+      return {
+        ok: false,
+        error: "NOT_SAFE_OWNER: Connected wallet does not own this Beacon Safe.",
+        code: "NOT_SAFE_OWNER",
+      };
+    }
+  }
 
   const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
   const wallet = new Wallet(key, provider);
@@ -90,13 +120,14 @@ export async function executeSafeJobLock(
   if (amount <= 0n) return { ok: false, error: "Amount must be > 0." };
 
   if (Boolean(await vault.paused())) {
-    return { ok: false, error: "Beacon Safe is paused." };
+    return { ok: false, error: "Beacon Safe is paused.", code: "SAFE_PAUSED" };
   }
   const bal = (await vault.balance()) as bigint;
   if (bal < amount) {
     return {
       ok: false,
       error: `Safe balance too low. Have ${status.balanceDisplay}, need ${params.amountUsdt0Display}.`,
+      code: "INSUFFICIENT_BALANCE",
     };
   }
   const maxTx = (await vault.maxSpendPerTx()) as bigint;

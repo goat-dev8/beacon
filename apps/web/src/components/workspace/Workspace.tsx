@@ -30,6 +30,7 @@ import {
   approveJobOnChain,
   mintMockUsdt0,
   shortAddress,
+  signPersonalMessage,
 } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
 import { DeskContextStrip } from "@/components/workspace/DeskContextStrip";
@@ -258,7 +259,12 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
   const approveSafe = useMutation({
     mutationFn: async () => {
       if (!jobId || !offerId || !quote) throw new Error("Missing quote.");
-      const result = await api.approveJobFromSafe(jobId, offerId);
+      if (!account) throw new Error("Connect your wallet first.");
+      const result = await api.approveJobFromSafe(jobId, offerId, {
+        ownerWallet: account,
+        amountDisplay: quote.priceDisplay.replace(/^\$/, ""),
+        signMessage: (message) => signPersonalMessage(message),
+      });
       setLockTx(result.lockTxHash ?? null);
       setPayMode("safe");
       return result;
@@ -267,7 +273,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
       setStep("live");
       setError(null);
       void qc.invalidateQueries({ queryKey: ["job", jobId] });
-      void qc.invalidateQueries({ queryKey: ["agent-vault-status"] });
+      void qc.invalidateQueries({ queryKey: ["agent-vault-status", account] });
     },
     onError: (err) => {
       setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Safe approve failed.");
@@ -275,8 +281,9 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
   });
 
   const vaultQuery = useQuery({
-    queryKey: ["agent-vault-status"],
-    queryFn: () => api.getVaultStatus(),
+    queryKey: ["agent-vault-status", account ?? "none"],
+    queryFn: () => api.getVaultStatus({ wallet: account ?? undefined }),
+    enabled: Boolean(account),
     refetchInterval: 12_000,
   });
   const vaultLive = vaultQuery.data?.status?.configured ? vaultQuery.data.status : null;

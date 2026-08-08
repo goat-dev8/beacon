@@ -16,7 +16,7 @@ import {
 import { discoverSparkDexPools, prepareSparkDexSwap } from "./sparkDex.js";
 import { prepareBeaconSafeSwap, resolveSwapDeskAddress } from "./safeSwap.js";
 import { prepareBeaconAgentBridge } from "./agentBridge.js";
-import { readAgentVaultStatus, resolveAgentVaultAddress } from "./vaultClient.js";
+import { readAgentVaultStatus, resolveVaultForWallet } from "./vaultClient.js";
 import { readFassetsDesk } from "./fassetsStatus.js";
 import { readYieldVaultDesk } from "./yieldVaults.js";
 import { buildMarketIntelligence } from "./marketIntel.js";
@@ -983,10 +983,20 @@ export async function runBeaconAgentChat(opts: {
     }
 
     const fxrpC2 = await resolveFxrpAddress(env);
-    const vaultAddr = resolveAgentVaultAddress(env);
+    const resolvedVault = await resolveVaultForWallet({
+      wallet,
+      env,
+      personalOnly: true,
+    });
+    const vaultAddr = resolvedVault.address;
     const deskAddr = resolveSwapDeskAddress(env);
     const vaultStatus = vaultAddr
-      ? await readAgentVaultStatus({ address: vaultAddr, env }).catch(() => null)
+      ? await readAgentVaultStatus({
+          address: vaultAddr,
+          wallet,
+          env,
+          personalOnly: false,
+        }).catch(() => null)
       : null;
     const safeBalDisplay =
       vaultStatus && vaultStatus.configured ? vaultStatus.balanceDisplay : "0";

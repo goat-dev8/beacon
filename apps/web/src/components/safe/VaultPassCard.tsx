@@ -45,7 +45,11 @@ export function VaultPassCard({
             Beacon Safe pass
           </p>
           <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight text-[var(--p-fg)]">
-            {live ? "Prepaid AI budget" : "Deploy Safe on Coston2"}
+            {live
+              ? "Your prepaid AI budget"
+              : status && !status.configured && status.code === "SAFE_NOT_CREATED"
+                ? "Safe not created yet"
+                : "Create your Beacon Safe"}
           </h2>
         </div>
         {live && (
@@ -69,10 +73,15 @@ export function VaultPassCard({
       {status && !status.configured && (
         <div className="relative mt-5 space-y-2 text-sm text-[var(--p-muted)]">
           <p>{status.note}</p>
-          <p className="font-mono text-[11px] text-[var(--p-faint)]">
-            Set <code>BEACON_AGENT_VAULT_ADDRESS</code> /{" "}
-            <code>VITE_BEACON_AGENT_VAULT_ADDRESS</code> after forge deploy. No fake balances.
-          </p>
+          {status && !status.configured && status.code === "SAFE_NOT_CREATED" ? (
+            <p className="text-xs text-[var(--p-accent-text)]">
+              Use <strong>Create Beacon Safe</strong> below — this wallet starts with an empty personal Safe.
+            </p>
+          ) : (
+            <p className="font-mono text-[11px] text-[var(--p-faint)]">
+              Factory / Safe not ready on Coston2 yet. No fake balances.
+            </p>
+          )}
           <p className="text-xs">{status.distinction}</p>
         </div>
       )}

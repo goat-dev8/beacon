@@ -600,3 +600,34 @@ export async function mintTestUsdt0(amountDisplay = "100"): Promise<Hex> {
 export function shortAddress(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
+
+/** personal_sign helper for Beacon Safe pay challenges. */
+export async function signPersonalMessage(message: string): Promise<string> {
+  const wallet = walletClient();
+  const [account] = await wallet.getAddresses();
+  if (!account) throw new Error("Connect a wallet first.");
+  return wallet.signMessage({ account, message });
+}
+
+/** Send a prepared createSafe / vault tx (non-EIP-3009). */
+export async function sendPreparedVaultTx(params: {
+  to: Address;
+  data: Hex;
+}): Promise<Hex> {
+  await ensureCoston2Network();
+  const wallet = walletClient();
+  const pub = publicClient();
+  const [account] = await wallet.getAddresses();
+  if (!account) throw new Error("Connect a wallet first.");
+  const txHash = await wallet.sendTransaction({
+    account,
+    to: params.to,
+    data: params.data,
+    chain: coston2,
+  });
+  const receipt = await pub.waitForTransactionReceipt({ hash: txHash });
+  if (receipt.status === "reverted") {
+    throw new Error("Safe transaction reverted on Coston2.");
+  }
+  return txHash;
+}

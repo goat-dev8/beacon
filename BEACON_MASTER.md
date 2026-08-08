@@ -17,7 +17,7 @@ Tagline from package / product copy: **Finish AI work. Pay only when it passes.*
 
 Landing framing (`WhatIsBeacon`): a conversation that turns market intent into quote, policy, payment, execution, and an explorer receipt. Signal -> Quote -> Policy -> Pay -> Execute -> Receipt.
 
-Beacon is **not** Flare Smart Accounts (XRPL personal accounts). MetaMask / Rabby users use **Beacon Safe** (`BeaconAgentVault`), a custom policy vault on Coston2.
+Beacon is **not** Flare Smart Accounts (XRPL personal accounts). MetaMask / Rabby users use **Beacon Safe** (`BeaconAgentVault`) — **one personal vault per wallet** created via `BeaconSafeFactory` on Coston2.
 
 ---
 
@@ -56,7 +56,7 @@ Landing (/)
 |---------|-------|------|
 | **Flow** | `/flow` | Chat OS: swap, bridge, research, signals, portfolio, risk, yield, FAssets, x402 micropays |
 | **Agent Jobs** | `/flow/desk` | Paid AI generation with escrow + receipt (formerly Bound Work; nav: **Jobs**) |
-| **Safe** | `/flow/security` | Fund once, set policy, pause/resume; shared MockUSDT0 balance for agent spends + jobs |
+| **Safe** | `/flow/security` | Create personal Safe, fund once, set policy, pause/resume; MockUSDT0 balance for that wallet’s agent spends + jobs |
 
 Nav rail (`ProductShell`): Flow -> Jobs -> Safe.
 
@@ -108,7 +108,8 @@ FCC: SIMULATED_TEE / FCC_MODE=simulated - not hardware Confidential Space.
 | MockUSDT0 | `0x6fd8a72a972040f3153894BBd0d829a58f1Fe86c` | EIP-3009 token (official x402 demo pattern) |
 | X402Facilitator | `0x1f409a809cE6e8A4467C1fD40943aC40169f4779` | Settles EIP-3009 for Flow x402 |
 | BeaconEscrow (prepaid) | `0xE68c22621314977f00c85D89e4f5b10573C51C7E` | Job lock / release / refund (`lockPrepaid`) |
-| BeaconAgentVault | `0xc7C6C06Dd59173dBAf8382627d6A483Ca53AAF33` | Policy Safe (executor spends) |
+| **BeaconSafeFactory** | `0x9e88ADFB4dA7530675acC520cC9a0a818543c4F2` | wallet → personal BeaconAgentVault |
+| BeaconAgentVault (legacy shared) | `0xc7C6C06Dd59173dBAf8382627d6A483Ca53AAF33` | Pre-factory shared pool — **not** used for new wallets |
 | BeaconJobRegistry | `0x100a3E24909DE25B9CAe75Ba665Be6F893b98889` | Job registry |
 | Executor / escrow owner / payee | `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034` | Settler key / payee |
 | BeaconCoston2SwapDesk | `0x36c17ca6Aa2b61b13f7c4B5A59629320a8B4dF29` | FTSO-synced MockUSDT0->FXRP Safe swaps |
@@ -117,6 +118,7 @@ FCC: SIMULATED_TEE / FCC_MODE=simulated - not hardware Confidential Space.
 
 - `BeaconEscrow.sol`
 - `BeaconAgentVault.sol`
+- `BeaconSafeFactory.sol`
 - `BeaconJobRegistry.sol`
 - `BeaconCoston2SwapDesk.sol`
 - `X402Facilitator.sol`

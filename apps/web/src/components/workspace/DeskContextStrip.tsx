@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { api } from "@/lib/api";
 import { shortAddress } from "@/lib/wallet";
+import { useProductWallet } from "@/lib/productWallet";
 import { cn } from "@/lib/utils";
 
 /** Live Safe + Flare rails context for Agent Jobs (Safe prepaid or EIP-3009 wallet). */
@@ -14,14 +15,18 @@ export function DeskContextStrip({
   escrowLockedDisplay?: string | null;
   lockTx?: string | null;
 }) {
+  const { wallet } = useProductWallet();
   const vaultQuery = useQuery({
-    queryKey: ["agent-vault-status"],
-    queryFn: () => api.getVaultStatus(),
+    queryKey: ["agent-vault-status", wallet ?? "none"],
+    queryFn: () => api.getVaultStatus({ wallet: wallet ?? undefined }),
+    enabled: Boolean(wallet),
     refetchInterval: 12_000,
   });
 
-  const live = vaultQuery.data?.status?.configured ? vaultQuery.data.status : null;
+  const status = vaultQuery.data?.status;
+  const live = status?.configured ? status : null;
   const loading = vaultQuery.isLoading;
+  const needsCreate = Boolean(wallet && status && !status.configured);
 
   return (
     <section
@@ -37,69 +42,48 @@ export function DeskContextStrip({
             Flare Coston2 · Agent Jobs
           </p>
           <p className="mt-0.5 text-sm text-ink-muted">
-            Prefer Beacon Safe for job locks. Wallet EIP-3009 remains as fallback.
+            Prefer your personal Beacon Safe for job locks. Wallet EIP-3009 remains as fallback.
           </p>
         </div>
         <Link
           to="/flow/security"
-          className="rounded-full border border-line bg-paper px-3 py-1.5 font-mono text-[11px] text-ink-muted transition-colors hover:border-signal/40 hover:text-signal-deep"
+          className="rounded-full border border-line bg-paper px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink hover:border-signal"
         >
-          Open Safe
+          {needsCreate ? "Create Safe" : "Open Safe"}
         </Link>
       </div>
 
-      <div className="grid gap-0 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 px-4 py-4 sm:grid-cols-3 sm:px-5">
         <Metric
-          label="Safe balance"
+          label="Your Safe"
           value={
             loading ? (
-              <Loader2 className="size-3.5 animate-spin" />
+              <Loader2 className="size-4 animate-spin text-ink-muted" />
             ) : live ? (
               `${live.balanceDisplay} ${live.tokenSymbol}`
+            ) : needsCreate ? (
+              "Not created"
             ) : (
-              "Not configured"
+              "—"
             )
           }
+          hint={live ? shortAddress(live.address) : wallet ? "Create on Safe page" : "Connect wallet"}
         />
         <Metric
-          label="Remaining window"
+          label="Policy window"
           value={
             live
-              ? `${live.windowRemainingDisplay ?? "—"} / ${live.rollingWindowBudgetDisplay}`
+              ? `${live.windowSpentDisplay} / ${live.rollingWindowBudgetDisplay}`
               : "—"
           }
-          hint={live ? `Spent ${live.windowSpentDisplay}` : undefined}
+          hint={live?.paused ? "Paused" : live ? "Active" : undefined}
         />
         <Metric
-          label="Per trade · Session"
-          value={
-            live
-              ? `${live.maxSpendPerTxDisplay} · ${live.sessionActive ? "Active" : "Blocked"}`
-              : "—"
-          }
-          hint={
-            live
-              ? live.paused
-                ? "PAUSED"
-                : `Executor ${shortAddress(live.executor)}`
-              : undefined
-          }
-          danger={live?.paused}
-        />
-        <Metric
-          label="Job escrow"
-          value={escrowLockedDisplay ? `${escrowLockedDisplay} locked` : lockTx ? "Locked" : "Not locked"}
+          label="Job lock"
+          value={escrowLockedDisplay ? `${escrowLockedDisplay}` : "Ready"}
           hint={lockTx ? `${lockTx.slice(0, 10)}…` : "Safe prepaid or EIP-3009"}
         />
       </div>
-
-      <ul className="flex flex-wrap gap-x-4 gap-y-1 border-t border-line px-4 py-2.5 font-mono text-[10px] text-ink-faint sm:px-5">
-        <li>Beacon Safe → Escrow</li>
-        <li>x402 / EIP-3009 (fund + wallet)</li>
-        <li>BeaconEscrow lockPrepaid</li>
-        <li>FTSO (Safe swaps)</li>
-        <li className="text-ink-muted/70">FDC · LayerZero · FAssets: Flow only</li>
-      </ul>
     </section>
   );
 }
@@ -108,25 +92,16 @@ function Metric({
   label,
   value,
   hint,
-  danger,
 }: {
   label: string;
   value: ReactNode;
   hint?: string;
-  danger?: boolean;
 }) {
   return (
-    <div className="border-b border-line px-4 py-3 sm:border-r sm:px-5 lg:border-b-0">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">{label}</p>
-      <p
-        className={cn(
-          "mt-1 font-display text-base font-semibold tracking-tight",
-          danger ? "text-danger" : "text-ink",
-        )}
-      >
-        {value}
-      </p>
-      {hint && <p className="mt-0.5 font-mono text-[10px] text-ink-faint">{hint}</p>}
+    <div className="rounded-xl border border-line/80 bg-paper/40 px-3 py-3">
+      <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-ink-muted">{label}</p>
+      <div className="mt-1 text-sm font-medium text-ink">{value}</div>
+      {hint ? <p className="mt-1 font-mono text-[10px] text-ink-muted">{hint}</p> : null}
     </div>
   );
 }

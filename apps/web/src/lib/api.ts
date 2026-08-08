@@ -119,20 +119,36 @@ export const api = {
         lockTxHash: authorization?.lockTxHash,
       }),
     }),
-  approveJobFromSafe: (jobId: string, offerId: string) =>
-    request<{
+  approveJobFromSafe: async (
+    jobId: string,
+    offerId: string,
+    opts: {
+      ownerWallet: string;
+      signMessage: (message: string) => Promise<string>;
+      amountDisplay: string;
+    },
+  ) => {
+    const message = `Beacon Safe pay\njob:${jobId}\noffer:${offerId}\namount:${opts.amountDisplay}`;
+    const signature = await opts.signMessage(message);
+    return request<{
       jobId: string;
       status: string;
       offerId: string;
       mode: string;
+      vault?: string;
       lockTxHash: string;
       spendTxHash: string;
       explorerLock?: string;
       explorerSpend?: string;
     }>(`/v1/jobs/${jobId}/approve-safe`, {
       method: "POST",
-      body: JSON.stringify({ offerId }),
-    }),
+      body: JSON.stringify({
+        offerId,
+        ownerWallet: opts.ownerWallet,
+        payAuth: { message, signature },
+      }),
+    });
+  },
   getJob: (jobId: string) =>
     request<{
       job: JobRow;
@@ -401,13 +417,20 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ wallet }),
     }),
-  getVaultStatus: (address?: string) => {
-    const q = address ? `?address=${encodeURIComponent(address)}` : "";
+  getVaultStatus: (opts?: { address?: string; wallet?: string } | string) => {
+    // Back-compat: getVaultStatus(addressString)
+    const normalized =
+      typeof opts === "string" ? { address: opts } : opts ?? {};
+    const params = new URLSearchParams();
+    if (normalized.address) params.set("address", normalized.address);
+    if (normalized.wallet) params.set("wallet", normalized.wallet);
+    const q = params.toString() ? `?${params}` : "";
     return request<{ ok: boolean; status: AgentVaultStatus }>(`/v1/vault/status${q}`);
   },
   prepareVault: (body: {
-    action: "deposit" | "withdraw" | "setPolicy" | "setPaused" | "setExecutor";
+    action: "deposit" | "withdraw" | "setPolicy" | "setPaused" | "setExecutor" | "createSafe";
     address?: string;
+    wallet?: string;
     amountUsdt0?: string;
     maxSpendPerTxUsdt0?: string;
     rollingWindowBudgetUsdt0?: string;
@@ -473,6 +496,9 @@ export type AgentVaultStatus =
       note: string;
       honesty: string;
       distinction: string;
+      code?: string;
+      factory?: string | null;
+      wallet?: string | null;
     }
   | {
       configured: true;
@@ -507,6 +533,10 @@ export type AgentVaultStatus =
       explorer: string;
       honesty: string;
       distinction: string;
+      factory?: string | null;
+      wallet?: string | null;
+      source?: string;
+      isOwner?: boolean;
     };
 
 export type AgentVaultPrep = {

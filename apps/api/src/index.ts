@@ -39,6 +39,7 @@ import {
   prepareAgentVaultSetPolicy,
   prepareAgentVaultSetPaused,
   prepareAgentVaultSetExecutor,
+  prepareCreateSafe,
   prepareBeaconSafeSwap,
   executeBeaconSafeSwap,
   ensureSafeSwapPolicy,
@@ -428,11 +429,50 @@ const approveSchema = z.object({
   offerId: z.string().uuid(),
   /** "safe" = server locks from Beacon Safe (no MetaMask). "wallet" = EIP-3009 (default). */
   mode: z.enum(["safe", "wallet"]).optional(),
+  /** Owner wallet whose personal Safe pays (required for mode=safe when factory is live). */
+  ownerWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
+  /** personal_sign over a Beacon pay challenge — binds the spend to this wallet. */
+  payAuth: z
+    .object({
+      message: z.string().min(8),
+      signature: z.string().min(8),
+    })
+    .optional(),
   authorization: eip3009AuthSchema.optional(),
   /** On-chain BeaconEscrow lock tx hash (Coston2). */
   lockTxHash: z.string().optional(),
   spendTxHash: z.string().optional(),
 });
+
+async function verifySafePayAuth(opts: {
+  ownerWallet: string;
+  jobId: string;
+  offerId: string;
+  amountDisplay: string;
+  message: string;
+  signature: string;
+}): Promise<void> {
+  const expected = `Beacon Safe pay\njob:${opts.jobId}\noffer:${opts.offerId}\namount:${opts.amountDisplay}`;
+  if (opts.message.trim() !== expected) {
+    throw new AppError("UNAUTHORIZED", {
+      message: "Pay authorization message mismatch.",
+    });
+  }
+  const { verifyMessage } = await import("ethers");
+  let recovered: string;
+  try {
+    recovered = verifyMessage(opts.message, opts.signature);
+  } catch {
+    throw new AppError("UNAUTHORIZED", {
+      message: "Invalid pay authorization signature.",
+    });
+  }
+  if (recovered.toLowerCase() !== opts.ownerWallet.toLowerCase()) {
+    throw new AppError("UNAUTHORIZED", {
+      message: "Pay authorization wallet mismatch.",
+    });
+  }
+}
 
 app.post("/v1/jobs/:id/approve", async (req) => {
   const jobId = (req.params as { id: string }).id;
@@ -468,12 +508,35 @@ app.post("/v1/jobs/:id/approve", async (req) => {
   let authPayload: Record<string, unknown> = { ...(body.authorization ?? {}) };
 
   if (mode === "safe") {
+    if (!body.ownerWallet) {
+      throw new AppError("VALIDATION", {
+        message: "ownerWallet required to pay from your Beacon Safe.",
+        details: { code: "SAFE_WALLET_REQUIRED" },
+      });
+    }
+    if (!body.payAuth) {
+      throw new AppError("UNAUTHORIZED", {
+        message: "Sign the Beacon Safe pay challenge to authorize this job.",
+      });
+    }
+    await verifySafePayAuth({
+      ownerWallet: body.ownerWallet,
+      jobId,
+      offerId: body.offerId,
+      amountDisplay: priceDisplay,
+      message: body.payAuth.message,
+      signature: body.payAuth.signature,
+    });
     const lock = await executeSafeJobLock(
-      { jobId, amountUsdt0Display: priceDisplay },
+      {
+        jobId,
+        amountUsdt0Display: priceDisplay,
+        ownerWallet: body.ownerWallet,
+      },
       env,
     );
     if (!lock.ok) {
-      throw new AppError("VALIDATION", { message: lock.error });
+      throw new AppError("VALIDATION", { message: lock.error, details: { code: lock.code } });
     }
     lockTxHash = lock.lockTxHash;
     spendTxHash = lock.spendTxHash;
@@ -481,6 +544,7 @@ app.post("/v1/jobs/:id/approve", async (req) => {
     authPayload = {
       mode: "beacon_safe",
       payer: lock.vault,
+      ownerWallet: body.ownerWallet,
       amount: lock.amount,
       spendTxHash: lock.spendTxHash,
       lockTxHash: lock.lockTxHash,
@@ -502,7 +566,7 @@ app.post("/v1/jobs/:id/approve", async (req) => {
 
   if (payer) {
     await assertPolicyAllows(redis, {
-      wallet: payer,
+      wallet: body.ownerWallet ?? payer,
       serviceId: String(job.service_id ?? ""),
       amountUsdt0,
       agentId: "desk",
@@ -531,7 +595,7 @@ app.post("/v1/jobs/:id/approve", async (req) => {
   await updateJobStatus(jobId, next);
   if (redis) await redis.lpush("q:pipeline", jobId);
   if (payer && amountUsdt0 > 0) {
-    await recordSpendUsdt0(redis, payer, amountUsdt0);
+    await recordSpendUsdt0(redis, body.ownerWallet ?? payer, amountUsdt0);
   }
 
   return {
@@ -547,10 +611,16 @@ app.post("/v1/jobs/:id/approve", async (req) => {
 /** Explicit Safe approve alias — same as approve with mode=safe. */
 app.post("/v1/jobs/:id/approve-safe", async (req) => {
   const jobId = (req.params as { id: string }).id;
-  const body = z.object({ offerId: z.string().uuid() }).parse(req.body ?? {});
-  (req as { body: unknown }).body = { offerId: body.offerId, mode: "safe" };
-  // Re-dispatch by calling shared logic via internal fetch pattern — inline duplicate avoided:
-  // Fastify doesn't re-enter easily; invoke by reconstructing.
+  const body = z
+    .object({
+      offerId: z.string().uuid(),
+      ownerWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
+      payAuth: z.object({
+        message: z.string().min(8),
+        signature: z.string().min(8),
+      }),
+    })
+    .parse(req.body ?? {});
   const job = await getJob(jobId);
   if (job.status !== JobStatus.QUOTED) throw new AppError("INVALID_TRANSITION");
   const offer = await pool.query(
@@ -567,11 +637,22 @@ app.post("/v1/jobs/:id/approve-safe", async (req) => {
     typeof priceRaw === "bigint" || typeof priceRaw === "number" || /^\d+$/.test(String(priceRaw))
       ? (Number(priceRaw) / 1e6).toFixed(6)
       : String(priceRaw);
-  const lock = await executeSafeJobLock({ jobId, amountUsdt0Display: priceDisplay }, env);
-  if (!lock.ok) throw new AppError("VALIDATION", { message: lock.error });
+  await verifySafePayAuth({
+    ownerWallet: body.ownerWallet,
+    jobId,
+    offerId: body.offerId,
+    amountDisplay: priceDisplay,
+    message: body.payAuth.message,
+    signature: body.payAuth.signature,
+  });
+  const lock = await executeSafeJobLock(
+    { jobId, amountUsdt0Display: priceDisplay, ownerWallet: body.ownerWallet },
+    env,
+  );
+  if (!lock.ok) throw new AppError("VALIDATION", { message: lock.error, details: { code: lock.code } });
   const amountUsdt0 = Number(priceRaw) / 1e6;
   await assertPolicyAllows(redis, {
-    wallet: lock.vault,
+    wallet: body.ownerWallet,
     serviceId: String(job.service_id ?? ""),
     amountUsdt0,
     agentId: "desk",
@@ -586,6 +667,7 @@ app.post("/v1/jobs/:id/approve-safe", async (req) => {
       JSON.stringify({
         mode: "beacon_safe",
         payer: lock.vault,
+        ownerWallet: body.ownerWallet,
         amount: lock.amount,
         spendTxHash: lock.spendTxHash,
         lockTxHash: lock.lockTxHash,
@@ -599,12 +681,13 @@ app.post("/v1/jobs/:id/approve-safe", async (req) => {
   const next = transition(JobStatus.QUOTED, "user_approve");
   await updateJobStatus(jobId, next);
   if (redis) await redis.lpush("q:pipeline", jobId);
-  await recordSpendUsdt0(redis, lock.vault, amountUsdt0);
+  await recordSpendUsdt0(redis, body.ownerWallet, amountUsdt0);
   return {
     jobId,
     status: next,
     offerId: body.offerId,
     mode: "safe",
+    vault: lock.vault,
     lockTxHash: lock.lockTxHash,
     spendTxHash: lock.spendTxHash,
     explorerLock: lock.explorerLock,
@@ -1454,23 +1537,30 @@ app.post("/v1/flow/activity", async (req) => {
 });
 
 /**
- * Beacon Safe (BeaconAgentVault) status — on-chain reads when BEACON_AGENT_VAULT_ADDRESS
- * (or ?address=) is set. Unset → readiness only, never fake balances.
- * Distinct from Bound Work BeaconEscrow per-job locks.
+ * Personal Beacon Safe status — resolves wallet → factory Safe (never invents balances).
+ * Legacy shared vault only when no wallet is provided and factory is unset.
  */
 app.get("/v1/vault/status", async (req) => {
-  const q = req.query as { address?: string };
+  const q = req.query as { address?: string; wallet?: string };
   const address =
     q.address && /^0x[a-fA-F0-9]{40}$/i.test(q.address) ? q.address : undefined;
-  const status = await readAgentVaultStatus({ address, env });
+  const wallet =
+    q.wallet && /^0x[a-fA-F0-9]{40}$/i.test(q.wallet) ? q.wallet : undefined;
+  const status = await readAgentVaultStatus({
+    address,
+    wallet,
+    personalOnly: Boolean(wallet),
+    env,
+  });
   return { ok: true, status };
 });
 
 app.post("/v1/vault/prepare", async (req) => {
   const body = z
     .object({
-      action: z.enum(["deposit", "withdraw", "setPolicy", "setPaused", "setExecutor"]),
+      action: z.enum(["deposit", "withdraw", "setPolicy", "setPaused", "setExecutor", "createSafe"]),
       address: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
+      wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
       amountUsdt0: z.string().optional(),
       maxSpendPerTxUsdt0: z.string().optional(),
       rollingWindowBudgetUsdt0: z.string().optional(),
@@ -1482,7 +1572,30 @@ app.post("/v1/vault/prepare", async (req) => {
     })
     .parse(req.body ?? {});
 
-  const addr = body.address;
+  if (body.action === "createSafe") {
+    if (!body.wallet) {
+      throw new AppError("VALIDATION", { message: "wallet required to create Beacon Safe." });
+    }
+    const prep = await prepareCreateSafe({ wallet: body.wallet }, env);
+    return { ok: true, prep };
+  }
+
+  let addr = body.address;
+  if (!addr && body.wallet) {
+    const status = await readAgentVaultStatus({
+      wallet: body.wallet,
+      personalOnly: true,
+      env,
+    });
+    if (!status.configured || !status.address) {
+      throw new AppError("VALIDATION", {
+        message: "SAFE_NOT_CREATED: Create your Beacon Safe first.",
+        details: { code: "SAFE_NOT_CREATED" },
+      });
+    }
+    addr = status.address;
+  }
+
   let prep;
   switch (body.action) {
     case "deposit": {
@@ -1547,9 +1660,21 @@ app.post("/v1/vault/safe-swap/prepare", async (req) => {
       recipient: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
       slippageBps: z.number().int().min(0).max(1000).optional(),
       address: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
+      wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
     })
     .parse(req.body ?? {});
-  const quote = await prepareBeaconSafeSwap(body, env);
+  let address = body.address;
+  if (!address && body.wallet) {
+    const st = await readAgentVaultStatus({ wallet: body.wallet, personalOnly: true, env });
+    if (!st.configured || !st.address) {
+      throw new AppError("VALIDATION", {
+        message: "SAFE_NOT_CREATED: Create your Beacon Safe before Safe swap.",
+        details: { code: "SAFE_NOT_CREATED" },
+      });
+    }
+    address = st.address;
+  }
+  const quote = await prepareBeaconSafeSwap({ ...body, address }, env);
   if (!quote.ok) {
     throw new AppError("VALIDATION", { message: quote.error });
   }
@@ -1563,13 +1688,26 @@ app.post("/v1/vault/safe-swap/execute", async (req) => {
       recipient: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
       slippageBps: z.number().int().min(0).max(1000).optional(),
       address: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
+      wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
       syncPolicy: z.boolean().optional(),
     })
     .parse(req.body ?? {});
-  if (body.syncPolicy !== false) {
-    await ensureSafeSwapPolicy(env);
+  let address = body.address;
+  if (!address && body.wallet) {
+    const st = await readAgentVaultStatus({ wallet: body.wallet, personalOnly: true, env });
+    if (!st.configured || !st.address) {
+      throw new AppError("VALIDATION", {
+        message: "SAFE_NOT_CREATED: Create your Beacon Safe before Safe swap.",
+        details: { code: "SAFE_NOT_CREATED" },
+      });
+    }
+    address = st.address;
   }
-  const result = await executeBeaconSafeSwap(body, env);
+  // Personal Safes are seeded by the factory — only sync policy on explicit legacy vault.
+  if (body.syncPolicy === true && address) {
+    await ensureSafeSwapPolicy(env, address);
+  }
+  const result = await executeBeaconSafeSwap({ ...body, address }, env);
   if (!result.ok) {
     throw new AppError("VALIDATION", { message: result.error });
   }

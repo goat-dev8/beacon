@@ -262,8 +262,9 @@ export type SafeSwapExecuteResult =
  */
 export async function ensureSafeSwapPolicy(
   env: BeaconEnv = loadEnv(),
+  addressOverride?: string | null,
 ): Promise<{ ready: boolean; note: string; txs: string[] }> {
-  const vaultAddr = resolveAgentVaultAddress(env);
+  const vaultAddr = resolveAgentVaultAddress(env, addressOverride);
   const deskAddr = resolveSwapDeskAddress(env);
   const key = ownerKey(env);
   const txs: string[] = [];
