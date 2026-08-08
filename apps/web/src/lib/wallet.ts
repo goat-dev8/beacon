@@ -20,18 +20,43 @@ const coston2 = {
   rpcUrls: { default: { http: [NETWORK.rpc] } },
 } as const;
 
-declare global {
-  interface Window {
-    ethereum?: {
-      request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
-      on?: (event: string, handler: (...args: unknown[]) => void) => void;
-      removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
-    };
+export type Eip1193Provider = {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+  on?: (event: string, handler: (...args: unknown[]) => void) => void;
+  removeListener?: (event: string, handler: (...args: unknown[]) => void) => void;
+};
+
+function asEip1193(value: unknown): Eip1193Provider | undefined {
+  if (
+    value &&
+    typeof value === "object" &&
+    "request" in value &&
+    typeof (value as Eip1193Provider).request === "function"
+  ) {
+    return value as Eip1193Provider;
   }
+  return undefined;
 }
 
+/** Active provider from Reown / wagmi connector (injected or WalletConnect). */
+let activeEip1193: Eip1193Provider | undefined;
+
+export function setEip1193Provider(provider: Eip1193Provider | null | undefined): void {
+  activeEip1193 = provider ?? undefined;
+}
+
+export function getEip1193Provider(): Eip1193Provider | undefined {
+  if (activeEip1193) return activeEip1193;
+  if (typeof window === "undefined") return undefined;
+  return asEip1193((window as Window & { ethereum?: unknown }).ethereum);
+}
+
+/**
+ * Reown AppKit is always available — users can pick MetaMask, Rabby, WC, etc.
+ * Kept for call sites that previously gated on injected `window.ethereum`.
+ */
 export function hasEvmProvider(): boolean {
-  return typeof window !== "undefined" && Boolean(window.ethereum);
+  return typeof window !== "undefined";
 }
 
 export async function ensureCoston2Network(): Promise<void> {
@@ -63,13 +88,14 @@ async function ensureChain(params: {
   nativeName: string;
   nativeSymbol: string;
 }): Promise<void> {
-  if (!window.ethereum) throw new Error("No EVM wallet found. Install MetaMask or Rabby.");
+  const eth = getEip1193Provider();
+  if (!eth) throw new Error("No wallet connected. Tap Connect and pick a wallet.");
   const targetHex = `0x${params.chainId.toString(16)}` as Hex;
-  const chainIdHex = (await window.ethereum.request({ method: "eth_chainId" })) as Hex;
+  const chainIdHex = (await eth.request({ method: "eth_chainId" })) as Hex;
   if (parseInt(chainIdHex, 16) === params.chainId) return;
 
   try {
-    await window.ethereum.request({
+    await eth.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: targetHex }],
     });
@@ -82,7 +108,7 @@ async function ensureChain(params: {
     }
   }
 
-  await window.ethereum.request({
+  await eth.request({
     method: "wallet_addEthereumChain",
     params: [
       {
@@ -94,15 +120,20 @@ async function ensureChain(params: {
       },
     ],
   });
-  await window.ethereum.request({
+  await eth.request({
     method: "wallet_switchEthereumChain",
     params: [{ chainId: targetHex }],
   });
 }
 
+/**
+ * Connect via injected provider when already available.
+ * Prefer `useProductWallet().connect()` (Reown modal) for multi-wallet UX.
+ */
 export async function connectEvmWallet(): Promise<Address> {
-  if (!window.ethereum) throw new Error("No EVM wallet found. Install MetaMask or Rabby.");
-  const accounts = (await window.ethereum.request({
+  const eth = getEip1193Provider();
+  if (!eth) throw new Error("No wallet connected. Tap Connect and pick a wallet.");
+  const accounts = (await eth.request({
     method: "eth_requestAccounts",
   })) as string[];
   if (!accounts[0]) throw new Error("Wallet returned no account.");
@@ -118,9 +149,17 @@ export async function connectEvmWallet(): Promise<Address> {
 
 /** Soft restore — eth_accounts (no popup) if previously connected. */
 export async function tryRestoreWallet(): Promise<Address | null> {
-  if (!window.ethereum) return null;
+  const eth = getEip1193Provider();
+  if (!eth) {
+    try {
+      const cached = localStorage.getItem("beacon.wallet");
+      return cached && /^0x[a-fA-F0-9]{40}$/.test(cached) ? getAddress(cached) : null;
+    } catch {
+      return null;
+    }
+  }
   try {
-    const accounts = (await window.ethereum.request({ method: "eth_accounts" })) as string[];
+    const accounts = (await eth.request({ method: "eth_accounts" })) as string[];
     if (!accounts[0]) {
       const cached = localStorage.getItem("beacon.wallet");
       return cached && /^0x[a-fA-F0-9]{40}$/.test(cached) ? getAddress(cached) : null;
@@ -135,14 +174,16 @@ export async function tryRestoreWallet(): Promise<Address | null> {
 }
 
 export function walletClient() {
-  if (!window.ethereum) throw new Error("No EVM provider");
-  return createWalletClient({ chain: coston2, transport: custom(window.ethereum) });
+  const eth = getEip1193Provider();
+  if (!eth) throw new Error("No wallet connected. Tap Connect and pick a wallet.");
+  return createWalletClient({ chain: coston2, transport: custom(eth) });
 }
 
 export function publicClient() {
+  const eth = getEip1193Provider();
   return createPublicClient({
     chain: coston2,
-    transport: window.ethereum ? custom(window.ethereum) : http(NETWORK.rpc),
+    transport: eth ? custom(eth) : http(NETWORK.rpc),
   });
 }
 

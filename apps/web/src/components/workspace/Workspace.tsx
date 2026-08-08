@@ -28,7 +28,6 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { BeaconMark } from "@/components/diagrams/BeaconDiagrams";
 import {
   approveJobOnChain,
-  hasEvmProvider,
   mintMockUsdt0,
   shortAddress,
 } from "@/lib/wallet";
@@ -376,7 +375,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 size="sm"
                 className="clip-facet-nav-left"
                 onClick={() => void onConnect()}
-                disabled={connecting || !hasEvmProvider()}
+                disabled={connecting}
               >
                 <Wallet className="size-3.5" />
                 {connecting ? "Connecting…" : "Connect"}
@@ -400,12 +399,6 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
             <Link to="/flow" className="font-medium text-signal-deep underline">
               Open Beacon Flow
             </Link>
-          </p>
-        )}
-
-        {!hasEvmProvider() && (
-          <p className="mb-4 text-sm text-warn">
-            Install MetaMask or Rabby to approve jobs on {NETWORK.name}.
           </p>
         )}
 

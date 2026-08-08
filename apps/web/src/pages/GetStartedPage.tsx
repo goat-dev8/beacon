@@ -19,7 +19,7 @@ const STEPS = [
   {
     id: "wallet",
     title: "Connect your wallet",
-    body: "Coston2 only. MetaMask or Rabby. Beacon never asks for seed phrases.",
+    body: "Coston2 only. Pick any wallet via Reown. Beacon never asks for seed phrases.",
     diagram: 0,
   },
   {
