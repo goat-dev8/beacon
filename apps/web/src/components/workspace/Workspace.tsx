@@ -36,7 +36,7 @@ import { useProductWallet } from "@/lib/productWallet";
 import { DeskContextStrip } from "@/components/workspace/DeskContextStrip";
 import { ResultExperience } from "@/components/workspace/ResultExperience";
 import { NETWORK, CONTRACTS } from "@/lib/chain";
-import { FLARE_STEPS, flareStepState } from "@/lib/flareSteps";
+import { FLARE_STEPS_SAFE, FLARE_STEPS_WALLET, flareStepState } from "@/lib/flareSteps";
 
 const ICONS: Record<ServiceId, LucideIcon> = {
   video: Clapperboard,
@@ -100,6 +100,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
   const [error, setError] = useState<string | null>(null);
   const [streamNote, setStreamNote] = useState<string | null>(null);
   const [lockTx, setLockTx] = useState<string | null>(null);
+  const [payMode, setPayMode] = useState<"safe" | "wallet" | null>(null);
 
   useEffect(() => {
     if (!jobId) return;
@@ -227,6 +228,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
         priceDisplay: quote.priceDisplay,
       });
       setLockTx(auth.lockTxHash ?? null);
+      setPayMode("wallet");
       return api.approveJob(
         jobId,
         offerId,
@@ -259,6 +261,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
       if (!jobId || !offerId || !quote) throw new Error("Missing quote.");
       const result = await api.approveJobFromSafe(jobId, offerId);
       setLockTx(result.lockTxHash ?? null);
+      setPayMode("safe");
       return result;
     },
     onSuccess: () => {
@@ -329,6 +332,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     setError(null);
     setStreamNote(null);
     setLockTx(null);
+    setPayMode(null);
     form.reset();
     try {
       sessionStorage.removeItem("beacon.desk.draft");
@@ -723,7 +727,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 />
               </div>
               <Timeline status={status} />
-              <FlareRails status={status} lockTx={lockTx} />
+              <FlareRails status={status} lockTx={lockTx} payMode={payMode} />
             </motion.div>
           )}
 
@@ -733,8 +737,10 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               jobId={jobId!}
               quote={quote}
               lockTx={lockTx}
+              payMode={payMode}
               acceptance={jobQuery.data?.acceptance ?? null}
               artifacts={artifactsQuery.data?.artifacts ?? []}
+              recentEvents={jobQuery.data?.recentEvents ?? []}
               onLook={(d) => look.mutate(d)}
               lookPending={look.isPending}
               onNew={resetJob}
@@ -847,12 +853,15 @@ function FlareRails({
   lockTx,
   settleTx,
   compact = false,
+  payMode = null,
 }: {
   status?: JobStatus;
   lockTx: string | null;
   settleTx?: string | null;
   compact?: boolean;
+  payMode?: "safe" | "wallet" | null;
 }) {
+  const steps = payMode === "wallet" ? FLARE_STEPS_WALLET : FLARE_STEPS_SAFE;
   return (
     <section
       className={cn(
@@ -863,10 +872,12 @@ function FlareRails({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-widest text-signal-deep">
-            x402 · Escrow · Coston2
+            {payMode === "wallet" ? "x402 · EIP-3009 · Coston2" : "Safe · Escrow · Coston2"}
           </p>
           <p className="mt-1 text-xs text-ink-muted">
-            Payment Required → authorize → lock → settle → receipt
+            {payMode === "wallet"
+              ? "Payment Required → authorize → lock → settle → receipt"
+              : "Fund Safe → vault.execute → lockPrepaid → settle → receipt"}
           </p>
         </div>
         <a
@@ -883,7 +894,7 @@ function FlareRails({
           className="pointer-events-none absolute bottom-3 left-[5px] top-3 w-px bg-line"
           aria-hidden
         />
-        {FLARE_STEPS.map((step) => {
+        {steps.map((step) => {
           const state = flareStepState(step, status, Boolean(lockTx));
           return (
             <li key={step.id} className="relative flex gap-3 py-2.5">

@@ -8,7 +8,8 @@ export interface FlareStep {
   statusKey: JobStatus | "LOCK";
 }
 
-export const FLARE_STEPS: FlareStep[] = [
+/** Wallet EIP-3009 path (fallback). */
+export const FLARE_STEPS_WALLET: FlareStep[] = [
   {
     id: "wallet",
     label: "Wallet on Flare Coston2",
@@ -30,7 +31,7 @@ export const FLARE_STEPS: FlareStep[] = [
   {
     id: "generate",
     label: "Generate + compose",
-    detail: "Off-chain media (Flux) · settlement stays on Flare Coston2",
+    detail: "AgentRouter draft · settlement stays on Flare Coston2",
     statusKey: "GENERATING",
   },
   {
@@ -52,6 +53,55 @@ export const FLARE_STEPS: FlareStep[] = [
     statusKey: "CLOSED",
   },
 ];
+
+/** Beacon Safe prepaid path (primary). */
+export const FLARE_STEPS_SAFE: FlareStep[] = [
+  {
+    id: "safe",
+    label: "Beacon Safe funded",
+    detail: "Prepaid MockUSDT0 pool · policy caps on Coston2",
+    statusKey: "LOCK",
+  },
+  {
+    id: "spend",
+    label: "Safe vault.execute(transfer)",
+    detail: "Executor moves MockUSDT0 Safe → BeaconEscrow (no MetaMask)",
+    statusKey: "AUTHORIZED",
+  },
+  {
+    id: "lock",
+    label: "BeaconEscrow.lockPrepaid",
+    detail: "Settler records prepaid lock · refunds return to Safe",
+    statusKey: "AUTHORIZED",
+  },
+  {
+    id: "generate",
+    label: "Generate + compose",
+    detail: "AgentRouter draft · settlement stays on Flare Coston2",
+    statusKey: "GENERATING",
+  },
+  {
+    id: "accept",
+    label: "Acceptance gates",
+    detail: "L1 objective · L2 judge · L3 brand, escrow pays only on pass",
+    statusKey: "ACCEPTING",
+  },
+  {
+    id: "settle",
+    label: "Escrow release / refund",
+    detail: "releaseToPayee or refund to Safe on BeaconEscrow (Coston2)",
+    statusKey: "SETTLING",
+  },
+  {
+    id: "receipt",
+    label: "Receipt sealed",
+    detail: "On-chain spend/lock + settle/refund recorded",
+    statusKey: "CLOSED",
+  },
+];
+
+/** @deprecated Use FLARE_STEPS_SAFE or FLARE_STEPS_WALLET */
+export const FLARE_STEPS = FLARE_STEPS_WALLET;
 
 const ORDER: JobStatus[] = [
   "AUTHORIZED",
@@ -78,8 +128,10 @@ export function flareStepState(
   if (status === "FAILED" || status === "REFUSING") {
     const i = ORDER.indexOf(step.statusKey as JobStatus);
     const acceptIdx = ORDER.indexOf("ACCEPTING");
+    // Generation failed before accept — mark generate as done/failed path, seal refund+receipt.
+    if (status === "FAILED" && step.id === "generate") return "done";
     if (i >= 0 && i <= acceptIdx) return "done";
-    if (step.id === "settle") return "active";
+    if (step.id === "settle" || step.id === "receipt") return "done";
     return "todo";
   }
 
@@ -87,7 +139,7 @@ export function flareStepState(
   const stepIdx = ORDER.indexOf(step.statusKey as JobStatus);
   if (stepIdx < 0) return "todo";
   if (status === "CLOSED" || status === "PASSED") {
-    return stepIdx <= ORDER.indexOf(status === "PASSED" ? "PASSED" : "CLOSED") ? "done" : "todo";
+    return "done";
   }
   if (cur > stepIdx) return "done";
   if (cur === stepIdx || (step.statusKey === "GENERATING" && (status === "COMPOSING" || status === "PREPARING")))

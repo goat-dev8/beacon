@@ -240,7 +240,7 @@ export async function runL2Judge(ctx: AcceptContext): Promise<LayerResult> {
         {
           role: "system",
           content:
-            'You are a practical delivery judge for Bound Work. Pass short, clear drafts that match the brief. Fail only for empty, off-brief, or unsafe content. Prefer uncertain:true over pass:false when borderline. Reply JSON only: {"pass":true|false,"confidence":0-1,"notes":["..."],"uncertain":true|false}.',
+            'You are a practical delivery judge for Beacon Agent Jobs. Pass short, clear drafts that match the brief. Fail only for empty, off-brief, or unsafe content. Prefer uncertain:true over pass:false when borderline. Reply JSON only: {"pass":true|false,"confidence":0-1,"notes":["..."],"uncertain":true|false}.',
         },
         {
           role: "user",
@@ -286,7 +286,17 @@ export async function runL2Judge(ctx: AcceptContext): Promise<LayerResult> {
       };
     }
   } catch (err) {
-    if (env.AI_REQUIRE_REAL && (env.MEDIA_FAST || "").toLowerCase() !== "true") throw err;
+    if (env.AI_REQUIRE_REAL && (env.MEDIA_FAST || "").toLowerCase() !== "true") {
+      // Soft: never abort the whole acceptance run — NEEDS_LOOK lets the user confirm.
+      return {
+        layer: "L2",
+        passed: true,
+        notes: [
+          "uncertain",
+          `Judge unavailable (${err instanceof Error ? err.message : String(err)}). Objective and brand checks still apply.`,
+        ],
+      };
+    }
     return {
       layer: "L2",
       passed: true,

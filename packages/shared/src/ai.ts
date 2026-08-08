@@ -354,12 +354,15 @@ export async function chatForRole(
 ): Promise<ChatCompletionResult> {
   const env = options.env ?? loadEnv();
   const primary = resolveModelForRole(role, env);
+  // Prefer live AgentRouter models that work in prod: Claude for prose, GPT for reliable fallback.
   const fallbacks =
     role === "quote"
-      ? [primary, "claude-opus-4-8", "claude-opus-5", "gpt-5.6-sol"]
+      ? [primary, "gpt-5.6-sol", "claude-opus-4-8", "claude-opus-5"]
       : role === "generator"
-        ? [primary, "claude-opus-5", "claude-opus-4-8"]
-        : [primary, "claude-opus-4-8", "gpt-5.6-sol"];
+        ? [primary, "gpt-5.6-sol", "claude-opus-5", "claude-opus-4-8"]
+        : role === "acceptance"
+          ? [primary, "gpt-5.6-sol", "claude-opus-4-8"]
+          : [primary, "claude-opus-4-8", "gpt-5.6-sol"];
 
   const tried = new Set<string>();
   let lastErr: unknown;
@@ -379,8 +382,16 @@ export async function chatForRole(
     } catch (err) {
       lastErr = err;
       const message = err instanceof Error ? err.message : String(err);
-      if (!/temporarily unavailable \((405|429|502|503|504)\)|AI (?:provider |unavailable)/.test(message)) {
-        throw err;
+      // Soft-retry provider / WAF / proxy / empty-body failures across the model chain.
+      const retryable =
+        /temporarily unavailable \((405|408|429|500|502|503|504)\)/i.test(message) ||
+        /AI (?:provider |unavailable|proxy)/i.test(message) ||
+        /unauthorized client|WAF|timeout|ECONNRESET|ETIMEDOUT|fetch failed|empty content/i.test(
+          message,
+        );
+      if (!retryable) {
+        // Still try next model for generator/acceptance — hard abort only after chain exhausted.
+        if (role !== "generator" && role !== "acceptance") throw err;
       }
     }
   }

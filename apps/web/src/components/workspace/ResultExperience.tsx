@@ -49,8 +49,10 @@ export function ResultExperience({
   jobId,
   quote,
   lockTx,
+  payMode = null,
   acceptance,
   artifacts,
+  recentEvents = [],
   onLook,
   lookPending,
   onNew,
@@ -60,8 +62,10 @@ export function ResultExperience({
   jobId: string;
   quote: QuoteDto | null;
   lockTx: string | null;
+  payMode?: "safe" | "wallet" | null;
   acceptance: import("@/lib/types").AcceptanceSummary | null;
   artifacts: Artifact[];
+  recentEvents?: Array<{ type: string; payload?: unknown }>;
   onLook: (d: "accept" | "reject") => void;
   lookPending: boolean;
   onNew: () => void;
@@ -70,11 +74,20 @@ export function ResultExperience({
     lockTx: string | null;
     settleTx?: string | null;
     compact?: boolean;
+    payMode?: "safe" | "wallet" | null;
   }>;
 }) {
   const passed = status === "PASSED" || status === "CLOSED" || status === "SETTLING";
   const failed = status === "FAILED" || status === "REFUSING";
   const needsLook = status === "NEEDS_LOOK";
+  const genFailed = recentEvents.some((e) => {
+    const p = e.payload as { trigger?: string } | null | undefined;
+    return e.type === "status" && p?.trigger === "generation_failed";
+  });
+  const failBlurb = genFailed
+    ? "Generation hit a provider error before delivery. Escrow was refunded — try again; text jobs now soft-recover."
+    : acceptance?.summary ??
+      "This job did not pass. You were not charged; escrow is refunded.";
 
   const sorted = useMemo(() => {
     const list = [...artifacts];
@@ -322,9 +335,7 @@ export function ResultExperience({
         {needsLook && "Quality is uncertain. Accept to settle, or reject with no charge."}
         {passed && paidDisplay && `Paid ${paidDisplay} · quality checks passed`}
         {passed && !paidDisplay && "Quality checks passed"}
-        {failed &&
-          (acceptance?.summary ??
-            "This job did not pass. You were not charged; escrow is refunded.")}
+        {failed && failBlurb}
       </p>
 
       {(meta || quote) && (
@@ -341,7 +352,7 @@ export function ResultExperience({
         </dl>
       )}
 
-      {(passed || needsLook) && <div className="mt-6">{panel}</div>}
+      {(passed || needsLook || (failed && sorted.length > 0)) && <div className="mt-6">{panel}</div>}
 
       {acceptance?.notes && acceptance.notes.length > 0 && (
         <ul className="mt-4 space-y-1 rounded-xl border border-dashed border-line bg-paper px-4 py-3 font-mono text-xs text-ink-muted">
@@ -362,7 +373,7 @@ export function ResultExperience({
         </div>
       )}
 
-      <FlareRails status={status} lockTx={lockTx} settleTx={settleTx} compact />
+      <FlareRails status={status} lockTx={lockTx} settleTx={settleTx} compact payMode={payMode} />
 
       <div className="mt-6 rounded-2xl border border-line bg-surface p-5">
         <p className="font-mono text-[11px] uppercase tracking-widest text-ink-faint">Receipt</p>

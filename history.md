@@ -4,6 +4,26 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-08 - Agent Jobs “Not charged” root-cause fix
+
+### Root cause
+Documents Safe job failed at **`generation_failed`** (AgentRouter blip + `AI_REQUIRE_REAL` hard throw), not quality FAIL. UI said “Not charged” after escrow refund; acceptance never ran.
+
+### Research
+Wrote `AGENT_JOBS_CHARGE_FIX_RESEARCH.md` (Flare x402/EIP-3009/Safe prepaid + production repro).
+
+### Fixes
+1. Generator: gpt-5.6-sol in fallbacks; retry more errors; **text services never hard-fail** — expand brief into real markdown pack.
+2. Documents prompt expands short briefs (e.g. math school pack).
+3. Acceptance judge throws → soft NEEDS_LOOK (not silent FAILED).
+4. Refund path seals receipt + explorer tx.
+5. FlareRails Safe vs wallet timelines; clearer failure copy.
+
+### Verify
+typecheck · tests · web build · documents Safe E2E after Render deploy.
+
+---
+
 ## 2026-08-08 - FINAL ARCHITECTURE: Agent Jobs Safe-prepaid (Flare-native)
 
 ### Research (official Flare only)

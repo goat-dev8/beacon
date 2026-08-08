@@ -158,12 +158,31 @@ async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promi
         const message = err instanceof Error ? err.message : String(err);
         console.error("[workers] acceptance failed", job.id, message);
         await publish(redis, job.id, "error", { stage: "acceptance", message: message.slice(0, 400) });
-        // Soft-pass objective already ran inside runAcceptance; if judge hangs/throws,
-        // fail closed with refund rather than infinite ACCEPTING retries.
-        await db.query(`UPDATE jobs SET status = 'FAILED', updated_at = NOW() WHERE id = $1`, [
-          job.id,
-        ]);
-        await redis.lpush("q:settle", `refuse:${job.id}`);
+        // Soft path: L1/L3 already preferred; judge/infra throws must not silent-FAILED without report.
+        // Record NEEDS_LOOK so the user can accept (pay) or reject (refund) with a visible deliverable.
+        await db.query(
+          `INSERT INTO accept_reports (job_id, result, report_json, confidence)
+           VALUES ($1, 'NEEDS_LOOK', $2::jsonb, 0.55)`,
+          [
+            job.id,
+            JSON.stringify({
+              jobId: job.id,
+              result: "NEEDS_LOOK",
+              confidence: 0.55,
+              summary: "Acceptance judge unavailable — please confirm the deliverable.",
+              notes: [message.slice(0, 240)],
+              checkedAt: new Date().toISOString(),
+            }),
+          ],
+        );
+        try {
+          status = await advance(db, redis, job.id, status, "accept_report", "NEEDS_LOOK");
+        } catch {
+          await db.query(`UPDATE jobs SET status = 'NEEDS_LOOK', updated_at = NOW() WHERE id = $1`, [
+            job.id,
+          ]);
+          await publish(redis, job.id, "status", { status: "NEEDS_LOOK" });
+        }
       }
     }
   } finally {
@@ -308,9 +327,19 @@ async function settleJob(db: pg.Pool, redis: Redis, jobId: string): Promise<void
 
 async function refuseJob(db: pg.Pool, redis: Redis, jobId: string): Promise<void> {
   const env = loadEnv();
-  const { rows } = await db.query(`SELECT status FROM jobs WHERE id = $1`, [jobId]);
-  const status = rows[0]?.status ?? JobStatus.FAILED;
+  const { rows } = await db.query(
+    `SELECT j.status, j.service_id, o.id AS offer_id, o.price_usdt0, o.brief_hash, o.rubric_hash
+     FROM jobs j
+     LEFT JOIN LATERAL (
+       SELECT id, price_usdt0, brief_hash, rubric_hash FROM offers WHERE job_id = j.id ORDER BY created_at DESC LIMIT 1
+     ) o ON true
+     WHERE j.id = $1`,
+    [jobId],
+  );
+  const row = rows[0];
+  const status = row?.status ?? JobStatus.FAILED;
 
+  let refundTx: string | undefined;
   if (env.BEACON_ESCROW && (env.SETTLER_PRIVATE_KEY || env.DEPLOYER_PRIVATE_KEY) && env.COSTON2_RPC_URL) {
     try {
       const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
@@ -333,8 +362,9 @@ async function refuseJob(db: pg.Pool, redis: Redis, jobId: string): Promise<void
         !lock[3]
       ) {
         const tx = await escrow.refund(jobHash);
-        await tx.wait();
-        console.log("[workers] escrow refunded", jobId, tx.hash);
+        const receipt = await tx.wait();
+        refundTx = receipt?.hash ?? tx.hash;
+        console.log("[workers] escrow refunded", jobId, refundTx);
       }
     } catch (err) {
       console.error("[workers] escrow refund error", jobId, err);
@@ -349,7 +379,57 @@ async function refuseJob(db: pg.Pool, redis: Redis, jobId: string): Promise<void
     next = JobStatus.CLOSED;
   }
   await db.query(`UPDATE jobs SET status = $2, updated_at = NOW() WHERE id = $1`, [jobId, next]);
-  await publish(redis, jobId, "status", { status: next });
+
+  // Seal a refund receipt so the Jobs timeline completes (Receipt sealed).
+  try {
+    const accept = await db.query(
+      `SELECT id, result, confidence, report_json FROM accept_reports WHERE job_id = $1 ORDER BY id DESC LIMIT 1`,
+      [jobId],
+    );
+    const acceptRow = accept.rows[0];
+    const receipt = buildReceipt({
+      jobId,
+      serviceId: row?.service_id ?? "unknown",
+      offer: {
+        offerId: row?.offer_id ?? newId(),
+        briefHash: row?.brief_hash ?? "0x0",
+        rubricHash: row?.rubric_hash ?? "0x0",
+        priceUsdt0: String(row?.price_usdt0 ?? "0"),
+      },
+      accept: {
+        acceptId: acceptRow?.id ?? newId(),
+        result: acceptRow?.result ?? "FAIL",
+        confidence: acceptRow?.confidence ?? 0,
+        summary:
+          (acceptRow?.report_json as { summary?: string })?.summary ??
+          "Job did not pass — escrow refunded.",
+      },
+      payment: {
+        paymentId: newId(),
+        txHash: refundTx,
+        settled: false,
+        amountUsdt0: "0",
+      },
+    });
+    await db.query(
+      `INSERT INTO receipts (id, job_id, payment_id, tx_hash, offer_id, accept_id, receipt_json)
+       VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)
+       ON CONFLICT DO NOTHING`,
+      [
+        receipt.id,
+        jobId,
+        receipt.payment.paymentId,
+        refundTx ?? null,
+        row?.offer_id ?? null,
+        acceptRow?.id ?? null,
+        JSON.stringify(receipt),
+      ],
+    );
+  } catch (err) {
+    console.error("[workers] refund receipt error", jobId, err);
+  }
+
+  await publish(redis, jobId, "status", { status: next, refundTx });
 }
 
 async function advance(
