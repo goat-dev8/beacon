@@ -38,8 +38,9 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
     }
     providerMeta = { provider: "unconfigured" };
   } else if (!skipAiDraft) {
-    // Cap tokens so Pollinations/proxy finish inside the worker budget.
-    const maxTokens = sidEarly === "coding" ? 3500 : 3000;
+    // Keep the request bounded. Small coding/document jobs should not reserve
+    // thousands of output tokens on metered gateways.
+    const maxTokens = sidEarly === "coding" ? 900 : 1200;
     const attempts = textService ? 3 : 1;
     let lastErr: unknown;
     for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -70,10 +71,10 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
           continue;
         }
         body = trimmed;
+        const actualModel = normalizeGeneratedModel(result.model);
         providerMeta = {
-          provider: "gpt-5.6-sol",
-          model: "gpt-5.6-sol",
-          upstreamModel: result.model,
+          provider: actualModel,
+          model: actualModel,
           latencyMs: result.latencyMs,
           role: "generator",
           attempt,
@@ -128,6 +129,13 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
   }
 
   return out;
+}
+
+function normalizeGeneratedModel(model: string): string {
+  const value = (model || "").toLowerCase();
+  if (value.includes("gpt-5.6-sol")) return "gpt-5.6-sol";
+  if (value.includes("gpt-5.6-luna")) return "gpt-5.6-luna";
+  return model || "unknown";
 }
 
 function generatorSystemPrompt(serviceId: string): string {

@@ -363,7 +363,11 @@ export async function chatForRole(
     role === "quote"
       ? [primary, "gpt-5.6-sol"]
       : role === "generator"
-        ? ["gpt-5.6-sol", primary].filter((m, i, a) => a.indexOf(m) === i)
+        ? // Sol is the requested model. Luna is a real GPT-5.6 continuity
+          // route when Sol billing/credits are unavailable.
+          ["gpt-5.6-sol", primary, "gpt-5.6-luna"].filter(
+            (m, i, a) => a.indexOf(m) === i,
+          )
         : role === "acceptance"
           ? [primary, "gpt-5.6-sol"]
           : [primary, "gpt-5.6-sol"];

@@ -4,6 +4,29 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-08 - GPT-5.6 PRODUCTION FAILURE ROOT CAUSE
+
+### Evidence
+Failed job `67bbc7b3…` reached `GENERATING`, then Render logged:
+`AI temporarily unavailable (405)`. No artifacts were written; escrow refund was correct.
+
+Provider checks:
+- Pollinations Sol: `402` — request 0.0464 pollen, balance 0.0117.
+- Vercel AI Gateway OIDC: `403` — account requires a card to unlock credits.
+- AgentRouter direct/proxy: WAF / unauthorized-client response.
+
+### Shipped
+1. Vercel proxy now targets official `openai/gpt-5.6-sol` through deployment OIDC.
+2. Render hop order: OIDC proxy → Pollinations → direct.
+3. Real GPT-5.6 continuity route (`gpt-5.6-luna`) when Sol billing is unavailable.
+4. Bounded output tokens; artifact metadata reports the model that actually generated.
+5. Added full pipeline smoke: calculator must produce `main.py` with input / conditionals / print.
+
+### Verify
+`npx tsx scripts/probe-pipeline-coding.ts` → real `main.py`, 875 chars, no scaffold.
+
+---
+
 ## 2026-08-08 - GPT-5.6-SOL PROD ENV + HOPS
 
 ### Design read
