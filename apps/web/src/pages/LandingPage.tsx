@@ -1,17 +1,14 @@
-import { Hero } from "@/components/landing/Hero";
+import { Hero, HeroTrustStrip } from "@/components/landing/Hero";
 import { Navbar } from "@/components/landing/Navbar";
 import { ArchitectureStrip } from "@/components/landing/ArchitectureStrip";
 import { WhyFlareSection } from "@/components/landing/WhyFlare";
+import { StoryHowItWorks } from "@/components/landing/StoryHowItWorks";
+import { ProtectionStory } from "@/components/landing/ProtectionStory";
 import {
   ContractsSection,
   FinalCta,
   Footer,
-  QualityBand,
-  QualitySection,
-  ServicesSection,
   WhatIsBeacon,
-  WhoUsesSection,
-  WhyAiFlareSection,
 } from "@/components/landing/Sections";
 
 export function LandingPage() {
@@ -19,14 +16,12 @@ export function LandingPage() {
     <main className="w-full max-w-full overflow-x-hidden">
       <Navbar />
       <Hero />
+      <HeroTrustStrip />
       <WhatIsBeacon />
-      <WhoUsesSection />
-      <WhyAiFlareSection />
+      <StoryHowItWorks />
       <ArchitectureStrip />
+      <ProtectionStory />
       <WhyFlareSection />
-      <ServicesSection />
-      <QualityBand />
-      <QualitySection />
       <ContractsSection />
       <FinalCta />
       <Footer />

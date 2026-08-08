@@ -92,10 +92,10 @@ export function ArchitectureStrip() {
                   {ARCH_STEPS[active].body}
                 </p>
                 <a
-                  href="/flow"
+                  href="/start"
                   className="mt-8 inline-flex min-h-11 items-center font-mono text-sm text-ink-muted underline decoration-ink-faint underline-offset-4 hover:text-ink"
                 >
-                  Try this path in Flow →
+                  Learn this path
                 </a>
               </motion.div>
             </div>
@@ -103,7 +103,7 @@ export function ArchitectureStrip() {
         </div>
 
         <div className="mt-10 flex justify-center">
-          <FacetCtaPair left="Open Flow" right="See Why Flare" leftTo="/flow" rightTo="#why-flare" />
+          <FacetCtaPair left="Get Started" right="Open Flow" leftTo="/start" rightTo="/flow" />
         </div>
       </div>
     </section>

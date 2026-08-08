@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LandingPage } from "@/pages/LandingPage";
 import { ProductShell } from "@/components/ProductShell";
 
+const GetStartedPage = lazy(() =>
+  import("@/pages/GetStartedPage").then((m) => ({ default: m.GetStartedPage })),
+);
 const AppPage = lazy(() =>
   import("@/pages/AppPage").then((m) => ({ default: m.AppPage })),
 );
@@ -41,6 +44,14 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<LandingPage />} />
+          <Route
+            path="/start"
+            element={
+              <Suspense fallback={<RouteFallback />}>
+                <GetStartedPage />
+              </Suspense>
+            }
+          />
           {/* Legacy desk URL → stay inside product shell */}
           <Route path="/app" element={<Navigate to="/flow/desk" replace />} />
           <Route

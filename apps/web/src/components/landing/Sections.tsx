@@ -293,7 +293,7 @@ export function FinalCta() {
           Talk to Flare AI OS. Quotes, policy, payments, and explorer receipts on production rails.
         </p>
         <div className="mt-8 flex justify-center">
-          <FacetCtaPair left="Open Flow" right="Why Flare" leftTo="/flow" rightTo="#why-flare" />
+          <FacetCtaPair left="Get Started" right="Open Flow" leftTo="/start" rightTo="/flow" />
         </div>
       </div>
     </section>

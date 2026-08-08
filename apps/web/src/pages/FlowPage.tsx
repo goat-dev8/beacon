@@ -7,6 +7,8 @@ import { ChatColumn } from "@/components/flow/ChatColumn";
 import { HistoryRail } from "@/components/flow/HistoryRail";
 import { EvidencePanel } from "@/components/ExecutionDrawer";
 import { WhyFlareDrawer } from "@/components/landing/WhyFlare";
+import { useNavigate } from "react-router-dom";
+import { shouldShowGetStarted } from "@/pages/GetStartedPage";
 import {
   OnboardingWalkthrough,
   shouldShowOnboarding,
@@ -29,6 +31,7 @@ import { cn } from "@/lib/utils";
 
 export function FlowPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { wallet, connect, connecting } = useProductWallet();
   const [agentId, setAgentId] = useState<AgentId>("general");
   const [input, setInput] = useState("");
@@ -48,8 +51,12 @@ export function FlowPage() {
   const [onboardingOpen, setOnboardingOpen] = useState(false);
 
   useEffect(() => {
+    if (shouldShowGetStarted()) {
+      navigate("/start", { replace: true });
+      return;
+    }
     setOnboardingOpen(shouldShowOnboarding());
-  }, []);
+  }, [navigate]);
 
   const onExecutionStateChange = useCallback((key: string, state: CardExecutionState) => {
     setExecutionStates((prev) => ({ ...prev, [key]: { ...prev[key], ...state } }));

@@ -4,6 +4,23 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-08 - FINAL PRODUCT REDESIGN (story-first)
+
+### Design read
+Flare AI OS marketing + onboarding for judges/builders. Greptile-inspired story-first premium (Ditto clone of greptile.com for structure). Beacon signal green + Linear surface ladder. Dials: variance 7 / motion 6 / density 4. Preserve product shell; overhaul landing + journey.
+
+### Shipped
+1. Landing: brand-first hero, HeroTrustStrip, StoryHowItWorks (6-beat loop), MoneyPathDiagram, ProtectionStory bento, CTAs → `/start`.
+2. Interactive onboarding: `/start` (wallet → Safe → policy → FCC → x402 → execute → receipt → fund → Flow).
+3. Flow first visit redirects to `/start` when `beacon_onboarded_v2` unset.
+4. Docs: `BEACON_MASTER.md` single source of truth; full `README.md` rewrite.
+5. Honesty unchanged: Safe prepaid escrow, EIP-3009 fallback, FCC = SIMULATED_TEE.
+
+### Verify
+web build · Chrome landing `/` · `/start` · `/flow` after complete
+
+---
+
 ## 2026-08-08 - Agent Jobs “Not charged” root-cause fix
 
 ### Root cause
