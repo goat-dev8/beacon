@@ -37,12 +37,12 @@ describe("model role defaults", () => {
     resetEnvCache();
     const env = loadEnv({
       ...process.env,
-      AI_MODEL_GENERATOR: "claude-opus-5",
+      AI_MODEL_GENERATOR: "gpt-5.6-sol",
       AI_MODEL_JUDGE: "gpt-5.6-sol",
       AI_MODEL_QUOTE: "gpt-5.6-sol",
       AI_MODEL_ACCEPTANCE: "claude-opus-4-8",
     });
-    expect(resolveModelForRole("generator", env)).toBe("claude-opus-5");
+    expect(resolveModelForRole("generator", env)).toBe("gpt-5.6-sol");
     expect(resolveModelForRole("judge", env)).toBe("gpt-5.6-sol");
     expect(resolveModelForRole("quote", env)).toBe("gpt-5.6-sol");
     expect(resolveModelForRole("acceptance", env)).toBe("claude-opus-4-8");

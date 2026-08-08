@@ -30,7 +30,7 @@ type Artifact = {
   meta?: Record<string, unknown> | null;
 };
 
-const TAB_ORDER = ["summary", "draft", "document", "plan", "index", "code", "image", "video", "assets"] as const;
+const TAB_ORDER = ["summary", "code", "draft", "document", "plan", "index", "image", "video", "assets"] as const;
 
 function normalizeTab(kind: string): string {
   const k = kind.toLowerCase();
@@ -85,7 +85,7 @@ export function ResultExperience({
     return e.type === "status" && p?.trigger === "generation_failed";
   });
   const failBlurb = genFailed
-    ? "Generation hit a provider error before delivery. Escrow was refunded — try again; text jobs now soft-recover."
+    ? "Live AgentRouter generation failed before a real deliverable shipped. Escrow was refunded — try again (no scaffold fallback)."
     : acceptance?.summary ??
       "This job did not pass. You were not charged; escrow is refunded.";
 
@@ -99,7 +99,10 @@ export function ResultExperience({
     return list;
   }, [artifacts]);
 
-  const primary = sorted[0];
+  const primary = useMemo(() => {
+    const code = sorted.find((a) => normalizeTab(a.kind) === "code");
+    return code ?? sorted[0];
+  }, [sorted]);
   const [mode, setMode] = useState<"artifact" | "summary">("artifact");
   const [activeId, setActiveId] = useState<string | null>(null);
   const selectedId = mode === "summary" ? null : activeId ?? primary?.id ?? null;
@@ -169,6 +172,19 @@ export function ResultExperience({
   }, [rawSrc, body, bodyMime, bodyKind, jobId]);
 
   const meta = quote?.breakdown;
+  const draftMeta = useMemo(() => {
+    const code = artifacts.find((a) => a.kind === "code");
+    const draft = artifacts.find((a) => a.kind === "draft");
+    const doc = artifacts.find((a) => a.kind === "document");
+    const hit = code ?? draft ?? doc;
+    return (hit?.meta ?? null) as { provider?: string; model?: string; language?: string } | null;
+  }, [artifacts]);
+  const liveModel =
+    (typeof draftMeta?.model === "string" && draftMeta.model) ||
+    meta?.model ||
+    null;
+  const liveProvider =
+    typeof draftMeta?.provider === "string" ? draftMeta.provider : null;
 
   const panel = (
     <article
@@ -182,10 +198,17 @@ export function ResultExperience({
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-signal-deep">
             Result · {normalizeTab(bodyKind)}
+            {liveProvider === "agentrouter" && " · live"}
           </p>
           <p className="mt-0.5 font-display text-lg font-semibold tracking-tight text-ink">
             Beacon finished this for you
           </p>
+          {liveModel && (
+            <p className="mt-1 font-mono text-[11px] text-ink-faint">
+              {liveProvider === "agentrouter" ? "AgentRouter" : liveProvider || "Model"} · {liveModel}
+              {draftMeta?.language ? ` · ${draftMeta.language}` : ""}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {contentQuery.isFetching && (

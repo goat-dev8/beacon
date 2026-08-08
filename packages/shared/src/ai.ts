@@ -32,7 +32,8 @@ export interface AiProbeResult {
 }
 
 const DEFAULT_MODELS: Record<AiRole, string> = {
-  generator: "claude-opus-5",
+  // AgentRouter prod: gpt-5.6-sol is the reliable Jobs generator (quote model).
+  generator: "gpt-5.6-sol",
   judge: "claude-opus-4-8",
   quote: "gpt-5.6-sol",
   acceptance: "claude-opus-4-8",
@@ -359,7 +360,8 @@ export async function chatForRole(
     role === "quote"
       ? [primary, "gpt-5.6-sol", "claude-opus-4-8", "claude-opus-5"]
       : role === "generator"
-        ? [primary, "gpt-5.6-sol", "claude-opus-5", "claude-opus-4-8"]
+        ? // Prefer Sol first for Jobs deliverables — Opus often WAF/timeouts on Render.
+          ["gpt-5.6-sol", primary, "claude-opus-5", "claude-opus-4-8"]
         : role === "acceptance"
           ? [primary, "gpt-5.6-sol", "claude-opus-4-8"]
           : [primary, "claude-opus-4-8", "gpt-5.6-sol"];

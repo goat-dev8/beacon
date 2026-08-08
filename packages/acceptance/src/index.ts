@@ -178,9 +178,43 @@ export function runL1Objective(ctx: AcceptContext): LayerResult {
     notes.push("Deliverable pack is JSON-only; expected a customer-facing file.");
   }
 
+  // Never pass scaffold / echo stubs that used to ship when AgentRouter blipped.
+  for (const artifact of [...primary, ...ctx.artifacts.filter((a) => a.kind === "draft")]) {
+    const preview = artifactPreviewText(artifact);
+    if (
+      /Generated fallback|Replace this scaffold|live generator is reachable/i.test(preview)
+    ) {
+      notes.push("Scaffold/fallback deliverable rejected — require live AgentRouter output.");
+      break;
+    }
+    if (
+      ctx.serviceId === "coding" &&
+      /export function run\(\):\s*string\s*\{\s*return\s+["'`]/i.test(preview) &&
+      !/\binput\s*\(|\bprint\s*\(|\bif\s+__name__/i.test(preview)
+    ) {
+      notes.push("Coding stub (echo-only run()) rejected.");
+      break;
+    }
+  }
+
   const passed = notes.length === 0;
   if (passed) notes.push("Objective checks passed.");
   return { layer: "L1", passed, notes };
+}
+
+function artifactPreviewText(artifact: ArtifactMeta): string {
+  const payload = artifact.payload;
+  if (typeof payload === "string") return payload;
+  if (payload && typeof payload === "object") {
+    const p = payload as { preview?: unknown };
+    if (typeof p.preview === "string") return p.preview;
+    try {
+      return JSON.stringify(payload);
+    } catch {
+      return "";
+    }
+  }
+  return "";
 }
 
 function isAllowedMime(serviceId: string, mime: string): boolean {

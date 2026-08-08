@@ -4,6 +4,45 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-08 - CODING JOBS: KILL SCAFFOLD FALLBACK
+
+### Design read
+Coding Agent Job shipped `Generated fallback` / echo `run()` when AgentRouter blipped — soft-fail path from text-resilient fix. User needs 100% live gpt-5.6-sol deliverables.
+
+### Shipped
+1. Generator default + chain prefer `gpt-5.6-sol`; coding prompt demands language match + runnable code.
+2. `textGenerate.ts`: reject stubs; 2 attempts; throw on failure (no scaffold). Extract `main.py` code artifact.
+3. L1 acceptance fails scaffold markers; worker timeout 180s for text jobs.
+4. Result UI shows AgentRouter · model · prefers Code tab.
+5. Local probe: gpt-5.6-sol returns real Python calculator (input/if/print).
+
+### Verify
+`vitest` deliverable/ai/acceptance · `npx tsx scripts/probe-coding-gen.mjs` · health `PIPELINE_CAPS.version=2026-08-08-agent-jobs-real-sol`
+
+### Note
+Set Render `AI_MODEL_GENERATOR=gpt-5.6-sol` if dashboard still has opus.
+
+---
+
+## 2026-08-08 - LAUNCH FILM v1
+
+### Design read
+4–5 min launch film (not screencast): cinematic Act 1 → architecture loop → Flare rails honesty → real product UI demos → CTA. Beacon brand (signal green, paper/dark). Remotion project in video toolkit.
+
+### Shipped
+1. Remotion project `beacon-launch-film` (~296s, 1920×1080@30).
+2. VO (Qwen3 Ryan) + ACE-Step music bed; storyboard / narration / captions / social copy.
+3. Live UI demos (landing → start → Safe → Flow → Jobs). MetaMask-signed txs not recorded (no Chrome CDP).
+4. Copy + pack: `beacon/launch-film/Beacon-Launch-Film.mp4` + thumbnail + YouTube/LinkedIn/X.
+
+### Verify
+`ffprobe` duration ~296s · QA frames under `out/qa/`
+
+### v2
+Chrome `--remote-debugging-port=9222` + unlocked MetaMask → re-record swap/bridge/job settlement; Modal TTS restore for Act 2–3 VO; optional 4K60.
+
+---
+
 ## 2026-08-08 - NEGATIVE-SPACE B MARK
 
 ### Design read
