@@ -48,7 +48,7 @@ const ERC20_ABI = [
 export const BEACON_SAFE_LABEL = "Beacon Safe";
 
 const DISTINCTION =
-  "Beacon Safe is a prepaid pooled budget under owner policy. Bound Work uses BeaconEscrow for per-job locks. They are not the same rail.";
+  "Beacon Safe is a prepaid pooled budget under owner policy. Agent Jobs lock from this Safe via vault.execute + BeaconEscrow.lockPrepaid (wallet EIP-3009 remains fallback).";
 
 const NOT_CONFIGURED_NOTE =
   "Set BEACON_AGENT_VAULT_ADDRESS (or pass ?address=) after deploying BeaconAgentVault on Coston2. No fake balances are shown.";
