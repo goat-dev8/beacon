@@ -4,6 +4,24 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-08 - Bound Work flagship (Safe honesty + Result UX)
+
+### Research
+- Wrote `BOUND_WORK_FLAGSHIP_RESEARCH_2026-08-08.md`.
+- Verdict: Beacon Safe **cannot** pay Bound Work escrow without MetaMask today. EIP-3009 requires payer signature; Escrow pulls from payer EOA; vault execute is swap-allowlist only. Official Flare x402/EIP-3009 docs confirm signer == from.
+
+### Shipped
+1. Honest Safe vs Escrow: one MetaMask EIP-3009 per Bound Work lock; Safe auto-exec stays for agent swaps.
+2. `DeskContextStrip` on every Bound Work step: Safe balance, remaining window, spent, per-trade, session, executor, job escrow, Flare rails labels (no fake FDC/LZ on desk).
+3. Premium `ResultExperience`: markdown + syntax highlight, copy/download/expand/fullscreen, summary/artifact tabs, model/token/cost meta, receipt + rails.
+4. Video → Coming Soon (UI disabled + Sealed Fit NO_FIT).
+5. Catalog video description updated.
+
+### Verify
+`npm run typecheck` · quote tests · `npm run web:build`
+
+---
+
 ## 2026-08-08 - Summer Signal production UX + critical bugs
 
 ### Research
