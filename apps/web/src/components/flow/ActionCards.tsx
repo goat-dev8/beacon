@@ -469,6 +469,28 @@ export function ActionCard({
     const est = String(card.estimatedOut ?? card.estimatedFxrp);
     const isSafe = card.mode === "beacon_safe" || card.requiresMetaMask === false;
     const chainId = Number(card.chainId ?? (isSafe ? 114 : 14));
+    if (!isSafe && (chainId === 14 || card.mode === "sparkdex_mainnet" || card.requiresChainSwitch)) {
+      return (
+        <div className="rounded-2xl border border-amber-500/30 bg-[var(--p-card)] p-4">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-amber-200">
+            Mainnet path blocked
+          </p>
+          <p className="mt-2 text-sm text-[var(--p-fg)]">
+            Beacon stays on <strong>Flare Testnet Coston2 (114)</strong>. We never ask MetaMask to
+            switch to Mainnet for Flow swaps.
+          </p>
+          <p className="mt-2 text-xs text-[var(--p-muted)]">
+            Fund Beacon Safe for MockUSDT0→FXRP agent execution, or use another Coston2 rail.
+          </p>
+          <a
+            href="/flow/security"
+            className="mt-3 inline-flex rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink"
+          >
+            Open Beacon Safe
+          </a>
+        </div>
+      );
+    }
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">

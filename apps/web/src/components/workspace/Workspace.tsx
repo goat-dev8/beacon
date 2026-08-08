@@ -43,6 +43,13 @@ const ICONS: Record<ServiceId, LucideIcon> = {
   coding: Code2,
   research: Search,
   documents: FileText,
+  marketing: Search,
+  design: Image,
+  ui: Code2,
+  branding: Image,
+  analysis: Search,
+  planning: FileText,
+  agents: Code2,
 };
 
 const briefSchema = z.object({
@@ -193,7 +200,19 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
       void qc.invalidateQueries({ queryKey: ["job", data.jobId] });
     },
     onError: (err) => {
-      setError(err instanceof ApiError ? err.message : "Could not create quote.");
+      if (err instanceof ApiError) {
+        const why =
+          err.code === "NO_FIT"
+            ? err.message
+            : err.message || "Could not create quote.";
+        setError(
+          err.code === "NO_FIT"
+            ? `${why} Pick another catalog service or refine the brief — coding, documents, research, and the rest are supported.`
+            : why,
+        );
+        return;
+      }
+      setError("Could not create quote.");
     },
   });
 
@@ -476,10 +495,42 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               className="mx-auto max-w-lg"
             >
               <h1 className="font-display text-3xl font-extrabold tracking-tight">Your quote</h1>
-              <div className="mt-8 border border-line bg-surface p-6">
-                <p className="font-mono text-xs uppercase tracking-widest text-ink-faint">Price</p>
+              <div className="mt-8 overflow-hidden rounded-2xl border border-line bg-surface p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
+                <p className="font-mono text-xs uppercase tracking-widest text-ink-faint">
+                  Micro price · MockUSDT0
+                </p>
                 <p className="mt-2 font-display text-4xl font-extrabold text-ink">{quote.priceDisplay}</p>
                 <p className="mt-2 text-sm text-ink-muted">ETA {formatEta(quote.etaSeconds)}</p>
+                {quote.breakdown && (
+                  <dl className="mt-5 grid gap-2 border-t border-line pt-4 text-xs text-ink-muted sm:grid-cols-2">
+                    <div className="flex justify-between gap-2 sm:block">
+                      <dt>Model</dt>
+                      <dd className="font-mono text-ink">{quote.breakdown.model}</dd>
+                    </div>
+                    <div className="flex justify-between gap-2 sm:block">
+                      <dt>Tokens (est.)</dt>
+                      <dd className="font-mono text-ink">
+                        {quote.breakdown.inputTokens} in · {quote.breakdown.outputTokens} out
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt>Model cost</dt>
+                      <dd className="font-mono">${quote.breakdown.modelCostUsdt0}</dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt>Infra</dt>
+                      <dd className="font-mono">${quote.breakdown.infraCostUsdt0}</dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt>Platform fee</dt>
+                      <dd className="font-mono">${quote.breakdown.platformFeeUsdt0}</dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt>Network cushion</dt>
+                      <dd className="font-mono">${quote.breakdown.networkFeeUsdt0}</dd>
+                    </div>
+                  </dl>
+                )}
                 <ul className="mt-6 space-y-2 border-t border-line pt-5">
                   {quote.includes.map((item) => (
                     <li key={item} className="flex items-center gap-2 text-sm text-ink-muted">
@@ -490,14 +541,23 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 <p className="mt-4 font-mono text-[11px] text-ink-faint">
                   Expires {new Date(quote.expiresAt).toLocaleTimeString()}
                 </p>
-                <p className="mt-3 text-xs leading-relaxed text-ink-muted">
-                  Bound Offer on Flare Coston2: EIP-3009 auth → BeaconEscrow lock → acceptance → release or refund.
-                  Desk credit uses Beacon MockUSDT0 (not SparkDEX USDT0).{" "}
-                  <Link to="/flow/security" className="text-signal-deep underline-offset-2 hover:underline">
-                    Beacon Safe
-                  </Link>{" "}
-                  enforces your daily / per-job budget.
-                </p>
+                <div className="mt-4 rounded-xl border border-line/80 bg-paper/40 p-3">
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-signal-deep">
+                    Settlement timeline
+                  </p>
+                  <ol className="mt-2 space-y-1.5 text-xs text-ink-muted">
+                    <li>1. You sign EIP-3009 (one authorization)</li>
+                    <li>2. BeaconEscrow locks MockUSDT0 on Coston2</li>
+                    <li>3. Agent generates · acceptance gates run</li>
+                    <li>4. Escrow release on pass · refund on fail</li>
+                    <li>5. Receipt sealed with lock tx</li>
+                  </ol>
+                  <p className="mt-2 text-[11px] leading-relaxed text-ink-faint">
+                    Bound Work escrow is separate from Beacon Safe agent spends. Safe auto-executes
+                    allowlisted swaps after you fund it; Bound Work still needs this one owner
+                    signature to lock the job budget (Flare EIP-3009 / escrow design).
+                  </p>
+                </div>
               </div>
 
               {!account && (
@@ -652,27 +712,53 @@ function Timeline({ status }: { status?: JobStatus }) {
     "CLOSED",
   ];
   const current = status ? stages.indexOf(status) : -1;
+  const failed = status === "FAILED" || status === "REFUSING";
   return (
-    <ul className="mt-8 space-y-3">
+    <ul className="relative mt-8 space-y-0">
+      <span
+        className="pointer-events-none absolute bottom-2 left-[5px] top-2 w-px bg-line"
+        aria-hidden
+      />
       {stages.map((s, i) => {
-        const done = current > i || status === "CLOSED" || status === "PASSED";
+        const done = !failed && (current > i || status === "CLOSED" || status === "PASSED");
         const active =
-          status === s || (s === "CLOSED" && status != null && TERMINAL_STATUSES.includes(status));
+          status === s ||
+          (s === "CLOSED" && status != null && TERMINAL_STATUSES.includes(status) && !failed);
         return (
-          <li key={s} className="flex items-center gap-3 text-sm">
+          <li key={s} className="relative flex items-start gap-3 py-2.5 text-sm">
             <span
               className={cn(
-                "size-2.5 rounded-full",
-                done || active ? "bg-signal-deep" : "bg-line",
-                active && "animate-pulse",
+                "relative z-[1] mt-1 size-2.5 shrink-0 rounded-full ring-4 ring-paper",
+                failed && i <= 4 ? "bg-signal-deep" : null,
+                failed && s === "SETTLING" ? "bg-red-500 animate-pulse" : null,
+                !failed && (done || active) ? "bg-signal-deep" : null,
+                !failed && !done && !active ? "bg-line" : null,
+                active && !failed && "animate-pulse",
               )}
             />
-            <span className={done || active ? "text-ink" : "text-ink-faint"}>{statusLabel(s)}</span>
+            <div>
+              <span className={done || active || (failed && i <= 4) ? "text-ink" : "text-ink-faint"}>
+                {statusLabel(s)}
+              </span>
+              {active && streamNoteHint(status) ? (
+                <p className="mt-0.5 font-mono text-[11px] text-ink-muted">{streamNoteHint(status)}</p>
+              ) : null}
+            </div>
           </li>
         );
       })}
     </ul>
   );
+}
+
+function streamNoteHint(status?: JobStatus): string | null {
+  if (!status) return null;
+  if (status === "PREPARING") return "Provisioning tools…";
+  if (status === "GENERATING") return "Model generating…";
+  if (status === "COMPOSING") return "Assembling delivery…";
+  if (status === "ACCEPTING") return "Quality gates…";
+  if (status === "SETTLING") return "Escrow release / refund…";
+  return null;
 }
 
 function FlareRails({
@@ -689,14 +775,19 @@ function FlareRails({
   return (
     <section
       className={cn(
-        "border border-dashed border-line bg-paper",
+        "overflow-hidden rounded-2xl border border-line bg-surface shadow-[0_0_0_1px_rgba(255,255,255,0.02)]",
         compact ? "mt-6 p-4" : "mt-10 p-5",
       )}
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <p className="font-mono text-[11px] uppercase tracking-widest text-ink-faint">
-          Flare rails · Coston2
-        </p>
+        <div>
+          <p className="font-mono text-[11px] uppercase tracking-widest text-signal-deep">
+            x402 · Escrow · Coston2
+          </p>
+          <p className="mt-1 text-xs text-ink-muted">
+            Payment Required → authorize → lock → settle → receipt
+          </p>
+        </div>
         <a
           href={NETWORK.explorer}
           target="_blank"
@@ -706,14 +797,18 @@ function FlareRails({
           Explorer →
         </a>
       </div>
-      <ol className="mt-4 space-y-3">
+      <ol className="relative mt-5 space-y-0">
+        <span
+          className="pointer-events-none absolute bottom-3 left-[5px] top-3 w-px bg-line"
+          aria-hidden
+        />
         {FLARE_STEPS.map((step) => {
           const state = flareStepState(step, status, Boolean(lockTx));
           return (
-            <li key={step.id} className="flex gap-3">
+            <li key={step.id} className="relative flex gap-3 py-2.5">
               <span
                 className={cn(
-                  "mt-1 size-2.5 shrink-0 rounded-full",
+                  "relative z-[1] mt-1 size-2.5 shrink-0 rounded-full ring-4 ring-surface",
                   state === "done" && "bg-signal-deep",
                   state === "active" && "animate-pulse bg-signal",
                   state === "todo" && "bg-line",
@@ -735,7 +830,7 @@ function FlareRails({
         })}
       </ol>
       {(lockTx || settleTx) && (
-        <div className="mt-4 flex flex-wrap gap-3 border-t border-dashed border-line pt-3 font-mono text-[11px]">
+        <div className="mt-4 flex flex-wrap gap-3 border-t border-line pt-3 font-mono text-[11px]">
           {lockTx && (
             <a
               href={`${NETWORK.explorer}/tx/${lockTx}`}

@@ -93,7 +93,16 @@ export function VaultPassCard({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <PassMetric
-              label="Daily budget"
+              label="Remaining in window"
+              value={`${live.windowRemainingDisplay ?? Math.max(0, Number(live.rollingWindowBudgetDisplay) - Number(live.windowSpentDisplay)).toFixed(6)} ${live.tokenSymbol}`}
+              hint={
+                live.windowResetsAtIso
+                  ? `Resets ${new Date(live.windowResetsAtIso).toLocaleString()}`
+                  : formatWindowHours(live.rollingWindowSeconds)
+              }
+            />
+            <PassMetric
+              label="Used / budget"
               value={`${live.windowSpentDisplay} / ${live.rollingWindowBudgetDisplay}`}
               hint={formatWindowHours(live.rollingWindowSeconds)}
             />

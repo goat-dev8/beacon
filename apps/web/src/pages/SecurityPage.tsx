@@ -291,6 +291,12 @@ export function SecurityPage() {
                 isOwner={isOwner}
                 onConnect={() => void onConnect()}
                 connecting={connecting}
+                remainingDisplay={live.windowRemainingDisplay}
+                spentDisplay={live.windowSpentDisplay}
+                budgetDisplay={live.rollingWindowBudgetDisplay}
+                resetsAtIso={live.windowResetsAtIso}
+                sessionLabel={sessionLabel}
+                paused={live.paused}
                 onSave={() => {
                   const expires =
                     sessionHours > 0
@@ -315,7 +321,23 @@ export function SecurityPage() {
                 isOwner={isOwner}
                 onConnect={() => void onConnect()}
                 connecting={connecting}
-                onPause={() => vaultTx.mutate({ action: "setPaused", paused: true })}
+                executor={live.executor}
+                busyAction={
+                  vaultTx.isPending
+                    ? vaultTx.variables?.action === "setPaused"
+                      ? vaultTx.variables?.paused
+                        ? "pause"
+                        : "unpause"
+                      : vaultTx.variables?.action === "setExecutor"
+                        ? "revoke"
+                        : null
+                    : null
+                }
+                onPause={() => {
+                  if (confirm("Pause Beacon Safe? Agents cannot spend until you Unpause.")) {
+                    vaultTx.mutate({ action: "setPaused", paused: true });
+                  }
+                }}
                 onUnpause={() => vaultTx.mutate({ action: "setPaused", paused: false })}
                 onRevoke={() => {
                   if (

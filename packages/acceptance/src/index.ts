@@ -199,6 +199,13 @@ function isAllowedMime(serviceId: string, mime: string): boolean {
     coding: ["text/plain", "text/markdown", "application/json"],
     research: ["text/markdown", "application/pdf", "application/json"],
     documents: ["text/markdown", "application/pdf", "text/plain", "application/json"],
+    marketing: ["text/markdown", "text/plain", "application/json"],
+    design: ["image/png", "image/jpeg", "image/webp", "image/svg+xml", "text/markdown", "application/json"],
+    ui: ["text/plain", "text/markdown", "application/json"],
+    branding: ["image/png", "image/jpeg", "image/webp", "image/svg+xml", "text/markdown", "application/json"],
+    analysis: ["text/markdown", "application/pdf", "application/json", "text/plain"],
+    planning: ["text/markdown", "text/plain", "application/json"],
+    agents: ["text/markdown", "text/plain", "application/json"],
   };
   const allowed = map[serviceId] ?? ["application/octet-stream"];
   return allowed.includes(mime);

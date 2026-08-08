@@ -43,7 +43,6 @@ import {
   executeBeaconSafeSwap,
   ensureSafeSwapPolicy,
   readSwapDeskStatus,
-  prepareBeaconAgentBridge,
   executeBeaconAgentBridge,
   agentBridgeReadiness,
   COSTON2_USDT0,
@@ -327,6 +326,13 @@ const createJobSchema = z.object({
     "coding",
     "research",
     "documents",
+    "marketing",
+    "design",
+    "ui",
+    "branding",
+    "analysis",
+    "planning",
+    "agents",
   ]),
   briefText: z.string().min(1).max(20_000),
   brandPackId: z.string().uuid().optional(),
@@ -993,7 +999,7 @@ app.post("/v1/agents/bridge/execute", async (req) => {
   if (!result.ok) {
     throw new AppError("VALIDATION", { message: result.error });
   }
-  return { ok: true, ...result };
+  return result;
 });
 
 const agentChatSchema = z.object({
@@ -1457,7 +1463,7 @@ app.post("/v1/vault/safe-swap/execute", async (req) => {
   if (!result.ok) {
     throw new AppError("VALIDATION", { message: result.error });
   }
-  return { ok: true, ...result };
+  return result;
 });
 
 /** Security Center policies — persisted in Redis when available. */

@@ -110,6 +110,9 @@ export type AgentVaultStatus =
       windowStart: string;
       windowSpent: string;
       windowSpentDisplay: string;
+      windowRemainingDisplay: string;
+      windowResetsAt: number;
+      windowResetsAtIso: string | null;
       sessionExpiresAt: number;
       sessionExpiresAtIso: string | null;
       sessionActive: boolean;
@@ -248,6 +251,12 @@ export async function readAgentVaultStatus(opts?: {
   const nowSec = Math.floor(Date.now() / 1000);
   const sessionActive = expires === 0 || nowSec < expires;
   const allowlists = await readAllowlistSummary(vault, provider);
+  const windowSecs = Number(rollingWindowSeconds);
+  const startSec = Number(windowStart);
+  const resetsAtSec =
+    windowSecs > 0 && startSec > 0 ? startSec + windowSecs : 0;
+  const remainingRaw =
+    rollingWindowBudget > windowSpent ? rollingWindowBudget - windowSpent : 0n;
 
   return {
     configured: true,
@@ -268,6 +277,9 @@ export async function readAgentVaultStatus(opts?: {
     rollingWindowBudgetDisplay: formatUnits(rollingWindowBudget, decimals),
     rollingWindowSeconds: rollingWindowSeconds.toString(),
     windowStart: windowStart.toString(),
+    windowRemainingDisplay: formatUnits(remainingRaw, decimals),
+    windowResetsAt: resetsAtSec,
+    windowResetsAtIso: resetsAtSec > 0 ? new Date(resetsAtSec * 1000).toISOString() : null,
     windowSpent: windowSpent.toString(),
     windowSpentDisplay: formatUnits(windowSpent, decimals),
     sessionExpiresAt: expires,
@@ -294,10 +306,6 @@ async function resolveVaultAndDecimals(
   const token = (await vault.token()) as string;
   const decimals = Number(await new Contract(token, ERC20_ABI, provider).decimals().catch(() => 6));
   return { address, token, decimals, iface: new Interface(VAULT_ABI) };
-}
-
-function approveCalldata(spender: string, amount: bigint): string {
-  return new Interface(ERC20_ABI).encodeFunctionData("approve", [spender, amount]);
 }
 
 export async function prepareAgentVaultDeposit(

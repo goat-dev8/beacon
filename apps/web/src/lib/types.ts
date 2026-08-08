@@ -4,7 +4,14 @@ export type ServiceId =
   | "presentations"
   | "coding"
   | "research"
-  | "documents";
+  | "documents"
+  | "marketing"
+  | "design"
+  | "ui"
+  | "branding"
+  | "analysis"
+  | "planning"
+  | "agents";
 
 export type JobStatus =
   | "DRAFT"
@@ -37,6 +44,16 @@ export interface QuoteDto {
   includes: string[];
   expiresAt: string;
   capability: "FIT" | "NO_FIT";
+  breakdown?: {
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    modelCostUsdt0: string;
+    infraCostUsdt0: string;
+    platformFeeUsdt0: string;
+    networkFeeUsdt0: string;
+    totalUsdt0: string;
+  };
 }
 
 export interface JobRow {

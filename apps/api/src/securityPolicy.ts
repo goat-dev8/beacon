@@ -17,8 +17,8 @@ export type BeaconSecurityPolicy = {
 };
 
 export const DEFAULT_SECURITY_POLICY: BeaconSecurityPolicy = {
-  dailySpendUsdt0: 50,
-  perJobLimitUsdt0: 25,
+  dailySpendUsdt0: 5,
+  perJobLimitUsdt0: 0.1,
   allowedAgents: [
     "general",
     "signals",
@@ -39,8 +39,8 @@ export const DEFAULT_SECURITY_POLICY: BeaconSecurityPolicy = {
     "image",
     "research",
   ],
-  allowedChains: [114, 14],
-  maxImageCostUsdt0: 10,
+  allowedChains: [114],
+  maxImageCostUsdt0: 0.05,
   maxVideoSeconds: 60,
   emergencyPause: false,
   sessionExpiryHours: 24,

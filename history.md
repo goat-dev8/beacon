@@ -4,6 +4,28 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-08 - Summer Signal production UX + critical bugs
+
+### Research
+- Wrote `SUMMER_SIGNAL_PRODUCTION_RESEARCH_2026-08-08.md` (Flare docs + Safe vs Bound Work + x402 + FCC honesty).
+- Wrote `FINAL_FIX_REPORT.md`.
+
+### Fixes shipped
+1. **Mainnet kill**: Coston2-only agent swaps; SparkDEX Mainnet cards blocked in UI; `ensureFlareMainnet` / `executeSparkDexSwap(chain 14)` throw.
+2. **Micro pricing**: Bound Work quotes ~$0.005–$0.08 with cost breakdown (model/tokens/infra/fees).
+3. **Services**: Coding always catalog FIT; added marketing/design/ui/branding/analysis/planning/agents.
+4. **Safe policy/emergency UX**: remaining budget, reset timer, usage bar, LIVE/PAUSED, confirms.
+5. **Work/x402**: settlement timeline on quote; upgraded FlareRails + progress connectors; honest Safe vs escrow copy.
+6. Acceptance MIME map extended for new services.
+
+### Ops note
+Vault owner may be test MetaMask for policy edits; executor remains agent key for auto Safe spends.
+
+### Verify
+`npm run typecheck` · `npm test` (34) · `npm run web:build`
+
+---
+
 ## 2026-08-07 - Summer Signal deep research + FCC/Safe/prod ship
 
 ### Research (evidence)

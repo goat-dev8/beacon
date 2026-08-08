@@ -1,4 +1,4 @@
-import { chatCompletion, chatForRole, displayModelName, isAiConfigured } from "./ai.js";
+import { chatForRole, displayModelName, isAiConfigured } from "./ai.js";
 import { loadEnv, type BeaconEnv } from "./env.js";
 import {
   buildTradeSignal,
@@ -960,15 +960,15 @@ export async function runBeaconAgentChat(opts: {
         type: "insufficient",
         title: "Connect your wallet",
         summary:
-          "Connect MetaMask as the FXRP recipient. Funded Beacon Safe swaps stay on Coston2 (agent executes — no Mainnet switch). SparkDEX Mainnet remains optional for EOA pairs.",
+          "Connect MetaMask as the FXRP recipient on Coston2. Funded Beacon Safe swaps stay on Coston2 (agent executes — no MetaMask per trade, no Mainnet).",
         faucetHref: "https://faucet.flare.network/coston2",
       });
       const narr = await narrate({
         intent: "swap",
         userMessage: opts.message,
         situation:
-          "Wallet missing. Prefer Coston2 Beacon Safe spend when funded; SparkDEX is Mainnet-only bytecode.",
-        fallback: `Connect your wallet (FXRP recipient). Prefer **Beacon Safe** on **Coston2** after deposit — agent executes without MetaMask Mainnet. SparkDEX pairs exist on Mainnet only.`,
+          "Wallet missing. Prefer Coston2 Beacon Safe spend when funded; never push Mainnet.",
+        fallback: `Connect your wallet (FXRP recipient) on **Coston2**. Prefer **Beacon Safe** after deposit — agent executes without MetaMask per trade. We never ask you to switch to Mainnet.`,
         env,
       });
       return {
@@ -1201,7 +1201,7 @@ export async function runBeaconAgentChat(opts: {
           },
         };
       }
-      // Safe preferred but not ready — explain and fall through to Mainnet only if user wants non-Safe pairs
+      // Safe preferred but not ready — NEVER fall through to Mainnet on Coston2 product mode.
       if (!wantsFxrpToUsdt && !wantsWflr) {
         cards.push({
           type: "insufficient",
@@ -1213,7 +1213,7 @@ export async function runBeaconAgentChat(opts: {
           intent: "swap",
           userMessage: opts.message,
           situation: `Safe path failed: ${safeQuote.error}. Stay on Coston2 — do not push Mainnet switch as the primary fix.`,
-          fallback: `${safeQuote.error}\n\nDeposit MockUSDT0 to **Beacon Safe** and set spend caps (or ask desk to sync policy). We stay on **Coston2** — SparkDEX Mainnet is a separate EOA path.`,
+          fallback: `${safeQuote.error}\n\nDeposit MockUSDT0 to **Beacon Safe** and set spend caps (or ask desk to sync policy). We stay on **Coston2** — SparkDEX Mainnet is disabled for this Flow.`,
           env,
         });
         return {
@@ -1226,6 +1226,36 @@ export async function runBeaconAgentChat(opts: {
           state: { intent: "swap", phase: "clarify", amountInUnits: amount },
         };
       }
+    }
+
+    // Coston2-only product rule: never ask MetaMask to switch to Flare Mainnet (14).
+    // SparkDEX bytecode exists on Mainnet only — that path is intentionally unavailable here.
+    if (env.CHAIN_ID === 114) {
+      cards.push({
+        type: "insufficient",
+        title: "Stay on Flare Testnet Coston2",
+        summary:
+          "Beacon Flow does not switch to Flare Mainnet. Fund Beacon Safe for MockUSDT0→FXRP on Coston2, or use a different Coston2 rail.",
+        faucetHref: "/flow/security",
+      });
+      const narr = await narrate({
+        intent: "swap",
+        userMessage: opts.message,
+        situation:
+          "Blocked SparkDEX Mainnet fallback. Product is Coston2-only (chain 114).",
+        fallback:
+          "This Flow stays on **Flare Testnet Coston2 (114)**. We never ask you to switch to Mainnet.\n\nFor USDT0→FXRP: fund **Beacon Safe** at `/flow/security` so the agent can execute without MetaMask.",
+        env,
+      });
+      return {
+        agentId: "swap",
+        text: narr.text,
+        cards,
+        model: narr.model,
+        displayModel: narr.displayModel,
+        paid: true,
+        state: { intent: "swap", phase: "clarify", amountInUnits: amount },
+      };
     }
 
     if (dep.network === "none" || !discovered.pairs.length) {

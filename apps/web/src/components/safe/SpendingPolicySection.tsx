@@ -17,6 +17,12 @@ export function SpendingPolicySection({
   isOwner,
   onConnect,
   connecting,
+  remainingDisplay,
+  spentDisplay,
+  budgetDisplay,
+  resetsAtIso,
+  sessionLabel,
+  paused,
 }: {
   maxSpend: string;
   windowBudget: string;
@@ -28,13 +34,23 @@ export function SpendingPolicySection({
   onSessionHours: (v: number) => void;
   onSave: () => void;
   pending: boolean;
-  /** True only while this section's save tx is in flight (not deposit/emergency). */
   busy?: boolean;
   wallet: string | null;
   isOwner: boolean;
   onConnect: () => void;
   connecting: boolean;
+  remainingDisplay?: string | null;
+  spentDisplay?: string | null;
+  budgetDisplay?: string | null;
+  resetsAtIso?: string | null;
+  sessionLabel?: string | null;
+  paused?: boolean;
 }) {
+  const spent = Number(spentDisplay ?? 0);
+  const budget = Number(budgetDisplay ?? windowBudget ?? 0);
+  const remaining = Number(remainingDisplay ?? Math.max(0, budget - spent));
+  const pct = budget > 0 ? Math.min(100, Math.round((spent / budget) * 100)) : 0;
+
   return (
     <SafeSection>
       <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-accent-text)]">
@@ -44,7 +60,9 @@ export function SpendingPolicySection({
         What the AI is allowed to spend
       </h2>
       <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[var(--p-muted)]">
-        These on-chain caps live in Beacon Safe. Change them anytime as the owner.
+        On-chain caps in Beacon Safe. Example: per trade 1 USDT0 and rolling budget 10 USDT0 over
+        168h means the agent can run many small Safe swaps, but never more than 1 USDT0 in one call
+        or 10 USDT0 in the window.
       </p>
 
       <OwnerGate
@@ -54,6 +72,39 @@ export function SpendingPolicySection({
         connecting={connecting}
       />
 
+      <div className="mt-5 overflow-hidden rounded-2xl border border-[var(--p-border)] bg-[var(--p-surface-2)] p-4">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-wider text-[var(--p-muted)]">
+              Rolling window usage
+            </p>
+            <p className="mt-1 font-display text-2xl font-semibold tabular-nums">
+              {spentDisplay ?? "—"}{" "}
+              <span className="text-base font-normal text-[var(--p-muted)]">
+                / {budgetDisplay ?? windowBudget} USDT0
+              </span>
+            </p>
+            <p className="mt-1 text-xs text-[var(--p-muted)]">
+              Remaining{" "}
+              <span className="text-[var(--p-accent-text)]">{remainingDisplay ?? remaining.toFixed(1)}</span>
+              {resetsAtIso
+                ? ` · resets ${new Date(resetsAtIso).toLocaleString()}`
+                : " · window not started"}
+            </p>
+          </div>
+          <div className="text-right text-xs text-[var(--p-muted)]">
+            <p>Session · {sessionLabel ?? "—"}</p>
+            <p className="mt-1">Safe · {paused ? "Paused" : "Active"}</p>
+          </div>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--p-border)]">
+          <div
+            className="h-full rounded-full bg-[var(--p-accent)] transition-[width] duration-500 ease-out"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      </div>
+
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <SafeField
           label="Per trade limit (USDT0)"
@@ -61,29 +112,29 @@ export function SpendingPolicySection({
           onChange={(v) => onMaxSpend(String(v))}
           string
           disabled={!isOwner}
-          hint="Hard ceiling on a single execution"
+          hint="Example: 1.0 blocks any single Safe swap above 1 USDT0"
         />
         <SafeField
-          label="Daily budget (USDT0)"
+          label="Rolling budget (USDT0)"
           value={windowBudget}
           onChange={(v) => onWindowBudget(String(v))}
           string
           disabled={!isOwner}
-          hint="Total spend allowed in the rolling period"
+          hint="Total the agent may spend before the window resets"
         />
         <SafeField
           label="Rolling period (hours)"
           value={windowHours}
           onChange={(v) => onWindowHours(Number(v) || 0)}
           disabled={!isOwner}
-          hint="How long the daily budget window runs"
+          hint="168 = one week. Spent total resets when this window ends."
         />
         <SafeField
           label="Session length (hours)"
           value={sessionHours}
           onChange={(v) => onSessionHours(Number(v) || 0)}
           disabled={!isOwner}
-          hint="0 means no session expiry"
+          hint="0 = no session expiry. Otherwise executor stops after this many hours."
         />
       </div>
 
@@ -91,11 +142,11 @@ export function SpendingPolicySection({
         type="button"
         disabled={!isOwner || pending}
         onClick={onSave}
-        className="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--p-accent)] px-5 py-2.5 text-sm font-medium text-[var(--p-on-accent)] disabled:opacity-40"
+        className="mt-5 inline-flex items-center gap-2 rounded-full bg-[var(--p-accent)] px-5 py-2.5 text-sm font-medium text-[var(--p-on-accent)] transition hover:brightness-110 disabled:opacity-40"
       >
         {busy ? (
           <>
-            <Loader2 className="size-4 animate-spin" /> Saving…
+            <Loader2 className="size-4 animate-spin" /> Saving on-chain…
           </>
         ) : (
           "Save spending policy"

@@ -20,13 +20,6 @@ const coston2 = {
   rpcUrls: { default: { http: [NETWORK.rpc] } },
 } as const;
 
-const flareMainnet = {
-  id: 14,
-  name: "Flare Mainnet",
-  nativeCurrency: { name: "FLR", symbol: "FLR", decimals: 18 },
-  rpcUrls: { default: { http: ["https://flare-api.flare.network/ext/C/rpc"] } },
-} as const;
-
 declare global {
   interface Window {
     ethereum?: {
@@ -52,15 +45,14 @@ export async function ensureCoston2Network(): Promise<void> {
   });
 }
 
+/**
+ * Intentionally disabled for Beacon Summer Signal.
+ * Product stays on Flare Testnet Coston2 (114) only — never switch MetaMask to Mainnet.
+ */
 export async function ensureFlareMainnet(): Promise<void> {
-  await ensureChain({
-    chainId: 14,
-    name: "Flare Mainnet",
-    rpc: "https://flare-api.flare.network/ext/C/rpc",
-    explorer: "https://flarescan.com",
-    nativeName: "FLR",
-    nativeSymbol: "FLR",
-  });
+  throw new Error(
+    "Beacon stays on Flare Testnet Coston2 (chain 114). Mainnet switch is disabled.",
+  );
 }
 
 async function ensureChain(params: {
@@ -162,7 +154,7 @@ export type OftBridgeExecutionStep =
   | { step: "approve"; status: "pending" | "confirmed" | "skipped"; hash?: Hex }
   | { step: "send"; status: "pending" | "confirmed" | "failed"; hash?: Hex; error?: string };
 
-/** Approve (if needed) + SparkDEX exactInputSingle; wait for receipts. Default chain = Flare Mainnet. */
+/** SparkDEX Mainnet path is disabled — Beacon stays on Coston2 (114). */
 export async function executeSparkDexSwap(params: {
   approveTo: Address;
   approveData: Hex;
@@ -172,18 +164,16 @@ export async function executeSparkDexSwap(params: {
   onStep?: (s: SwapExecutionStep) => void;
 }): Promise<{ approveHash?: Hex; swapHash: Hex }> {
   const chainId = params.chainId ?? 14;
-  if (chainId === 14) await ensureFlareMainnet();
-  else await ensureCoston2Network();
+  if (chainId === 14) {
+    throw new Error(
+      "SparkDEX Mainnet swaps are disabled. Use Beacon Safe on Coston2 (chain 114).",
+    );
+  }
+  await ensureCoston2Network();
 
-  const chain = chainId === 14 ? flareMainnet : coston2;
+  const chain = coston2;
   const wallet = walletClient();
-  const pub =
-    chainId === 14
-      ? createPublicClient({
-          chain: flareMainnet,
-          transport: http("https://flare-api.flare.network/ext/C/rpc"),
-        })
-      : publicClient();
+  const pub = publicClient();
   const [account] = await wallet.getAddresses();
   if (!account) throw new Error("Connect a wallet first.");
 

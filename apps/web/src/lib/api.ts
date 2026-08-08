@@ -468,6 +468,10 @@ export type AgentVaultStatus =
       rollingWindowBudgetDisplay: string;
       rollingWindowSeconds: string;
       windowSpentDisplay: string;
+      windowStart?: string;
+      windowRemainingDisplay?: string;
+      windowResetsAt?: number;
+      windowResetsAtIso?: string | null;
       sessionExpiresAt: number;
       sessionExpiresAtIso: string | null;
       sessionActive: boolean;
