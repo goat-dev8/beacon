@@ -15,7 +15,8 @@ Match greptile.com structure/motion via Ditto clone + Chrome scroll study. Beaco
 3. Navbar: sticky paper bar + signal announcement + facet CTAs.
 
 ### Verify
-`npm run build` · Chrome `http://127.0.0.1:4173/` hero bind + section scroll
+`npm run build` · Chrome `http://127.0.0.1:4173/` hero bind + section scroll  
+Pushed `dc4cc7e`
 
 ---
 
