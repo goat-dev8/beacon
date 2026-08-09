@@ -28,6 +28,12 @@ Living log of what was done. No secrets in this file.
 ### Tests
 - typecheck green; vitest green after DA endpoint test update; web:build green.
 
+### Production (2026-08-10)
+- Git pushed: `88d4d46` (ready fix) on top of `5c844cf` (FDC/FCC).
+- Render API: https://beacon-api-97gl.onrender.com — `/health` 200, `/ready` 200, `/v1/flare/integrations` 200, `/v1/fcc/lifecycle` 200, `/v1/fdc/status` 200, `/v1/ftso/guard` 200.
+- Vercel web: https://beacon-desk.vercel.app — Chrome verified Flow + Safe (SIMULATED TEE honesty visible).
+- `/ready` no longer fails closed on missing Smart Account XRPL operator fields (STUB rail).
+
 ---
 
 ## 2026-08-09 - FLARE-NATIVE EXECUTION LAYER (PHASE 0–10 CORE)
