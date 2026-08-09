@@ -229,6 +229,15 @@ export function ActionCard({
           {card.chainId ? ` · chain ${String(card.chainId)}` : ""} · desk USDT0 {String(card.usdt0Balance)}
         </p>
         <p className="mt-1 text-xs text-[var(--p-muted)]">{String(card.note)}</p>
+        {card.ftsoGuard ? (
+          <p className="mt-2 text-xs text-signal/90">
+            Live market data used to protect this execution
+            {typeof (card.ftsoGuard as { feedAge?: number }).feedAge === "number"
+              ? ` · FTSO age ${(card.ftsoGuard as { feedAge: number }).feedAge}s`
+              : ""}
+            .
+          </p>
+        ) : null}
         {card.honesty ? <p className="mt-2 text-xs text-amber-200/90">{String(card.honesty)}</p> : null}
         <button
           type="button"

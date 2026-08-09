@@ -2,7 +2,7 @@
 
 **Single source of truth for Beacon (Flare AI OS).**  
 **Network:** Flare Testnet Coston2 (chain ID **114**)  
-**Last aligned with:** `ARCHITECTURE_AUDIT.md`, `apps/web/src/lib/chain.ts`, `history.md` (2026-08-08)  
+**Last aligned with:** `history.md` (2026-08-09 Flare-native layer), `docs/FLARE_*.md`, `ARCHITECTURE_AUDIT.md`, `apps/web/src/lib/chain.ts`  
 **Rule:** Do not invent facts. Mark unknowns as TODO. No secrets in this file.
 
 ---
@@ -85,17 +85,22 @@ Nav rail (`ProductShell`): Flow -> Jobs -> Safe.
 
   Coston2 (chain 114):
   MockUSDT0, Facilitator, Escrow, AgentVault, JobRegistry, SwapDesk
-  FTSO, FAssets, LayerZero OFT, FDC (Flow attestation paths only)
+  FTSO (execution guard on Safe swaps), FAssets status/redeem, LayerZero OFT + delivery track
+  FDC API lifecycle (REAL only with verifier URLs; never invented proofs)
+  FCC shadow auth (SIMULATED_TEE — not hardware Confidential Space)
 
-* FDC: Flow attestation paths only - not claimed on Jobs desk.
-FCC: SIMULATED_TEE / FCC_MODE=simulated - not hardware Confidential Space.
+* FDC: API `/v1/fdc/*` wired; Flow does not silently fake attestations. Value-moving FDC accept requires on-chain verify.
+* FCC: SIMULATED_TEE / FCC_MODE=simulated - not hardware Confidential Space. Shadow only — cannot move funds.
+* Beacon Safe ≠ Flare Smart Account. Local credit memo markers are `0xbe`/`0xbc`, not SA `0xff`.
 ```
 
 ### Packages (workspaces)
 
-`packages/shared`, `x402`, `quote`, `execution`, `acceptance`, `pipeline`, `receipts`, `fdc`, `smart-accounts`, `contracts`  
+`packages/shared`, `flare`, `x402`, `quote`, `execution`, `acceptance`, `pipeline`, `receipts`, `fdc`, `smart-accounts`, `contracts`  
 `services/orchestrator`, `services/settler`  
 `apps/api`, `apps/web`
+
+**Flare-native research (2026-08-09):** `docs/FLARE_DEEP_RESEARCH.md`, `FLARE_INTEGRATION_GAP_MATRIX.md`, `FLARE_NATIVE_BEACON_ARCHITECTURE.md`, `FLARE_IMPLEMENTATION_PLAN.md`.
 
 ---
 

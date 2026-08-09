@@ -176,10 +176,14 @@ export const envSchema = z.object({
 
   ENABLE_API: optionalBool,
   ENABLE_FCC: optionalBool,
+  ENABLE_FCC_SHADOW: optionalBool,
+  ENABLE_FDC: optionalBool,
   ENABLE_PIPELINE: optionalBool,
   ENABLE_SETTLER: optionalBool,
   ENABLE_FUNDING: optionalBool,
   ENABLE_WEB: optionalBool,
+  ENABLE_SMART_ACCOUNTS: optionalBool,
+  ENABLE_FTSO_GUARD: optionalBool,
 });
 
 export type BeaconEnv = z.infer<typeof envSchema>;

@@ -9,6 +9,7 @@
     { "path": "packages/receipts" },
     { "path": "packages/fdc" },
     { "path": "packages/smart-accounts" },
+    { "path": "packages/flare" },
     { "path": "services/orchestrator" },
     { "path": "services/settler" },
     { "path": "apps/api" }

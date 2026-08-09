@@ -17,6 +17,7 @@
     "packages/receipts",
     "packages/fdc",
     "packages/smart-accounts",
+    "packages/flare",
     "services/orchestrator",
     "services/settler",
     "apps/api",

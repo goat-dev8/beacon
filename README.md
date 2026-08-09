@@ -13,6 +13,10 @@ Beacon combines a chat OS (Flow), prepaid AI jobs with escrow (Agent Jobs), and 
 | [ARCHITECTURE_AUDIT.md](./ARCHITECTURE_AUDIT.md) | Flare-native architecture and compliance |
 | [PRODUCT.md](./PRODUCT.md) | Product direction and copy rules |
 | [docs/HONESTY.md](./docs/HONESTY.md) | Runtime honesty flags (FCC / TEE) |
+| [docs/FLARE_DEEP_RESEARCH.md](./docs/FLARE_DEEP_RESEARCH.md) | Sourced Flare-native research audit |
+| [docs/FLARE_INTEGRATION_GAP_MATRIX.md](./docs/FLARE_INTEGRATION_GAP_MATRIX.md) | REAL / SIMULATED / STUB gap matrix |
+| [docs/FLARE_NATIVE_BEACON_ARCHITECTURE.md](./docs/FLARE_NATIVE_BEACON_ARCHITECTURE.md) | Target execution architecture |
+| [docs/FLARE_IMPLEMENTATION_PLAN.md](./docs/FLARE_IMPLEMENTATION_PLAN.md) | Phased implementation + acceptance gates |
 
 ---
 
@@ -37,6 +41,8 @@ Beacon Safe is a personal `BeaconAgentVault` per wallet, created via `BeaconSafe
 The browser session is authentication, not custody: it never signs token transfers. The allowlisted executor submits transactions, while the Safe contract enforces target/selector allowlists, per-transaction and rolling caps, pause, expiry, and replay nonces. Research and UI-truth audit: `docs/RESEARCH_AGENT_SAFE_SESSION_AND_REALITY.md`.
 
 FCC on live Coston2 is **simulated TEE** (`SIMULATED_TEE=true`, `FCC_MODE=simulated`). Do not claim a hardware enclave.
+
+**Flare-native execution (2026-08-09):** Safe job approve is **policy-before-spend**. FTSOv2 guards Safe swaps (stale / slippage / deviation). Package `@beacon/flare` provides protocol adapters + `EvidenceEnvelope`. FDC/FCC APIs are honesty-labeled — FDC never invents proofs; FCC shadow cannot move funds.
 
 ### Runtime shape
 
@@ -68,8 +74,9 @@ beacon/
     acceptance/       Acceptance judge
     pipeline/         Generation pipeline
     receipts/         Receipt builder
-    fdc/              FDC-related helpers
-    smart-accounts/   Registry / Smart Accounts config
+    flare/            Protocol adapters + EvidenceEnvelope
+    fdc/              FDC client (API-wired; never invents proofs)
+    smart-accounts/   Registry / memo helpers (STUB; ≠ Beacon Safe)
     contracts/        Foundry contracts + forge scripts
     remotion-pack/    Optional Remotion pack
   db/migrations/      SQL migrations (`npm run db:migrate`)

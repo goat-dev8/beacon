@@ -30,6 +30,7 @@ export * from "./errors.js";
 export * from "./states.js";
 export * from "./flareBoot.js";
 export * from "./ftso.js";
+export * from "./ftsoGuard.js";
 export {
   SPARKDEX_V3_FACTORY,
   SPARKDEX_SWAP_ROUTER,

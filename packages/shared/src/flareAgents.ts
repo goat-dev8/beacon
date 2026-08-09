@@ -142,6 +142,12 @@ export type AgentCard =
       mode?: "beacon_safe" | "sparkdex_mainnet";
       requiresMetaMask?: boolean;
       vaultBalanceDisplay?: string;
+      ftsoGuard?: {
+        allowed: boolean;
+        feedAge: number;
+        xrpUsd: number;
+        maxAgeSeconds: number;
+      };
     }
   | {
       type: "swap_prepare";
@@ -1114,12 +1120,13 @@ export async function runBeaconAgentChat(opts: {
             mode: "beacon_safe",
             requiresMetaMask: false,
             vaultBalanceDisplay: safeQuote.vaultBalanceDisplay,
+            ftsoGuard: safeQuote.ftsoGuard,
           });
           const narr = await narrate({
             intent: "swap",
             userMessage: opts.message,
             situation: `Safe quote ${amount} MockUSDT0 → ~${safeQuote.estimatedOut} FXRP on Coston2. No MetaMask. Ask confirm.`,
-            fallback: `Beacon Safe quote: **${amount} MockUSDT0 ≈ ${safeQuote.estimatedOut} FXRP** on **Coston2** (FTSO-synced desk).\n\n${safeQuote.honesty}\n\nReply **confirm** — agent spends from Safe (no MetaMask).`,
+            fallback: `Beacon Safe quote: **${amount} MockUSDT0 ≈ ${safeQuote.estimatedOut} FXRP** on **Coston2** (FTSO-synced desk).\n\nLive market data protects this execution (FTSO age ${safeQuote.ftsoGuard.feedAge}s).\n\n${safeQuote.honesty}\n\nReply **confirm** — agent spends from Safe (no MetaMask).`,
             env,
           });
           return {

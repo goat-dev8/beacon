@@ -427,6 +427,13 @@ export type OftDeliveryStatus = {
   note: string;
   /** UI phase ladder: source → protocol observe → dest receipt */
   uiPhases: Array<{ id: "source" | "protocol" | "dest"; label: string; status: "pending" | "active" | "done" | "failed" }>;
+  /** Honest delivery tracking metadata — never mark complete from optimistic local send. */
+  tracking?: {
+    timedOut: boolean;
+    canRetry: boolean;
+    lookbackBlocks: number;
+    recoveryHint: string;
+  };
 };
 
 function uiPhasesFor(phase: OftDeliveryPhase): OftDeliveryStatus["uiPhases"] {
@@ -562,6 +569,13 @@ export async function trackOftDelivery(params: {
     phase: "protocol_observe",
     note: "OFTReceived not seen yet on dest. Protocol still in flight — check LayerZero Scan.",
     uiPhases: uiPhasesFor("protocol_observe"),
+    tracking: {
+      timedOut: false,
+      canRetry: true,
+      lookbackBlocks: params.maxBlocks ?? 8_000,
+      recoveryHint:
+        "Retry trackOftDelivery with the same sourceTxHash/guid. Do not mark bridge complete until OFTReceived or LayerZero Scan delivery is confirmed.",
+    },
   };
 }
 

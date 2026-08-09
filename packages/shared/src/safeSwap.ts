@@ -18,6 +18,7 @@ import {
 } from "ethers";
 import { loadEnv, type BeaconEnv } from "./env.js";
 import { readFtsoFeeds, resolveFxrpAddress } from "./ftso.js";
+import { evaluateFtsoGuard, FTSO_GUARD_DEFAULTS } from "./ftsoGuard.js";
 import {
   COSTON2_CHAIN_ID_VAULT,
   COSTON2_EXPLORER_VAULT,
@@ -111,6 +112,12 @@ export type SafeSwapQuote =
       feeBps: number;
       estimateBasis: string;
       quoteSource: "FTSO+SwapDesk";
+      ftsoGuard: {
+        allowed: true;
+        feedAge: number;
+        xrpUsd: number;
+        maxAgeSeconds: number;
+      };
       vaultBalanceDisplay: string;
       maxSpendPerTxDisplay: string;
       requiresChainSwitch: false;
@@ -190,13 +197,29 @@ export async function prepareBeaconSafeSwap(
 
   const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
   const desk = new Contract(deskAddr, DESK_ABI, provider);
+  const snap = await readFtsoFeeds(env);
+  const slip = Number(params.slippageBps ?? 100);
+  const guard = evaluateFtsoGuard(snap.feeds, {
+    feedSymbol: "XRP/USD",
+    maxAgeSeconds: FTSO_GUARD_DEFAULTS.maxAgeSeconds,
+    maxSlippageBps: FTSO_GUARD_DEFAULTS.maxSlippageBps,
+    quotedSlippageBps: slip,
+  });
+  if (!guard.allowed) {
+    return {
+      ok: false,
+      error: `FTSO execution guard blocked swap: ${guard.reasons.join("; ")}`,
+      honesty:
+        "Live FTSOv2 market data is used to protect this execution. Stale, deviant, or excessive-slippage quotes are refused.",
+    };
+  }
+
   const { rateX18, xrpUsd, feeBps } = await ftsoFxrpOutPerUsdt0X18(env);
   // Quote using live FTSO even if on-chain rate lags (execute will sync rate first).
   const gross = (amountIn * rateX18) / 10n ** 18n;
   const fee = (gross * BigInt(feeBps)) / 10_000n;
   const estimated = gross - fee;
-  const slip = BigInt(params.slippageBps ?? 100);
-  const minOut = estimated - (estimated * slip) / 10_000n;
+  const minOut = estimated - (estimated * BigInt(slip)) / 10_000n;
 
   const fxrpBal = (await new Contract(await desk.tokenOut(), ERC20_ABI, provider).balanceOf(
     deskAddr,
@@ -224,11 +247,17 @@ export async function prepareBeaconSafeSwap(
     amountInDisplay: params.amountInUnits,
     estimatedOut: formatUnits(estimated, 6),
     amountOutMinimum: minOut.toString(),
-    slippageBps: Number(slip),
+    slippageBps: slip,
     xrpUsd,
     feeBps,
     estimateBasis: `FTSO XRP/USD ${xrpUsd.toPrecision(6)} → desk quote (fee ${feeBps} bps)`,
     quoteSource: "FTSO+SwapDesk",
+    ftsoGuard: {
+      allowed: true,
+      feedAge: guard.feedAge ?? 0,
+      xrpUsd,
+      maxAgeSeconds: FTSO_GUARD_DEFAULTS.maxAgeSeconds,
+    },
     vaultBalanceDisplay: status.balanceDisplay,
     maxSpendPerTxDisplay: status.maxSpendPerTxDisplay,
     requiresChainSwitch: false,
@@ -237,6 +266,7 @@ export async function prepareBeaconSafeSwap(
     docs: [
       "https://dev.flare.network/network/developer-tools?network=coston2",
       "https://dev.flare.network/fxrp/token-interactions/usdt0-fxrp-swap",
+      "https://dev.flare.network/ftso/overview",
     ],
   };
 }
@@ -351,10 +381,53 @@ export async function executeBeaconSafeSwap(
   const quote = await prepareBeaconSafeSwap(params, env);
   if (!quote.ok) return { ok: false, error: quote.error, honesty: quote.honesty };
 
+  // Post-sync FTSO guard: refuse spend if feed went stale or desk still diverges from FTSO.
+  const snap = await readFtsoFeeds(env);
+  const postGuard = evaluateFtsoGuard(snap.feeds, {
+    feedSymbol: "XRP/USD",
+    maxAgeSeconds: FTSO_GUARD_DEFAULTS.maxAgeSeconds,
+    maxSlippageBps: FTSO_GUARD_DEFAULTS.maxSlippageBps,
+    quotedSlippageBps: quote.slippageBps,
+    referencePrice: quote.xrpUsd,
+    maxDeviationBps: FTSO_GUARD_DEFAULTS.maxDeviationBps,
+  });
+  if (!postGuard.allowed) {
+    return {
+      ok: false,
+      error: `FTSO execution guard blocked swap before spend: ${postGuard.reasons.join("; ")}`,
+      honesty:
+        "Live FTSOv2 market data protects this execution. No Safe transfer was submitted.",
+    };
+  }
+
   const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
   const wallet = new Wallet(key, provider);
   const vault = new Contract(quote.vault, VAULT_EXEC_ABI, wallet);
   const desk = new Contract(quote.desk, DESK_ABI, wallet);
+  const onChainRate = (await desk.fxrpOutPerUsdt0X18()) as bigint;
+  const ftsoRate = (await ftsoFxrpOutPerUsdt0X18(env)).rateX18;
+  if (onChainRate > 0n && ftsoRate > 0n) {
+    const deskPx = Number(onChainRate) / 1e18;
+    const ftsoPx = Number(ftsoRate) / 1e18;
+    const rateGuard = evaluateFtsoGuard(
+      [{ symbol: "DESK_RATE", value: deskPx, timestamp: snap.timestamp }],
+      {
+        feedSymbol: "DESK_RATE",
+        maxAgeSeconds: FTSO_GUARD_DEFAULTS.maxAgeSeconds,
+        referencePrice: ftsoPx,
+        maxDeviationBps: FTSO_GUARD_DEFAULTS.maxDeviationBps,
+      },
+    );
+    if (!rateGuard.allowed && rateGuard.reasons.some((r) => r.startsWith("HIGH_DEVIATION"))) {
+      return {
+        ok: false,
+        error: `FTSO execution guard blocked swap: desk rate still diverges after sync (${rateGuard.reasons.join("; ")})`,
+        honesty:
+          "Live FTSOv2 market data protects this execution. No Safe transfer was submitted.",
+      };
+    }
+  }
+
   const erc20 = new Interface(ERC20_ABI);
 
   const amountIn = BigInt(quote.amountIn);

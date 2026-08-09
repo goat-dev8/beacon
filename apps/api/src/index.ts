@@ -86,6 +86,7 @@ import {
   recordSpendUsdt0,
   type BeaconSecurityPolicy,
 } from "./securityPolicy.js";
+import { runAfterPolicyAllows } from "./policyBeforeSpend.js";
 import {
   appendMessage,
   archiveConversation,
@@ -102,6 +103,7 @@ import {
 } from "./flowStore.js";
 import { registerPaidResourceRoutes } from "./resources/paidResources.js";
 import { registerExecutionRoutes } from "./execution/routes.js";
+import { registerFlareNativeRoutes } from "./flareRoutes.js";
 import {
   createSafeSessionChallenge,
   verifyChallengeAndIssueSession,
@@ -322,15 +324,27 @@ app.get("/v1/fcc/status", async () => {
   const extensionId =
     proxy.extensionId ||
     (env.EXTENSION_ID ? String(env.EXTENSION_ID) : undefined);
+  const hardwareClaim =
+    mode === "verified"
+      ? "Mode=verified requested — Beacon still requires registered-machine + code-hash evidence before claiming Confidential Space hardware."
+      : mode === "simulated"
+        ? "SIMULATED_TEE=true — official Coston2 simulated-attestation path. NOT hardware Confidential Space."
+        : "FCC unavailable — fail closed for confidential authorization; server policy remains authoritative.";
   return {
     ok: true,
     mode,
+    status:
+      mode === "simulated" ? "SIMULATED" : mode === "verified" ? "REAL" : "NOT_AVAILABLE",
     simulatedTee: env.SIMULATED_TEE,
     localMode: env.LOCAL_MODE,
     proxyReachable: proxy.proxyReachable,
     extensionId: extensionId || undefined,
     extProxyConfigured: Boolean(env.EXT_PROXY_URL),
+    canMoveFunds: false,
+    shadowOnly: true,
+    hardwareClaim,
     honesty: honestyMessage(env.SIMULATED_TEE),
+    docs: ["https://dev.flare.network/fcc/overview", "https://dev.flare.network/fcc/guides"],
   };
 });
 
@@ -563,6 +577,11 @@ app.post("/v1/jobs/:id/approve", async (req) => {
   let payer = body.authorization?.payer ?? null;
   let authPayload: Record<string, unknown> = { ...(body.authorization ?? {}) };
 
+  const amountUsdt0 =
+    typeof priceRaw === "bigint" || typeof priceRaw === "number" || /^\d+$/.test(String(priceRaw))
+      ? Number(priceRaw) / 1e6
+      : parseUsdt0Display(body.authorization?.amount ?? priceDisplay);
+
   if (mode === "safe") {
     if (!body.ownerWallet) {
       throw new AppError("VALIDATION", {
@@ -571,13 +590,24 @@ app.post("/v1/jobs/:id/approve", async (req) => {
       });
     }
     await requireSafeSession(req, body.ownerWallet);
-    const lock = await executeSafeJobLock(
+    // Policy MUST run before any irreversible Safe spend / escrow lock.
+    const lock = await runAfterPolicyAllows(
+      redis,
       {
-        jobId,
-        amountUsdt0Display: priceDisplay,
-        ownerWallet: body.ownerWallet,
+        wallet: body.ownerWallet,
+        serviceId: String(job.service_id ?? ""),
+        amountUsdt0,
+        agentId: "desk",
       },
-      env,
+      () =>
+        executeSafeJobLock(
+          {
+            jobId,
+            amountUsdt0Display: priceDisplay,
+            ownerWallet: body.ownerWallet!,
+          },
+          env,
+        ),
     );
     if (!lock.ok) {
       throw new AppError("VALIDATION", { message: lock.error, details: { code: lock.code } });
@@ -601,20 +631,14 @@ app.post("/v1/jobs/:id/approve", async (req) => {
           "Fund Beacon Safe and use Pay from Safe, or sign EIP-3009 TransferWithAuthorization for wallet escrow.",
       });
     }
-  }
-
-  const amountUsdt0 =
-    typeof priceRaw === "bigint" || typeof priceRaw === "number" || /^\d+$/.test(String(priceRaw))
-      ? Number(priceRaw) / 1e6
-      : parseUsdt0Display(body.authorization?.amount ?? priceDisplay);
-
-  if (payer) {
-    await assertPolicyAllows(redis, {
-      wallet: body.ownerWallet ?? payer,
-      serviceId: String(job.service_id ?? ""),
-      amountUsdt0,
-      agentId: "desk",
-    });
+    if (payer) {
+      await assertPolicyAllows(redis, {
+        wallet: body.ownerWallet ?? payer,
+        serviceId: String(job.service_id ?? ""),
+        amountUsdt0,
+        agentId: "desk",
+      });
+    }
   }
 
   const userId = job.user_id ?? (await ensureGuestUser());
@@ -678,18 +702,23 @@ app.post("/v1/jobs/:id/approve-safe", async (req) => {
     typeof priceRaw === "bigint" || typeof priceRaw === "number" || /^\d+$/.test(String(priceRaw))
       ? (Number(priceRaw) / 1e6).toFixed(6)
       : String(priceRaw);
-  const lock = await executeSafeJobLock(
-    { jobId, amountUsdt0Display: priceDisplay, ownerWallet: body.ownerWallet },
-    env,
+  const amountUsdt0 = Number(priceRaw) / 1e6;
+  // Policy MUST run before any irreversible Safe spend / escrow lock.
+  const lock = await runAfterPolicyAllows(
+    redis,
+    {
+      wallet: body.ownerWallet,
+      serviceId: String(job.service_id ?? ""),
+      amountUsdt0,
+      agentId: "desk",
+    },
+    () =>
+      executeSafeJobLock(
+        { jobId, amountUsdt0Display: priceDisplay, ownerWallet: body.ownerWallet },
+        env,
+      ),
   );
   if (!lock.ok) throw new AppError("VALIDATION", { message: lock.error, details: { code: lock.code } });
-  const amountUsdt0 = Number(priceRaw) / 1e6;
-  await assertPolicyAllows(redis, {
-    wallet: body.ownerWallet,
-    serviceId: String(job.service_id ?? ""),
-    amountUsdt0,
-    agentId: "desk",
-  });
   const userId = job.user_id ?? (await ensureGuestUser());
   await pool.query(
     `INSERT INTO authorizations (offer_id, user_id, eip3009_payload, valid_before, status)
@@ -813,8 +842,8 @@ app.get("/v1/jobs/:id/events", async (req, reply) => {
 
   if (redis) {
     try {
-      const history = await redis.lrange(`sse:job:${jobId}:log`, 0, 49);
-      for (const item of history.reverse()) {
+    const history = await redis.lrange(`sse:job:${jobId}:log`, 0, 49);
+    for (const item of history.reverse()) {
         send("message", parseLogItem(item));
       }
     } catch (err) {
@@ -1338,6 +1367,7 @@ const agentChatSchema = z.object({
 
 await registerPaidResourceRoutes(app, redis, env);
 await registerExecutionRoutes(app, pool, redis);
+registerFlareNativeRoutes(app, redis);
 
 app.post("/v1/agents/chat", async (req) => {
   const body = agentChatSchema.parse(req.body ?? {});

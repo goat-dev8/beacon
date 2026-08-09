@@ -230,6 +230,37 @@ export async function evaluatePolicy(
     };
   }
 
+  // FCC shadow authorization: compare-only. Never moves funds. Fail-closed label when unavailable.
+  let shadowFcc: Record<string, unknown> | undefined;
+  try {
+    const { createConfidentialComputeAdapter } = await import("@beacon/flare");
+    const fcc = createConfidentialComputeAdapter();
+    const actionHash = `policy:${agentId ?? "unknown"}:${input.amountUsdt0 ?? 0}`;
+    const policyHash = `v${POLICY_VERSION}:${policy.dailySpendUsdt0}:${policy.perJobLimitUsdt0}`;
+    const shadow = fcc.evaluateShadowAuthorization({
+      actionHash,
+      policyHash,
+      nonce: `${Date.now()}`,
+      allow: true,
+      reasonCommitment: "server_policy_pass",
+    });
+    shadowFcc = {
+      status: shadow.status,
+      mode: shadow.mode,
+      allow: shadow.authorization.allow,
+      canMoveFunds: shadow.canMoveFunds,
+      honestyLabel: shadow.honestyLabel,
+    };
+    // If FCC is unavailable in shadow path, server policy still governs (shadow cannot move funds).
+    // Enforced FCC on-chain verification is a separate opt-in Safe V2 gate — not enabled here.
+  } catch {
+    shadowFcc = {
+      status: "NOT_AVAILABLE",
+      note: "@beacon/flare unavailable for shadow compare",
+    };
+  }
+  checks.shadowFcc = shadowFcc;
+
   return {
     allowed: true,
     reason: "Policy checks passed (server-enforced).",

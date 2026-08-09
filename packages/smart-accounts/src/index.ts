@@ -102,10 +102,30 @@ export function assertRegistryConfigured(reg: RegistryAddresses): string[] {
   return missing;
 }
 
-export const CUSTOM_INSTRUCTION_OPCODES = {
-  DEPOSIT_CREDIT: 0xfe,
-  REFUND_CREDIT: 0xff,
+/**
+ * Beacon Credit memo markers for XRPL payment identification.
+ *
+ * IMPORTANT: These are Beacon application-level markers, NOT Flare Smart Account opcodes.
+ * 0xbe = "BE" for Beacon, 0xbc = "BC" for Beacon Credit
+ *
+ * Do NOT confuse with OFFICIAL_SA_CUSTOM_INSTRUCTION_CMD (0xff) which is the
+ * Flare Smart Account protocol opcode for custom instructions.
+ */
+export const BEACON_CREDIT_MEMO_MARKERS = {
+  /** Deposit credit marker: 0xbe ("BE"acon) */
+  DEPOSIT_CREDIT: 0xbe,
+  /** Refund credit marker: 0xbc ("B"eacon "C"redit) */
+  REFUND_CREDIT: 0xbc,
 } as const;
+
+/**
+ * Official Flare Smart Account custom instruction command byte.
+ * See: https://dev.flare.network/smart-accounts/custom-instruction
+ *
+ * This is the protocol-level opcode for Smart Account custom instructions.
+ * Do NOT use Beacon credit memo markers as Smart Account opcodes.
+ */
+export const OFFICIAL_SA_CUSTOM_INSTRUCTION_CMD = 0xff;
 
 export function encodeCustomInstructionPayload(opcode: number, payload: Uint8Array): string {
   const buf = Buffer.alloc(1 + payload.length);

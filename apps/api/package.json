@@ -12,6 +12,7 @@
   "dependencies": {
     "@beacon/acceptance": "*",
     "@beacon/execution": "*",
+    "@beacon/flare": "*",
     "@beacon/pipeline": "*",
     "@beacon/quote": "*",
     "@beacon/receipts": "*",

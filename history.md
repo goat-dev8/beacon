@@ -4,7 +4,68 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-09 - FLARE-NATIVE EXECUTION LAYER (PHASE 0–10 CORE)
+
+### Research (Phase 0)
+- Added sourced docs (no invented hashes/APIs):
+  - `docs/FLARE_DEEP_RESEARCH.md`
+  - `docs/FLARE_INTEGRATION_GAP_MATRIX.md`
+  - `docs/FLARE_NATIVE_BEACON_ARCHITECTURE.md`
+  - `docs/FLARE_IMPLEMENTATION_PLAN.md`
+- Honesty labels throughout: **REAL / SIMULATED / NOT_AVAILABLE / STUB**.
+
+### P0 security — policy before spend
+- Fixed Safe job approve paths in `apps/api/src/index.ts`:
+  - `/v1/jobs/:id/approve` (mode=safe) and `/v1/jobs/:id/approve-safe`
+  - now use `runAfterPolicyAllows` → **policy then** `executeSafeJobLock`
+- Denied policy ⇒ action never runs (zero lock/spend tx, zero spend accounting).
+- Regression: `apps/api/src/policyBeforeSpend.test.ts`.
+
+### Protocol adapters — `@beacon/flare`
+- New workspace package: PriceOracle, Attestation, FAssets, SmartAccount, Payment, CrossChain, ConfidentialCompute.
+- `EvidenceEnvelope` + stage append helpers.
+- ContractRegistry resolver + Coston2 chain assert helpers.
+
+### FTSO as execution guard (REAL)
+- `packages/shared/src/ftsoGuard.ts` — STALE / HIGH_DEVIATION / EXCESSIVE_SLIPPAGE → BLOCK.
+- Wired into Beacon Safe swap prepare + execute (post rate-sync desk deviation check).
+- API: `GET /v1/ftso/guard`.
+- Flow swap quote cards show “Live market data used to protect this execution.”
+
+### FDC (honest wiring)
+- API lifecycle: `/v1/fdc/status|prepare|:id|submit|decision` + Redis persistence.
+- Never invents proofs; `NOT_AVAILABLE` when verifier URLs missing.
+- DA proof fetch ⇒ **Finalized** (not auto-Verified). Value-moving decisions require Accepted+on-chain verify.
+
+### FCC shadow (SIMULATED when SIMULATED_TEE)
+- `/v1/fcc/shadow`, `/v1/fcc/shadow/evaluate`; status endpoint labels hardware vs simulated honestly.
+- Policy evaluator attaches shadow compare (`canMoveFunds: false`).
+- Opt-in on-chain Safe V2 with TEE auth verification = **next readiness gate** (not shipped).
+
+### Smart Accounts honesty
+- Renamed local `CUSTOM_INSTRUCTION_OPCODES` → `BEACON_CREDIT_MEMO_MARKERS` (`0xbe`/`0xbc`).
+- Documented official SA custom instruction byte `0xff` — Beacon Safe ≠ Flare Smart Account.
+
+### x402 + LayerZero evidence
+- `POST /v1/x402/evidence` binds service/price/token/payee/nonce/expiry + replay protection.
+- OFT `trackOftDelivery` adds timeout/retry/recovery metadata; still never marks complete without dest proof.
+
+### Tests
+- `npm run typecheck` green.
+- `npm test` — 55 passed (incl. FTSO guard + policy-before-spend).
+- `npm run web:build` green.
+
+### Still honest limitations
+- Automated FAssets mint = docs handoff / NOT_AVAILABLE in-app.
+- FDC Verified/Accepted needs live verifier + on-chain `FdcVerification` path per attestation.
+- FCC hardware Confidential Space = NOT claimed; SIMULATED_TEE only.
+- Flare Smart Account PersonalAccount executor = STUB (parallel rail not live).
+- Production deploy of this branch not completed in this change set until Render/Vercel push.
+
+---
+
 ## 2026-08-09 - APP LIMITS DEFAULTS (1 USDT0 DEMOS)
+
 
 ### Why Flow said “Per-job limit is 0.1”
 - Correct server gate: Redis App limits blocked `swap 1` because API default was `perJob=0.1` / `daily=5`.
