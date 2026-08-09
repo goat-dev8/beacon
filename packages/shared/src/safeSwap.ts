@@ -342,7 +342,7 @@ export async function executeBeaconSafeSwap(
     return { ok: false, error: "Executor key not configured on API (SETTLER/DEPLOYER).", honesty };
   }
 
-  const ensured = await ensureSafeSwapPolicy(env);
+  const ensured = await ensureSafeSwapPolicy(env, prep.vault);
   if (!ensured.ready) {
     return { ok: false, error: ensured.note, honesty };
   }

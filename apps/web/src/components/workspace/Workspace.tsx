@@ -30,9 +30,9 @@ import {
   approveJobOnChain,
   mintMockUsdt0,
   shortAddress,
-  signPersonalMessage,
 } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
+import { ensureSafeAgentSession, readSafeAgentSession } from "@/lib/safeSession";
 import { DeskContextStrip } from "@/components/workspace/DeskContextStrip";
 import { ResultExperience } from "@/components/workspace/ResultExperience";
 import { NETWORK, CONTRACTS } from "@/lib/chain";
@@ -159,6 +159,11 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     const job = jobQuery.data?.job;
     if (!job) return;
     setServiceId((prev) => prev ?? job.service_id);
+    const rail = jobQuery.data?.paymentRail;
+    if (rail) {
+      setPayMode(rail.mode);
+      setLockTx(rail.lockTxHash);
+    }
     const s = job.status;
     if (LIVE_STATUSES.includes(s)) setStep("live");
     else if (
@@ -166,7 +171,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     ) {
       setStep("result");
     }
-  }, [jobQuery.data?.job]);
+  }, [jobQuery.data?.job, jobQuery.data?.paymentRail]);
 
   const form = useForm<BriefForm>({
     resolver: zodResolver(briefSchema),
@@ -260,14 +265,10 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     mutationFn: async () => {
       if (!jobId || !offerId || !quote) throw new Error("Missing quote.");
       if (!account) throw new Error("Connect your wallet first.");
-      // Prefer breakdown.totalUsdt0 (6 dp) so signed amount matches API escrow display.
-      const amountDisplay =
-        quote.breakdown?.totalUsdt0 ??
-        Number(quote.priceDisplay.replace(/^\$/, "")).toFixed(6);
+      const session = await ensureSafeAgentSession(account);
       const result = await api.approveJobFromSafe(jobId, offerId, {
         ownerWallet: account,
-        amountDisplay,
-        signMessage: (message) => signPersonalMessage(message),
+        sessionToken: session.token,
       });
       setLockTx(result.lockTxHash ?? null);
       setPayMode("safe");
@@ -291,6 +292,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     refetchInterval: 12_000,
   });
   const vaultLive = vaultQuery.data?.status?.configured ? vaultQuery.data.status : null;
+  const agentSession = readSafeAgentSession(account);
   const safeCanPay =
     Boolean(vaultLive) &&
     !vaultLive!.paused &&
@@ -615,15 +617,16 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                     Settlement timeline
                   </p>
                   <ol className="mt-2 space-y-1.5 text-xs text-ink-muted">
-                    <li>1. Prefer Pay from Beacon Safe (no MetaMask)</li>
-                    <li>2. Or sign EIP-3009 wallet auth once</li>
+                    <li>1. Unlock Beacon Agent once per browser session</li>
+                    <li>2. Agent executor pays from your Safe (no per-job wallet prompt)</li>
                     <li>3. BeaconEscrow locks MockUSDT0 on Coston2</li>
                     <li>4. Agent generates · acceptance gates run</li>
                     <li>5. Escrow release on pass · refund to Safe/wallet on fail</li>
                   </ol>
                   <p className="mt-2 text-[11px] leading-relaxed text-ink-faint">
-                    Safe path: vault.execute(transfer→escrow) then lockPrepaid. EIP-3009 is only
-                    required when funding the Safe or using wallet fallback — never forged.
+                    Safe path: your session proves who requested the job; the on-chain Safe policy
+                    authorizes vault.execute(transfer→escrow), then lockPrepaid. EIP-3009 is only
+                    required for Safe funding or wallet fallback.
                   </p>
                 </div>
               </div>
@@ -667,7 +670,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                       <Loader2 className="size-4 animate-spin" /> Paying from Safe…
                     </>
                   ) : (
-                    "Pay from Beacon Safe"
+                    agentSession ? "Pay from Beacon Safe" : "Unlock agent & pay"
                   )}
                 </Button>
                 <Button
@@ -690,7 +693,9 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               </div>
               <p className="mt-3 text-sm text-ink-muted">
                 {safeCanPay
-                  ? "Primary path: agent locks from your funded Beacon Safe within policy — no MetaMask for this job."
+                  ? agentSession
+                    ? "Agent session active: the executor locks from your Safe within policy — no MetaMask for this job."
+                    : "One wallet signature unlocks this browser session; then the executor handles jobs without per-job prompts."
                   : "Fund Beacon Safe (and set policy) for zero MetaMask job locks, or pay once with wallet EIP-3009."}
               </p>
               <p className="mt-1 font-mono text-[11px] text-ink-faint">
@@ -845,9 +850,9 @@ function Timeline({ status }: { status?: JobStatus }) {
 function streamNoteHint(status?: JobStatus): string | null {
   if (!status) return null;
   if (status === "PREPARING") return "Provisioning tools…";
-  if (status === "GENERATING") return "Model generating…";
-  if (status === "COMPOSING") return "Assembling delivery…";
-  if (status === "ACCEPTING") return "Quality gates…";
+  if (status === "GENERATING") return "Generator and service composer running…";
+  if (status === "COMPOSING") return "Writing and indexing deliverable files…";
+  if (status === "ACCEPTING") return "Objective and brand gates; AI judge when available…";
   if (status === "SETTLING") return "Escrow release / refund…";
   return null;
 }

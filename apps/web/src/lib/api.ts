@@ -67,6 +67,31 @@ export const api = {
     }>("/v1/fcc/status"),
   ready: () =>
     request<{ ready: boolean; checks: Record<string, { ok: boolean }> }>("/ready"),
+  createSafeSessionChallenge: (wallet: string) =>
+    request<{
+      ok: true;
+      message: string;
+      expiresAt: number;
+      scope: string;
+    }>("/v1/auth/safe-session/challenge", {
+      method: "POST",
+      body: JSON.stringify({ wallet }),
+    }),
+  verifySafeSession: (body: {
+    wallet: string;
+    message: string;
+    signature: string;
+  }) =>
+    request<{
+      ok: true;
+      token: string;
+      wallet: string;
+      issuedAt: number;
+      expiresAt: number;
+    }>("/v1/auth/safe-session/verify", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   services: () => request<{ services: ServiceItem[] }>("/v1/services"),
   createJob: (body: { serviceId: ServiceId; briefText: string; brandPackId?: string }) =>
     request<{ jobId: string; status: string }>("/v1/jobs", {
@@ -124,12 +149,9 @@ export const api = {
     offerId: string,
     opts: {
       ownerWallet: string;
-      signMessage: (message: string) => Promise<string>;
-      amountDisplay: string;
+      sessionToken: string;
     },
   ) => {
-    const message = `Beacon Safe pay\njob:${jobId}\noffer:${offerId}\namount:${opts.amountDisplay}`;
-    const signature = await opts.signMessage(message);
     return request<{
       jobId: string;
       status: string;
@@ -142,10 +164,10 @@ export const api = {
       explorerSpend?: string;
     }>(`/v1/jobs/${jobId}/approve-safe`, {
       method: "POST",
+      headers: { Authorization: `Bearer ${opts.sessionToken}` },
       body: JSON.stringify({
         offerId,
         ownerWallet: opts.ownerWallet,
-        payAuth: { message, signature },
       }),
     });
   },
@@ -153,6 +175,13 @@ export const api = {
     request<{
       job: JobRow;
       recentEvents: JobEvent[];
+      paymentRail: {
+        mode: "safe" | "wallet";
+        lockTxHash: string | null;
+        spendTxHash: string | null;
+        payer: string | null;
+        ownerWallet: string | null;
+      } | null;
       acceptance: import("./types").AcceptanceSummary | null;
     }>(`/v1/jobs/${jobId}`),
   artifacts: (jobId: string) =>
@@ -407,14 +436,16 @@ export const api = {
         note: string;
       };
     }>(`/v1/security/policy?wallet=${encodeURIComponent(wallet)}`),
-  putSecurityPolicy: (wallet: string, policy: SecurityPolicy) =>
+  putSecurityPolicy: (wallet: string, policy: SecurityPolicy, sessionToken: string) =>
     request<{ ok: boolean; policy: SecurityPolicy; source: string }>("/v1/security/policy", {
       method: "PUT",
+      headers: { Authorization: `Bearer ${sessionToken}` },
       body: JSON.stringify({ wallet, policy }),
     }),
-  revokeSecurity: (wallet: string) =>
+  revokeSecurity: (wallet: string, sessionToken: string) =>
     request<{ ok: boolean; message: string }>("/v1/security/revoke", {
       method: "POST",
+      headers: { Authorization: `Bearer ${sessionToken}` },
       body: JSON.stringify({ wallet }),
     }),
   getVaultStatus: (opts?: { address?: string; wallet?: string } | string) => {
@@ -444,13 +475,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-    executeSafeSwap: (body: {
+  executeSafeSwap: (body: {
+    wallet: string;
     amountInUnits: string;
     recipient: string;
     slippageBps?: number;
-    address?: string;
-  }) =>
-    request<{
+    sessionToken: string;
+  }) => {
+    const { sessionToken, ...payload } = body;
+    return request<{
       ok: boolean;
       spendHash: string;
       fulfillHash: string;
@@ -462,16 +495,24 @@ export const api = {
       chainId: number;
       honesty: string;
       error?: string;
-    }>("/v1/vault/safe-swap/execute", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+    }>(
+      "/v1/vault/safe-swap/execute",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify(payload),
+      },
+    );
+  },
   executeAgentBridge: (body: {
+    wallet: string;
     amountFxrpUnits: string;
     recipient: string;
     destination: string;
-  }) =>
-    request<{
+    sessionToken: string;
+  }) => {
+    const { sessionToken, ...payload } = body;
+    return request<{
       ok: boolean;
       approveHash: string | null;
       sendHash: string;
@@ -482,10 +523,15 @@ export const api = {
       dstEid: number;
       peer: string;
       honesty: string;
-    }>("/v1/agents/bridge/execute", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
+    }>(
+      "/v1/agents/bridge/execute",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify(payload),
+      },
+    );
+  },
 };
 
 export type AgentVaultStatus =

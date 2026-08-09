@@ -31,13 +31,13 @@ export const FLARE_STEPS_WALLET: FlareStep[] = [
   {
     id: "generate",
     label: "Generate + compose",
-    detail: "gpt-5.6-sol draft · settlement stays on Flare Coston2",
+    detail: "Live generator + service composer · actual model/provider stored with artifacts",
     statusKey: "GENERATING",
   },
   {
     id: "accept",
     label: "Acceptance gates",
-    detail: "L1 objective · L2 judge · L3 brand, escrow pays only on pass",
+    detail: "L1 objective · L3 format/brand · L2 AI judge when available",
     statusKey: "ACCEPTING",
   },
   {
@@ -48,8 +48,8 @@ export const FLARE_STEPS_WALLET: FlareStep[] = [
   },
   {
     id: "receipt",
-    label: "Receipt sealed",
-    detail: "On-chain lock tx + settlement recorded",
+    label: "Receipt recorded",
+    detail: "Database receipt links the on-chain lock and release/refund transaction",
     statusKey: "CLOSED",
   },
 ];
@@ -77,13 +77,13 @@ export const FLARE_STEPS_SAFE: FlareStep[] = [
   {
     id: "generate",
     label: "Generate + compose",
-    detail: "gpt-5.6-sol draft · settlement stays on Flare Coston2",
+    detail: "Live generator + service composer · actual model/provider stored with artifacts",
     statusKey: "GENERATING",
   },
   {
     id: "accept",
     label: "Acceptance gates",
-    detail: "L1 objective · L2 judge · L3 brand, escrow pays only on pass",
+    detail: "L1 objective · L3 format/brand · L2 AI judge when available",
     statusKey: "ACCEPTING",
   },
   {
@@ -94,8 +94,8 @@ export const FLARE_STEPS_SAFE: FlareStep[] = [
   },
   {
     id: "receipt",
-    label: "Receipt sealed",
-    detail: "On-chain spend/lock + settle/refund recorded",
+    label: "Receipt recorded",
+    detail: "Database receipt links Safe spend, escrow lock, and release/refund transactions",
     statusKey: "CLOSED",
   },
 ];

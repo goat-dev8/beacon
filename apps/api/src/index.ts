@@ -1,5 +1,5 @@
 import "dotenv/config";
-import Fastify from "fastify";
+import Fastify, { type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import sensible from "@fastify/sensible";
 import pg from "pg";
@@ -102,6 +102,11 @@ import {
 } from "./flowStore.js";
 import { registerPaidResourceRoutes } from "./resources/paidResources.js";
 import { registerExecutionRoutes } from "./execution/routes.js";
+import {
+  createSafeSessionChallenge,
+  verifyChallengeAndIssueSession,
+  verifySafeSessionToken,
+} from "./safeSession.js";
 
 const env = loadEnv();
 assertFlareRequired(env);
@@ -118,6 +123,31 @@ const redis = env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN
 const app = Fastify({
   logger: { level: env.LOG_LEVEL },
 });
+const revokedSafeSessions = new Map<string, number>();
+
+function bearerToken(req: FastifyRequest): string | null {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return null;
+  const token = header.slice(7).trim();
+  return token || null;
+}
+
+async function requireSafeSession(req: FastifyRequest, wallet: string): Promise<void> {
+  const token = bearerToken(req);
+  const session = token
+    ? verifySafeSessionToken(token, wallet, env.SESSION_SECRET)
+    : null;
+  const key = `safe-session-revoked-after:${wallet.toLowerCase()}`;
+  const redisRevokedAt = session && redis ? await redis.get<number>(key) : null;
+  const revokedAt = Math.max(revokedSafeSessions.get(key) ?? 0, Number(redisRevokedAt ?? 0));
+  if (!session || session.issuedAt <= revokedAt) {
+    throw new AppError("UNAUTHORIZED", {
+      message:
+        "Unlock Beacon Agent once with your wallet. Jobs and Flow then execute from the Safe without per-action MetaMask prompts.",
+      details: { code: "SAFE_SESSION_REQUIRED" },
+    });
+  }
+}
 
 await app.register(cors, {
   origin: resolveCorsOrigin(),
@@ -196,15 +226,71 @@ app.get("/health", async () => ({
   pipeline: PIPELINE_CAPS,
 }));
 
+app.post("/v1/auth/safe-session/challenge", async (req) => {
+  const body = z
+    .object({ wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i) })
+    .parse(req.body ?? {});
+  const challenge = createSafeSessionChallenge(body.wallet, env.SESSION_SECRET);
+  return {
+    ok: true,
+    ...challenge,
+    scope: "Safe jobs, swaps, and bridges within on-chain policy",
+  };
+});
+
+app.post("/v1/auth/safe-session/verify", async (req) => {
+  const body = z
+    .object({
+      wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
+      message: z.string().min(32).max(4096),
+      signature: z.string().regex(/^0x[a-fA-F0-9]+$/i),
+    })
+    .parse(req.body ?? {});
+  const issued = verifyChallengeAndIssueSession({
+    wallet: body.wallet,
+    message: body.message,
+    signature: body.signature,
+    secret: env.SESSION_SECRET,
+  });
+  if (!issued) {
+    throw new AppError("UNAUTHORIZED", {
+      message: "Beacon Agent session signature is invalid or expired.",
+    });
+  }
+  return {
+    ok: true,
+    token: issued.token,
+    wallet: issued.session.wallet,
+    issuedAt: issued.session.issuedAt,
+    expiresAt: issued.session.expiresAt,
+  };
+});
+
+app.get("/v1/auth/safe-session", async (req) => {
+  const wallet = z
+    .string()
+    .regex(/^0x[a-fA-F0-9]{40}$/i)
+    .parse((req.query as { wallet?: string }).wallet);
+  const token = bearerToken(req);
+  const session = token
+    ? verifySafeSessionToken(token, wallet, env.SESSION_SECRET)
+    : null;
+  const key = `safe-session-revoked-after:${wallet.toLowerCase()}`;
+  const redisRevokedAt = session && redis ? await redis.get<number>(key) : null;
+  const revokedAt = Math.max(revokedSafeSessions.get(key) ?? 0, Number(redisRevokedAt ?? 0));
+  const active = Boolean(session && session.issuedAt > revokedAt);
+  return { ok: true, active, session: active ? session : null };
+});
+
 /** Live AgentRouter reachability (no secrets). */
 app.get("/v1/ai/probe", async () => {
   if (!isAiConfigured(env)) {
     return { ok: false, configured: false, results: [] };
   }
   const results = await probeModels(
-    [env.AI_MODEL_GENERATOR || "claude-opus-5", env.AI_MODEL_QUOTE || "gpt-5.6-sol"].filter(
-      (v, i, a) => Boolean(v) && a.indexOf(v) === i,
-    ),
+    (["generator", "quote", "judge", "acceptance"] as const)
+      .map((role) => resolveModelForRole(role, env))
+      .filter((v, i, a) => Boolean(v) && a.indexOf(v) === i),
     env,
   );
   return {
@@ -431,7 +517,7 @@ const approveSchema = z.object({
   mode: z.enum(["safe", "wallet"]).optional(),
   /** Owner wallet whose personal Safe pays (required for mode=safe when factory is live). */
   ownerWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
-  /** personal_sign over a Beacon pay challenge — binds the spend to this wallet. */
+  /** @deprecated Per-job signatures were replaced by a wallet-bound Agent session. */
   payAuth: z
     .object({
       message: z.string().min(8),
@@ -443,68 +529,6 @@ const approveSchema = z.object({
   lockTxHash: z.string().optional(),
   spendTxHash: z.string().optional(),
 });
-
-/** Normalize Safe pay amount strings so UI `$0.011` matches DB `0.011000`. */
-function normalizeUsdt0AmountDisplay(raw: string): number {
-  const n = Number(String(raw).replace(/^\$/, "").trim());
-  return Number.isFinite(n) ? n : Number.NaN;
-}
-
-function parseSafePayMessage(message: string): {
-  jobId: string;
-  offerId: string;
-  amount: string;
-} | null {
-  const lines = message.trim().split(/\r?\n/).map((l) => l.trim());
-  if (lines[0] !== "Beacon Safe pay") return null;
-  const jobId = lines.find((l) => l.startsWith("job:"))?.slice(4);
-  const offerId = lines.find((l) => l.startsWith("offer:"))?.slice(6);
-  const amount = lines.find((l) => l.startsWith("amount:"))?.slice(7);
-  if (!jobId || !offerId || amount == null || amount === "") return null;
-  return { jobId, offerId, amount };
-}
-
-async function verifySafePayAuth(opts: {
-  ownerWallet: string;
-  jobId: string;
-  offerId: string;
-  amountDisplay: string;
-  message: string;
-  signature: string;
-}): Promise<void> {
-  const parsed = parseSafePayMessage(opts.message);
-  if (!parsed || parsed.jobId !== opts.jobId || parsed.offerId !== opts.offerId) {
-    throw new AppError("UNAUTHORIZED", {
-      message: "Pay authorization message mismatch.",
-    });
-  }
-  const signedAmount = normalizeUsdt0AmountDisplay(parsed.amount);
-  const expectedAmount = normalizeUsdt0AmountDisplay(opts.amountDisplay);
-  // Allow UI toFixed(3) vs escrow toFixed(6) without rejecting a valid owner signature.
-  if (
-    !Number.isFinite(signedAmount) ||
-    !Number.isFinite(expectedAmount) ||
-    Math.abs(signedAmount - expectedAmount) > 1e-9
-  ) {
-    throw new AppError("UNAUTHORIZED", {
-      message: "Pay authorization message mismatch.",
-    });
-  }
-  const { verifyMessage } = await import("ethers");
-  let recovered: string;
-  try {
-    recovered = verifyMessage(opts.message, opts.signature);
-  } catch {
-    throw new AppError("UNAUTHORIZED", {
-      message: "Invalid pay authorization signature.",
-    });
-  }
-  if (recovered.toLowerCase() !== opts.ownerWallet.toLowerCase()) {
-    throw new AppError("UNAUTHORIZED", {
-      message: "Pay authorization wallet mismatch.",
-    });
-  }
-}
 
 app.post("/v1/jobs/:id/approve", async (req) => {
   const jobId = (req.params as { id: string }).id;
@@ -546,19 +570,7 @@ app.post("/v1/jobs/:id/approve", async (req) => {
         details: { code: "SAFE_WALLET_REQUIRED" },
       });
     }
-    if (!body.payAuth) {
-      throw new AppError("UNAUTHORIZED", {
-        message: "Sign the Beacon Safe pay challenge to authorize this job.",
-      });
-    }
-    await verifySafePayAuth({
-      ownerWallet: body.ownerWallet,
-      jobId,
-      offerId: body.offerId,
-      amountDisplay: priceDisplay,
-      message: body.payAuth.message,
-      signature: body.payAuth.signature,
-    });
+    await requireSafeSession(req, body.ownerWallet);
     const lock = await executeSafeJobLock(
       {
         jobId,
@@ -647,12 +659,9 @@ app.post("/v1/jobs/:id/approve-safe", async (req) => {
     .object({
       offerId: z.string().uuid(),
       ownerWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
-      payAuth: z.object({
-        message: z.string().min(8),
-        signature: z.string().min(8),
-      }),
     })
     .parse(req.body ?? {});
+  await requireSafeSession(req, body.ownerWallet);
   const job = await getJob(jobId);
   if (job.status !== JobStatus.QUOTED) throw new AppError("INVALID_TRANSITION");
   const offer = await pool.query(
@@ -669,14 +678,6 @@ app.post("/v1/jobs/:id/approve-safe", async (req) => {
     typeof priceRaw === "bigint" || typeof priceRaw === "number" || /^\d+$/.test(String(priceRaw))
       ? (Number(priceRaw) / 1e6).toFixed(6)
       : String(priceRaw);
-  await verifySafePayAuth({
-    ownerWallet: body.ownerWallet,
-    jobId,
-    offerId: body.offerId,
-    amountDisplay: priceDisplay,
-    message: body.payAuth.message,
-    signature: body.payAuth.signature,
-  });
   const lock = await executeSafeJobLock(
     { jobId, amountUsdt0Display: priceDisplay, ownerWallet: body.ownerWallet },
     env,
@@ -738,9 +739,36 @@ app.get("/v1/jobs/:id", async (req) => {
     `SELECT result, confidence, report_json FROM accept_reports WHERE job_id = $1 ORDER BY id DESC LIMIT 1`,
     [jobId],
   );
+  const { rows: authorizations } = await pool.query(
+    `SELECT a.eip3009_payload
+     FROM authorizations a
+     JOIN offers o ON o.id = a.offer_id
+     WHERE o.job_id = $1
+     ORDER BY o.expires_at DESC
+     LIMIT 1`,
+    [jobId],
+  );
+  const paymentAuth = authorizations[0]?.eip3009_payload as
+    | {
+        mode?: string;
+        lockTxHash?: string;
+        spendTxHash?: string;
+        payer?: string;
+        ownerWallet?: string;
+      }
+    | undefined;
   return {
     job,
     recentEvents: events,
+    paymentRail: paymentAuth
+      ? {
+          mode: paymentAuth.mode === "beacon_safe" ? "safe" : "wallet",
+          lockTxHash: paymentAuth.lockTxHash ?? null,
+          spendTxHash: paymentAuth.spendTxHash ?? null,
+          payer: paymentAuth.payer ?? null,
+          ownerWallet: paymentAuth.ownerWallet ?? null,
+        }
+      : null,
     acceptance: accepts[0]
       ? {
           result: accepts[0].result,
@@ -1214,13 +1242,32 @@ app.get("/v1/agents/bridge/agent-ready", async () => {
 app.post("/v1/agents/bridge/execute", async (req) => {
   const body = z
     .object({
+      wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
       amountFxrpUnits: z.string().min(1),
       recipient: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
       destination: z.string().min(2),
       preferSafeFunding: z.boolean().optional(),
     })
     .parse(req.body ?? {});
-  const result = await executeBeaconAgentBridge(body, env);
+  await requireSafeSession(req, body.wallet);
+  if (body.recipient.toLowerCase() !== body.wallet.toLowerCase()) {
+    throw new AppError("UNAUTHORIZED", {
+      message: "Agent bridge recipient must match the unlocked wallet.",
+    });
+  }
+  await assertPolicyAllows(redis, {
+    wallet: body.wallet,
+    agentId: "bridge",
+  });
+  const result = await executeBeaconAgentBridge(
+    {
+      amountFxrpUnits: body.amountFxrpUnits,
+      recipient: body.recipient,
+      destination: body.destination,
+      preferSafeFunding: body.preferSafeFunding,
+    },
+    env,
+  );
   if (!result.ok) {
     throw new AppError("VALIDATION", { message: result.error });
   }
@@ -1716,33 +1763,49 @@ app.post("/v1/vault/safe-swap/prepare", async (req) => {
 app.post("/v1/vault/safe-swap/execute", async (req) => {
   const body = z
     .object({
+      wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
       amountInUnits: z.string().min(1),
       recipient: z.string().regex(/^0x[a-fA-F0-9]{40}$/i),
       slippageBps: z.number().int().min(0).max(1000).optional(),
-      address: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
-      wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
       syncPolicy: z.boolean().optional(),
     })
     .parse(req.body ?? {});
-  let address = body.address;
-  if (!address && body.wallet) {
-    const st = await readAgentVaultStatus({ wallet: body.wallet, personalOnly: true, env });
-    if (!st.configured || !st.address) {
-      throw new AppError("VALIDATION", {
-        message: "SAFE_NOT_CREATED: Create your Beacon Safe before Safe swap.",
-        details: { code: "SAFE_NOT_CREATED" },
-      });
-    }
-    address = st.address;
+  await requireSafeSession(req, body.wallet);
+  if (body.recipient.toLowerCase() !== body.wallet.toLowerCase()) {
+    throw new AppError("UNAUTHORIZED", {
+      message: "Safe swap recipient must match the unlocked Safe owner wallet.",
+    });
   }
+  await assertPolicyAllows(redis, {
+    wallet: body.wallet,
+    agentId: "swap",
+    amountUsdt0: Number(body.amountInUnits),
+  });
+  const st = await readAgentVaultStatus({ wallet: body.wallet, personalOnly: true, env });
+  if (!st.configured || !st.address) {
+    throw new AppError("VALIDATION", {
+      message: "SAFE_NOT_CREATED: Create your Beacon Safe before Safe swap.",
+      details: { code: "SAFE_NOT_CREATED" },
+    });
+  }
+  const address = st.address;
   // Personal Safes are seeded by the factory — only sync policy on explicit legacy vault.
-  if (body.syncPolicy === true && address) {
+  if (body.syncPolicy === true) {
     await ensureSafeSwapPolicy(env, address);
   }
-  const result = await executeBeaconSafeSwap({ ...body, address }, env);
+  const result = await executeBeaconSafeSwap(
+    {
+      amountInUnits: body.amountInUnits,
+      recipient: body.recipient,
+      slippageBps: body.slippageBps,
+      address,
+    },
+    env,
+  );
   if (!result.ok) {
     throw new AppError("VALIDATION", { message: result.error });
   }
+  await recordSpendUsdt0(redis, body.wallet, Number(body.amountInUnits));
   return result;
 });
 
@@ -1795,6 +1858,7 @@ app.put("/v1/security/policy", async (req) => {
       }),
     })
     .parse(req.body ?? {});
+  await requireSafeSession(req, body.wallet);
   const nowIso = new Date().toISOString();
   const stored: BeaconSecurityPolicy = {
     ...body.policy,
@@ -1815,6 +1879,7 @@ app.put("/v1/security/policy", async (req) => {
 
 app.post("/v1/security/revoke", async (req) => {
   const body = z.object({ wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i) }).parse(req.body ?? {});
+  await requireSafeSession(req, body.wallet);
   const nowIso = new Date().toISOString();
   const paused: BeaconSecurityPolicy = {
     ...DEFAULT_SECURITY_POLICY,
@@ -1828,8 +1893,14 @@ app.post("/v1/security/revoke", async (req) => {
     updatedAt: nowIso,
     sessionStartedAt: nowIso,
   };
+  const revokedAt = Math.floor(Date.now() / 1000);
+  const sessionKey = `safe-session-revoked-after:${body.wallet.toLowerCase()}`;
+  revokedSafeSessions.set(sessionKey, revokedAt);
   if (redis) {
-    await redis.set(policyKey(body.wallet), paused);
+    await Promise.all([
+      redis.set(policyKey(body.wallet), paused),
+      redis.set(sessionKey, revokedAt, { ex: 30 * 24 * 60 * 60 }),
+    ]);
   }
   return {
     ok: true,

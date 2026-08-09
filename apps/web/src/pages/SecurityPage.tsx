@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { api, type AgentVaultStatus, type SecurityPolicy } from "@/lib/api";
 import { shortAddress, executeAgentVaultPrep, mintTestUsdt0, getUsdt0Balance, sendPreparedVaultTx } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
 import { NETWORK } from "@/lib/chain";
 import type { Address, Hex } from "viem";
 import { formatUnits } from "viem";
+import {
+  clearSafeAgentSession,
+  ensureSafeAgentSession,
+  readSafeAgentSession,
+  type SafeAgentSession,
+} from "@/lib/safeSession";
 import {
   AppLimitsSection,
   DEFAULT_SAFE_POLICY,
@@ -44,6 +50,7 @@ export function SecurityPage() {
   const [windowBudget, setWindowBudget] = useState("50");
   const [windowHours, setWindowHours] = useState(24);
   const [sessionHours, setSessionHours] = useState(24);
+  const [agentSession, setAgentSession] = useState<SafeAgentSession | null>(null);
 
   const fccQuery = useQuery({
     queryKey: ["fcc-status"],
@@ -91,13 +98,20 @@ export function SecurityPage() {
   );
 
   const save = useMutation({
-    mutationFn: () =>
-      api.putSecurityPolicy(wallet!, {
-        ...policy,
-        allowedAgents: stripNonFlareAgents(policy.allowedAgents),
-        maxImageCostUsdt0: 0,
-        maxVideoSeconds: 0,
-      }),
+    mutationFn: async () => {
+      const session = await ensureSafeAgentSession(wallet!);
+      setAgentSession(session);
+      return api.putSecurityPolicy(
+        wallet!,
+        {
+          ...policy,
+          allowedAgents: stripNonFlareAgents(policy.allowedAgents),
+          maxImageCostUsdt0: 0,
+          maxVideoSeconds: 0,
+        },
+        session.token,
+      );
+    },
     onSuccess: (data) => {
       setSavedNote(`App limits saved (${data.source})`);
       void qc.invalidateQueries({ queryKey: ["security-policy", wallet] });
@@ -105,7 +119,13 @@ export function SecurityPage() {
   });
 
   const revoke = useMutation({
-    mutationFn: () => api.revokeSecurity(wallet!),
+    mutationFn: async () => {
+      const session = await ensureSafeAgentSession(wallet!);
+      const result = await api.revokeSecurity(wallet!, session.token);
+      clearSafeAgentSession(wallet);
+      setAgentSession(null);
+      return result;
+    },
     onSuccess: (data) => {
       setSavedNote(data.message);
       void qc.invalidateQueries({ queryKey: ["security-policy", wallet] });
@@ -115,8 +135,10 @@ export function SecurityPage() {
   useEffect(() => {
     if (!wallet) {
       setWalletBalance(null);
+      setAgentSession(null);
       return;
     }
+    setAgentSession(readSafeAgentSession(wallet));
     let cancelled = false;
     void getUsdt0Balance(wallet as Address)
       .then((bal) => {
@@ -129,6 +151,20 @@ export function SecurityPage() {
       cancelled = true;
     };
   }, [wallet, txNote]);
+
+  const unlockAgent = useMutation({
+    mutationFn: async () => {
+      if (!wallet) throw new Error("Connect your wallet first.");
+      return ensureSafeAgentSession(wallet);
+    },
+    onSuccess: (session) => {
+      setAgentSession(session);
+      setTxNote("Beacon Agent unlocked for this browser session.");
+    },
+    onError: (err) => {
+      setTxNote(err instanceof Error ? err.message : String(err));
+    },
+  });
 
   const mintTx = useMutation({
     mutationFn: () => mintTestUsdt0("100"),
@@ -256,6 +292,45 @@ export function SecurityPage() {
         <SafeReveal delay={0.04}>
           <FaucetGasCard />
         </SafeReveal>
+
+        {wallet && (
+          <SafeReveal delay={0.05}>
+            <section className="grid gap-4 border-y border-[var(--p-border)] py-5 sm:grid-cols-[1fr_auto] sm:items-center">
+              <div>
+                <p className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.16em] text-[var(--p-accent-text)]">
+                  <KeyRound className="size-3.5" strokeWidth={2} />
+                  Agent session
+                </p>
+                <h2 className="mt-1 font-display text-lg font-semibold tracking-tight text-[var(--p-fg)]">
+                  {agentSession ? "Beacon Agent is unlocked" : "Unlock once, then leave MetaMask closed"}
+                </h2>
+                <p className="mt-1 max-w-xl text-sm leading-relaxed text-[var(--p-muted)]">
+                  {agentSession
+                    ? `Jobs, Safe swaps, and agent bridges run through the executor until ${new Date(
+                        agentSession.expiresAt * 1000,
+                      ).toLocaleString()}. Your on-chain caps, pause, and expiry still gate every Safe spend.`
+                    : "One gas-free signature binds this browser session to your wallet. It does not move funds. After that, the agent executor submits approved actions without per-job wallet prompts."}
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={unlockAgent.isPending || Boolean(agentSession)}
+                onClick={() => unlockAgent.mutate()}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[var(--p-border-strong)] bg-[var(--p-surface-2)] px-5 py-2.5 text-sm font-medium text-[var(--p-fg)] transition-transform hover:border-[var(--p-accent)]/50 active:scale-[0.98] disabled:opacity-50"
+              >
+                {unlockAgent.isPending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" /> Unlocking…
+                  </>
+                ) : agentSession ? (
+                  "Agent unlocked"
+                ) : (
+                  "Unlock Beacon Agent"
+                )}
+              </button>
+            </section>
+          </SafeReveal>
+        )}
 
         {wallet && !live && !vaultQuery.isLoading && (
           <SafeReveal delay={0.06}>

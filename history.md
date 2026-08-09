@@ -4,6 +4,33 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-09 - ONE-TIME AGENT SESSION + JOB/FLOW TRUTH FIX
+
+### No per-job MetaMask prompt
+- Replaced the Job-specific `Beacon Safe pay` signature with one wallet-bound, 24-hour browser Agent session.
+- Session proves the API caller; it never signs a transfer. The configured executor still submits `vault.execute`, and the vault contract still enforces pause, expiry, allowlists, per-tx/rolling caps, and nonces.
+- Jobs, Safe swaps, agent bridges, and API policy writes now require the Bearer session.
+- Safe swap/bridge recipient must equal the authenticated wallet, closing public wallet-spoof/drain paths.
+- Revoking app security invalidates existing Agent sessions; swap and bridge execution also enforce the server-side pause/agent policy before touching the Safe.
+- Safe page now has an explicit “Unlock Beacon Agent” control; Jobs auto-unlock only when no valid session exists.
+
+### Flow connected-wallet bug + liquidity
+- Root cause of the screenshot: generic `insufficient` cards always showed Connect even when `wallet` was present.
+- Connected cards now show the relevant action. Desk inventory errors identify liquidity and offer Retry.
+- Safe swap policy checks now target the connected wallet's personal Safe rather than the legacy/default vault.
+- Funded `BeaconCoston2SwapDesk` from the official Coston2 faucet: FXRP inventory `0.67358` → `10.67358`.
+
+### Truthful Job timeline
+- Restores Safe vs wallet payment rail and lock hash after page reload.
+- `GENERATING` now reads “Generating & composing”; short `COMPOSING` state reads “Packaging deliverables.”
+- Removed hard-coded “gpt-5.6-sol” from generic media pipeline steps.
+- Acceptance copy says L2 AI judge runs when available; receipts are application records linking real on-chain hashes, not on-chain sealed objects.
+- Documented the current two-transaction Safe transfer + `lockPrepaid` limitation.
+
+Research: `docs/RESEARCH_AGENT_SAFE_SESSION_AND_REALITY.md`.
+
+---
+
 ## 2026-08-09 - SAFE UX + PAY-AUTH FIX + USDT0 RESEARCH
 
 ### Pay authorization message mismatch

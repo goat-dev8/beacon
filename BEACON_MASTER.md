@@ -135,12 +135,13 @@ FCC: SIMULATED_TEE / FCC_MODE=simulated - not hardware Confidential Space.
 
 ## 6. Money path
 
-### Primary: Beacon Safe -> Agent Jobs (no MetaMask per job after fund + policy)
+### Primary: Beacon Safe -> Agent Jobs (one session unlock; no per-job wallet prompt)
 
 ```
 Fund Safe once (EIP-3009 deposit or transfer)
   -> Owner sets spending policy
-  -> POST /v1/jobs/:id/approve-safe  (or approve mode=safe)
+  -> Owner signs one gas-free Beacon Agent session challenge (24h / browser session)
+  -> POST /v1/jobs/:id/approve-safe with wallet-bound Bearer session
   -> vault.execute(token.transfer(escrow, amount))
   -> escrow.lockPrepaid(jobId, vault, amount)   // onlyOwner = settler
   -> Generate -> acceptance
@@ -177,6 +178,11 @@ Agent Jobs escrow is a **product extension** (lock until acceptance), not a repl
 4. **MockUSDT0** (`0x6fd8…e86c`) is the payment asset for Safe / Jobs / x402 until FXRP (or faucet USDT0) has official EIP-3009 in Flare x402 guides. Faucet [Coston2](https://faucet.flare.network/coston2) supplies **C2FLR gas** (and optional USDT0/FXRP for other demos). See `docs/RESEARCH_USDT0_FAUCET_VS_MOCK.md`.
 5. **Coston2 only** for agent / Safe product rails (chain 114). SparkDEX Mainnet paths are blocked for Safe auto-spend; Safe FXRP uses SwapDesk + FTSO.
 6. **FDC** used on Flow attestation paths only - not claimed on Jobs desk.
+7. **Agent session = API authentication, not token authorization.** It prevents strangers from triggering a funded Safe. The executor key submits on-chain transactions; the Safe contract remains the custody/policy boundary.
+8. **Job receipt is an application record.** It links real Coston2 spend/lock and release/refund hashes but is not itself an on-chain “sealed receipt.”
+9. **Safe prepaid lock currently uses two Coston2 transactions.** `vault.execute(transfer)` then `lockPrepaid`; do not describe it as one atomic transaction.
+
+Deep audit: `docs/RESEARCH_AGENT_SAFE_SESSION_AND_REALITY.md`.
 
 ---
 

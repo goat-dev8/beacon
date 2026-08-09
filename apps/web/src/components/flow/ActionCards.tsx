@@ -7,6 +7,7 @@ import { NETWORK } from "@/lib/chain";
 import { explorerTx } from "@/lib/explorers";
 import { cn } from "@/lib/utils";
 import { formatNativeFeeDisplay, formatTokenAmount } from "@/lib/format";
+import { ensureSafeAgentSession } from "@/lib/safeSession";
 import { AgentText } from "@/components/AgentText";
 import type { CardExecutionState, AgentCard } from "@/lib/executionPhases";
 import type { AgentId, ConvState, PaidResendMeta } from "@/lib/flowTypes";
@@ -547,10 +548,13 @@ export function ActionCard({
                   try {
                     if (isSafe) {
                       setApproveStatus("pending");
+                      const session = await ensureSafeAgentSession(wallet);
                       const result = await api.executeSafeSwap({
+                        wallet,
                         amountInUnits: String(card.amountInDisplay),
                         recipient: wallet,
                         slippageBps: Number(card.slippageBps ?? 100),
+                        sessionToken: session.token,
                       });
                       if (!("spendHash" in result) || !result.spendHash) {
                         throw new Error((result as { error?: string }).error || "Safe swap failed");
@@ -740,10 +744,13 @@ export function ActionCard({
                   try {
                     if (isAgent) {
                       setApproveStatus("pending");
+                      const session = await ensureSafeAgentSession(wallet);
                       const result = await api.executeAgentBridge({
+                        wallet,
                         amountFxrpUnits: String(card.amountDisplay),
                         recipient: wallet,
                         destination: String(card.destination),
+                        sessionToken: session.token,
                       });
                       if (!result.sendHash) throw new Error("Agent bridge failed");
                       if (result.approveHash) {
@@ -1259,17 +1266,44 @@ export function ActionCard({
   }
 
   if (card.type === "insufficient") {
+    const summary = String(card.summary);
+    const inventoryIssue = /inventory|seed the desk/i.test(summary);
+    const href = typeof card.faucetHref === "string" ? card.faucetHref : "";
+    const internalHref = href.startsWith("/");
     return (
       <div className="rounded-2xl border border-[var(--p-warn)]/35 bg-[var(--p-warn)]/10 p-4">
         <p className="font-medium text-[var(--p-fg)]">{card.title}</p>
-        <p className="mt-1 text-sm text-[var(--p-muted)]">{String(card.summary)}</p>
+        <p className="mt-1 text-sm text-[var(--p-muted)]">{summary}</p>
+        {inventoryIssue ? (
+          <p className="mt-2 text-xs text-[var(--p-muted)]">
+            The wallet and Safe are connected. Desk FXRP liquidity—not your connection—is blocking
+            this quote.
+          </p>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" onClick={onConnect} className="rounded-full bg-signal px-4 py-2 text-sm text-[var(--p-fg)]">
-            Connect
-          </button>
-          {typeof card.faucetHref === "string" && card.faucetHref ? (
+          {!wallet ? (
+            <button type="button" onClick={onConnect} className="rounded-full bg-signal px-4 py-2 text-sm text-[var(--p-fg)]">
+              Connect wallet
+            </button>
+          ) : inventoryIssue ? (
+            <button
+              type="button"
+              onClick={() => onQuickReply("retry the same swap quote")}
+              className="rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink active:scale-[0.98]"
+            >
+              Retry quote
+            </button>
+          ) : internalHref ? (
+            <Link
+              to={href}
+              className="rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink"
+            >
+              Open Beacon Safe
+            </Link>
+          ) : null}
+          {href && !internalHref && !inventoryIssue ? (
             <a
-              href={card.faucetHref}
+              href={href}
               target="_blank"
               rel="noreferrer"
               className="rounded-full border border-[var(--p-border-strong)] px-4 py-2 text-sm text-[var(--p-muted)]"

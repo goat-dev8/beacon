@@ -28,11 +28,13 @@ Three product surfaces (see `ARCHITECTURE_AUDIT.md`):
 
 ### Payment paths (Agent Jobs)
 
-**Primary (Beacon Safe):** create personal Safe → fund once (EIP-3009 deposit) → owner sets policy → `POST /v1/jobs/:id/approve-safe` (wallet + payAuth) → `vault.execute(transfer->escrow)` → `escrow.lockPrepaid` → generate → acceptance → release or refund to **that** vault.
+**Primary (Beacon Safe):** create personal Safe → fund once (EIP-3009 deposit) → owner sets policy → unlock one wallet-bound Agent session → `POST /v1/jobs/:id/approve-safe` (Bearer session; no per-job signature) → `vault.execute(transfer->escrow)` → `escrow.lockPrepaid` → generate → acceptance → release or refund to **that** vault.
 
 **Fallback (wallet EIP-3009):** user signs `TransferWithAuthorization` -> `escrow.lockWithAuthorization` -> generate -> release or refund to wallet.
 
 Beacon Safe is a personal `BeaconAgentVault` per wallet, created via `BeaconSafeFactory`. It is **not** Flare Smart Accounts (those are XRPL personal accounts).
+
+The browser session is authentication, not custody: it never signs token transfers. The allowlisted executor submits transactions, while the Safe contract enforces target/selector allowlists, per-transaction and rolling caps, pause, expiry, and replay nonces. Research and UI-truth audit: `docs/RESEARCH_AGENT_SAFE_SESSION_AND_REALITY.md`.
 
 FCC on live Coston2 is **simulated TEE** (`SIMULATED_TEE=true`, `FCC_MODE=simulated`). Do not claim a hardware enclave.
 
