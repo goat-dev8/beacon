@@ -4,6 +4,21 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-09 - APP LIMITS DEFAULTS (1 USDT0 DEMOS)
+
+### Why Flow said “Per-job limit is 0.1”
+- Correct server gate: Redis App limits blocked `swap 1` because API default was `perJob=0.1` / `daily=5`.
+- Frontend Safe form already showed larger numbers, so UI and API disagreed.
+- Flare Coston2 / Smart Account demos commonly use **1 USDT0** as the first swap size.
+
+### Fix
+- API + Safe UI defaults → `10` per action / `50` daily (aligned with Beacon Safe factory on-chain demo caps).
+- Legacy Redis policies exactly matching `5` / `0.1` auto-migrate and persist on load.
+- Clearer rejection copy + Flow link to Safe → App limits.
+- Research: `docs/RESEARCH_APP_LIMITS_AND_FLARE_POLICY.md`.
+
+---
+
 ## 2026-08-09 - ONE-TIME AGENT SESSION + JOB/FLOW TRUTH FIX
 
 ### No per-job MetaMask prompt

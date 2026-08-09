@@ -25,9 +25,10 @@ export const FLARE_AGENT_OPTIONS = [
   "research",
 ] as const;
 
+/** Matches API + Beacon Safe factory demo caps (10 per action / 50 daily). */
 export const DEFAULT_SAFE_POLICY: SecurityPolicy = {
   dailySpendUsdt0: 50,
-  perJobLimitUsdt0: 25,
+  perJobLimitUsdt0: 10,
   allowedAgents: [...FLARE_AGENT_OPTIONS],
   allowedChains: [114, 14],
   maxImageCostUsdt0: 0,
@@ -84,7 +85,8 @@ export function AppLimitsSection({
         Server gates for Flare agents
       </h2>
       <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[var(--p-muted)]">
-        These limits sit in front of agent micropays. They are separate from the on-chain Safe pool.
+        Server gates in front of Flow and Jobs spends. Defaults are 10 USDT0 per action / 50 daily so a
+        standard 1 USDT0 Coston2 swap works; tighten anytime. Separate from on-chain Safe caps.
       </p>
 
       {!wallet && (

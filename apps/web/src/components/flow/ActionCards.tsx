@@ -632,7 +632,19 @@ export function ActionCard({
             Coston2 faucet
           </a>
         </div>
-        {error && <p className="mt-2 text-xs text-[var(--p-danger)]">{error}</p>}
+        {error && (
+          <div className="mt-2 space-y-2">
+            <p className="text-xs text-[var(--p-danger)]">{error}</p>
+            {/per-job app limit|daily app budget|app limits/i.test(error) ? (
+              <Link
+                to="/flow/security"
+                className="inline-flex rounded-full border border-[var(--p-border-strong)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-[var(--p-accent)]/45 hover:text-[var(--p-fg)]"
+              >
+                Open Safe → App limits
+              </Link>
+            ) : null}
+          </div>
+        )}
         {swapStatus === "confirmed" && swapHash && (
           <p className="mt-3 text-sm text-[var(--p-accent-text)]">
             Swap confirmed.{" "}

@@ -16,9 +16,13 @@ export type BeaconSecurityPolicy = {
   updatedAt?: string;
 };
 
+/**
+ * Defaults match Beacon Safe factory on-chain caps (10 MockUSDT0 per tx / 50 rolling)
+ * and Flare Coston2 demos that swap 1 USDT0. The old 5 / 0.1 pair blocked first Flow swaps.
+ */
 export const DEFAULT_SECURITY_POLICY: BeaconSecurityPolicy = {
-  dailySpendUsdt0: 5,
-  perJobLimitUsdt0: 0.1,
+  dailySpendUsdt0: 50,
+  perJobLimitUsdt0: 10,
   allowedAgents: [
     "general",
     "signals",
@@ -46,6 +50,10 @@ export const DEFAULT_SECURITY_POLICY: BeaconSecurityPolicy = {
   sessionExpiryHours: 24,
 };
 
+/** First-ship Redis defaults that blocked standard 1 USDT0 Coston2 demos. */
+const LEGACY_TIGHT_DAILY = 5;
+const LEGACY_TIGHT_PER_JOB = 0.1;
+
 export function policyKey(wallet: string): string {
   return `security:policy:${wallet.toLowerCase()}`;
 }
@@ -71,12 +79,26 @@ const OS_AGENT_ROLLOUT = [
   "treasury",
 ] as const;
 
-function migrateStoredPolicy(stored: BeaconSecurityPolicy): BeaconSecurityPolicy {
+export function isLegacyTightDefaultPolicy(policy: BeaconSecurityPolicy): boolean {
+  return (
+    !policy.emergencyPause &&
+    Number(policy.dailySpendUsdt0) === LEGACY_TIGHT_DAILY &&
+    Number(policy.perJobLimitUsdt0) === LEGACY_TIGHT_PER_JOB
+  );
+}
+
+export function migrateStoredPolicy(stored: BeaconSecurityPolicy): BeaconSecurityPolicy {
   const allowedAgents = [
     ...new Set([...stored.allowedAgents.filter((a) => a !== "video"), ...OS_AGENT_ROLLOUT]),
   ];
   const allowedChains = [...new Set([...(stored.allowedChains ?? [114]), 14])];
-  return { ...stored, allowedAgents, allowedChains };
+  const next: BeaconSecurityPolicy = { ...stored, allowedAgents, allowedChains };
+  if (isLegacyTightDefaultPolicy(stored)) {
+    next.dailySpendUsdt0 = DEFAULT_SECURITY_POLICY.dailySpendUsdt0;
+    next.perJobLimitUsdt0 = DEFAULT_SECURITY_POLICY.perJobLimitUsdt0;
+    next.updatedAt = new Date().toISOString();
+  }
+  return next;
 }
 
 /**
@@ -112,8 +134,13 @@ export async function loadPolicy(
     return { policy: { ...DEFAULT_SECURITY_POLICY }, source: "unavailable" };
   }
   const stored = await redis.get<BeaconSecurityPolicy>(policyKey(wallet));
-  if (!stored) return { policy: DEFAULT_SECURITY_POLICY, source: "default" };
-  return { policy: migrateStoredPolicy(stored), source: "redis" };
+  if (!stored) return { policy: { ...DEFAULT_SECURITY_POLICY }, source: "default" };
+  const policy = migrateStoredPolicy(stored);
+  if (isLegacyTightDefaultPolicy(stored)) {
+    // Persist the bumped demo-friendly caps so Safe UI and Flow stop disagreeing.
+    await redis.set(policyKey(wallet), policy);
+  }
+  return { policy, source: "redis" };
 }
 
 export async function getDailySpendUsdt0(redis: Redis | null, wallet: string): Promise<number> {

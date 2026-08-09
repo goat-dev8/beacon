@@ -179,7 +179,7 @@ export async function evaluatePolicy(
     if (input.amountUsdt0 > policy.perJobLimitUsdt0) {
       return {
         allowed: false,
-        reason: `Per-job limit is ${policy.perJobLimitUsdt0} USDT0; this job is ${input.amountUsdt0.toFixed(2)}.`,
+        reason: `Per-job app limit is ${policy.perJobLimitUsdt0} USDT0; this spend is ${input.amountUsdt0.toFixed(2)}. Raise it under Safe → App limits (separate from on-chain Safe caps).`,
         policyVersion: POLICY_VERSION,
         enforcement: "server",
         fccMode,
@@ -189,7 +189,7 @@ export async function evaluatePolicy(
     if (spentToday + input.amountUsdt0 > policy.dailySpendUsdt0) {
       return {
         allowed: false,
-        reason: `Daily budget ${policy.dailySpendUsdt0} USDT0 exceeded (spent ${spentToday.toFixed(2)} today).`,
+        reason: `Daily app budget ${policy.dailySpendUsdt0} USDT0 exceeded (spent ${spentToday.toFixed(2)} today). Raise it under Safe → App limits.`,
         policyVersion: POLICY_VERSION,
         enforcement: "server",
         fccMode,
