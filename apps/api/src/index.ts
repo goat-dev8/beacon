@@ -409,12 +409,24 @@ app.get("/ready", async (_req, reply) => {
 
   const registry = registryFromEnv();
   const missing = assertRegistryConfigured(registry);
+  // Smart Account XRPL operator/core-vault are STUB rails — do not fail product readiness.
+  const saOptional = new Set(["EXPECTED_OPERATOR_XRPL", "EXPECTED_CORE_VAULT_XRPL"]);
+  const blocking = missing.filter((m) => !saOptional.has(m));
   checks.registry = {
-    ok: missing.length === 0,
-    detail: missing.length ? `missing ${missing.join(", ")}` : "configured",
+    ok: blocking.length === 0,
+    detail: missing.length
+      ? `missing ${missing.join(", ")}${blocking.length === 0 ? " (Smart Account STUB — non-blocking)" : ""}`
+      : "configured",
+  };
+  checks.smartAccounts = {
+    ok: true,
+    detail:
+      missing.filter((m) => saOptional.has(m)).length > 0
+        ? "STUB — XRPL PersonalAccount rail not required for Beacon Safe / Jobs readiness"
+        : "registry optional fields present",
   };
 
-  const ready = Object.values(checks).every((c) => c.ok);
+  const ready = ["postgres", "redis", "registry"].every((k) => checks[k]?.ok);
   return reply.status(ready ? 200 : 503).send({ ready, checks, registry });
 });
 
