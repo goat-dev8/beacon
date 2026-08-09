@@ -73,9 +73,9 @@ Source: https://docs.layerzero.network/v2/deployments/chains/flare-testnet
 
 ## Job lifecycle truth audit
 
-- **Queued / Preparing:** real database state transitions from `AUTHORIZED` to `PREPARING`.
+- **Escrow locked / Starting pipeline:** `AUTHORIZED` is reached only after the payment lock; `PREPARING` is a short worker transition with no separate tool-provisioning phase.
 - **Generating & composing:** real pipeline work. Generation, service-specific composition, and normalization run inside `runPipeline`; the UI now avoids pretending every artifact uses one hard-coded model.
-- **Packaging deliverables:** `COMPOSING` is a short state after the pipeline returns and before artifacts advance to acceptance. The label now reflects what the state actually represents.
+- **Deliverable ready:** `COMPOSING` is a short pass-through after the pipeline returns and before artifacts advance to acceptance; composition work already ran inside the pipeline.
 - **Checking quality:** real acceptance execution.
 - **L1 objective:** real format, deliverable, duration/schema, and anti-scaffold checks.
 - **L3 brand/format:** real deterministic gate.
@@ -106,7 +106,9 @@ The screenshot showed a connected wallet and live balances, but the generic `ins
 Fixes:
 
 - connected users no longer see a false Connect action;
+- chat waits for wallet restoration before sending, and stale connect cards offer a retry using the live wallet;
 - inventory failures explicitly identify desk liquidity and offer Retry;
+- Safe quote preparation resolves the connected wallet's factory-created personal Safe rather than the legacy environment vault;
 - Safe execution routes require the wallet-bound Agent session;
 - Safe swap/bridge recipients must match the authenticated wallet;
 - the official Coston2 faucet funded the swap desk with 10 FXRP, raising live inventory from `0.67358` to `10.67358` FXRP.

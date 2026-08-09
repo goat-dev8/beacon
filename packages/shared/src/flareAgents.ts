@@ -1086,7 +1086,7 @@ export async function runBeaconAgentChat(opts: {
     // --- Prefer Coston2 Beacon Safe (no Mainnet MetaMask) ---
     if (preferSafe) {
       const safeQuote = await prepareBeaconSafeSwap(
-        { amountInUnits: amount, recipient: wallet },
+        { amountInUnits: amount, recipient: wallet, address: vaultAddr },
         env,
       );
       if (safeQuote.ok) {

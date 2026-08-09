@@ -17,12 +17,14 @@ Living log of what was done. No secrets in this file.
 ### Flow connected-wallet bug + liquidity
 - Root cause of the screenshot: generic `insufficient` cards always showed Connect even when `wallet` was present.
 - Connected cards now show the relevant action. Desk inventory errors identify liquidity and offer Retry.
+- Chat waits for Reown wallet restoration before sending, stale connect cards can retry with the live wallet, and Safe quotes resolve the connected wallet's personal vault.
 - Safe swap policy checks now target the connected wallet's personal Safe rather than the legacy/default vault.
 - Funded `BeaconCoston2SwapDesk` from the official Coston2 faucet: FXRP inventory `0.67358` → `10.67358`.
 
 ### Truthful Job timeline
 - Restores Safe vs wallet payment rail and lock hash after page reload.
-- `GENERATING` now reads “Generating & composing”; short `COMPOSING` state reads “Packaging deliverables.”
+- `GENERATING` now reads “Generating & composing”; short pass-through `COMPOSING` state reads “Deliverable ready.”
+- Replaced queue/provisioning/finalizing claims with the actual states: escrow locked, worker start, deliverable handoff, quality checks, and escrow release.
 - Removed hard-coded “gpt-5.6-sol” from generic media pipeline steps.
 - Acceptance copy says L2 AI judge runs when available; receipts are application records linking real on-chain hashes, not on-chain sealed objects.
 - Documented the current two-transaction Safe transfer + `lockPrepaid` limitation.

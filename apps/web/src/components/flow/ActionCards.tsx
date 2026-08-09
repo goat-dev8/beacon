@@ -1300,7 +1300,15 @@ export function ActionCard({
             >
               Open Beacon Safe
             </Link>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onClick={() => onQuickReply("retry my last request with my connected wallet")}
+              className="rounded-full bg-signal px-4 py-2 text-sm font-medium text-ink active:scale-[0.98]"
+            >
+              Retry with wallet
+            </button>
+          )}
           {href && !internalHref && !inventoryIssue ? (
             <a
               href={href}

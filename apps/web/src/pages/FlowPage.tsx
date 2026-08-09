@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 export function FlowPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { wallet, connect, connecting } = useProductWallet();
+  const { wallet, connect, connecting, ready } = useProductWallet();
   const [agentId, setAgentId] = useState<AgentId>("general");
   const [input, setInput] = useState("");
   const [convState, setConvState] = useState<ConvState>(null);
@@ -244,7 +244,7 @@ export function FlowPage() {
 
   function send() {
     const text = input.trim();
-    if (!text || chat.isPending) return;
+    if (!text || chat.isPending || !ready) return;
     setInput("");
     chat.mutate(text);
   }
@@ -403,7 +403,7 @@ export function FlowPage() {
           agentName={active.name}
           displayModel={latestModel}
           wallet={wallet}
-          connecting={connecting}
+          connecting={connecting || !ready}
           balances={bal}
           onConnect={() => void onConnect()}
           onOpenHistory={() => setHistoryOpen(true)}
@@ -434,6 +434,7 @@ export function FlowPage() {
               .catch(() => undefined);
           }}
           onQuickReply={(text) => {
+            if (!ready || chat.isPending) return;
             setInput("");
             chat.mutate(text);
           }}

@@ -834,7 +834,11 @@ function Timeline({ status }: { status?: JobStatus }) {
             />
             <div>
               <span className={done || active || (failed && i <= 4) ? "text-ink" : "text-ink-faint"}>
-                {statusLabel(s)}
+                {failed && s === "SETTLING"
+                  ? status === "FAILED"
+                    ? "Refund queued"
+                    : "Refunding escrow"
+                  : statusLabel(s)}
               </span>
               {active && streamNoteHint(status) ? (
                 <p className="mt-0.5 font-mono text-[11px] text-ink-muted">{streamNoteHint(status)}</p>
@@ -849,11 +853,11 @@ function Timeline({ status }: { status?: JobStatus }) {
 
 function streamNoteHint(status?: JobStatus): string | null {
   if (!status) return null;
-  if (status === "PREPARING") return "Provisioning tools…";
+  if (status === "PREPARING") return "Worker picked up the locked job…";
   if (status === "GENERATING") return "Generator and service composer running…";
-  if (status === "COMPOSING") return "Writing and indexing deliverable files…";
+  if (status === "COMPOSING") return "Handing artifacts to quality checks…";
   if (status === "ACCEPTING") return "Objective and brand gates; AI judge when available…";
-  if (status === "SETTLING") return "Escrow release / refund…";
+  if (status === "SETTLING") return "Releasing escrow to the configured payee…";
   return null;
 }
 
@@ -881,7 +885,9 @@ function FlareRails({
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-widest text-signal-deep">
-            {payMode === "wallet" ? "x402 · EIP-3009 · Coston2" : "Safe · Escrow · Coston2"}
+            {payMode === "wallet"
+              ? "EIP-3009 · MockUSDT0 escrow · Coston2"
+              : "Beacon Safe · MockUSDT0 escrow · Coston2"}
           </p>
           <p className="mt-1 text-xs text-ink-muted">
             {payMode === "wallet"
