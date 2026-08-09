@@ -4,6 +4,29 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-10 - FCC TEE PRODUCTION + FDC ON-CHAIN VERIFY (HONEST)
+
+### FCC — TEE machine PRODUCTION (SIMULATED_TEE, not hardware)
+- TEE machine `0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed` on FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE` reports **status 2 = PRODUCTION** (availability attestation via `register-tee rRap`).
+- Extension ID `65925`, InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46`, tee-node `v0.0.24`, tee-proxy `v0.0.21`.
+- `SIMULATED_TEE=true` — PRODUCTION ≠ GCP Confidential Space hardware.
+- `EXT_PROXY_URL` is a live **trycloudflare** tunnel (ephemeral — keep alive or re-register with a stable domain).
+- Evidence: `docs/evidence/fcc-tee-production.json`.
+- **Instruction → TEE → signed result (REAL):** SAY_HELLO tx `0x6fa9631deffa66ec4711b7da810abbcd78f00cf93fa31975872bd4ce0c3d94c3`, instruction `0xa4e0bf653860ac6167a8bbe683957487cfc907a85997844c6d33510a214a2144`, action status `1`, greeting payload + TEE/proxy signatures. Evidence: `docs/evidence/fcc-instruction-result.json`.
+- **DENY path (REAL):** invalid payload returned signed status `0` (`docs/evidence/fcc-deny-path.json`).
+- API: `GET /v1/fcc/lifecycle` reports `teeMachineStatus`, `teeProduction`, honesty. Value-protection `POST /v1/fcc/policy/evaluate` → ALLOW/DENY; `canMoveFunds: false` until result verified.
+- Remaining: Render production API should **not** pin ephemeral trycloudflare `EXT_PROXY_URL` (local demo tunnel). Smart Accounts remain **STUB**.
+
+### FDC — on-chain VERIFIED (AddressValidity staticCall)
+- Evidence: `docs/evidence/fdc-address-validity-verify.json` — `onChainVerified: true`, `callKind: staticCall`, FdcVerification `0x906507E0B64bcD494Db73bd0459d1C667e14B933`, round `1420937`.
+- Honesty: VIEW/staticCall return — not a state-changing verify tx.
+
+### Prior (same day)
+- FDC prepare→submit→finalize→DA proof REAL (tx `0x2c623753…4516`).
+- FCC InstructionSender smoke PARTIAL (tx `0x1e64917a…cb25`).
+
+---
+
 ## 2026-08-10 - FLARE INTEGRATION HARDENING (FDC REAL + FCC PARTIAL)
 
 ### Audit

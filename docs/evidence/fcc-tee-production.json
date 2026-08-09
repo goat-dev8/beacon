@@ -1,0 +1,17 @@
+﻿{
+  "ok": true,
+  "teeId": "0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed",
+  "status": 2,
+  "label": "PRODUCTION",
+  "flareTeeManager": "0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE",
+  "extensionId": 65925,
+  "instructionSender": "0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46",
+  "teeNode": "v0.0.24",
+  "teeProxy": "v0.0.21",
+  "simulatedTee": true,
+  "registerCommand": "rRap",
+  "availabilityCheckProof": true,
+  "registeredUrl": "https://robert-seattle-stationery-researcher.trycloudflare.com",
+  "honesty": "SIMULATED_TEE=true accepted on Coston2 for judging. Status 2=PRODUCTION via availability attestation. Not GCP Confidential Space hardware. trycloudflare URL is ephemeral — keep tunnel alive or re-register with stable domain.",
+  "timestamp": "2026-08-09T23:35:00.000Z"
+}

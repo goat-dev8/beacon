@@ -40,13 +40,13 @@ Beacon Safe is a personal `BeaconAgentVault` per wallet, created via `BeaconSafe
 
 The browser session is authentication, not custody: it never signs token transfers. The allowlisted executor submits transactions, while the Safe contract enforces target/selector allowlists, per-transaction and rolling caps, pause, expiry, and replay nonces. Research and UI-truth audit: `docs/RESEARCH_AGENT_SAFE_SESSION_AND_REALITY.md`.
 
-FCC on live Coston2 is **simulated TEE** (`SIMULATED_TEE=true`, `FCC_MODE=simulated`). Do not claim a hardware enclave.
+FCC on live Coston2 is **simulated TEE** (`SIMULATED_TEE=true`, `FCC_MODE=simulated`). A FlareTeeManager **PRODUCTION (status 2)** registration is availability attestation — do **not** claim a hardware Confidential Space enclave.
 
 **Flare-native execution (2026-08-09/10):** Safe job approve is **policy-before-spend**. FTSOv2 guards Safe swaps. Package `@beacon/flare` provides protocol adapters + `EvidenceEnvelope`.
 
-**FDC (REAL lifecycle evidence):** AddressValidity on Coston2 — FdcHub tx `0x2c62375359beeb5491c648260d79c2ec69a71fc2260bcb21027b7ad86be04516`, round `1420937` finalized, DA proof `isValid: true`.
+**FDC (REAL + on-chain VERIFIED):** AddressValidity on Coston2 — FdcHub tx `0x2c62375359beeb5491c648260d79c2ec69a71fc2260bcb21027b7ad86be04516`, round `1420937` finalized, DA proof `isValid: true`, `FdcVerification.verifyAddressValidity` **staticCall** `onChainVerified: true` (evidence: `docs/evidence/fdc-address-validity-verify.json`).
 
-**FCC (SIMULATED / PARTIAL):** InstructionSender smoke tx `0x1e64917aeed71c20cf628131dcd8415e195dab89bb71f07eec3bf7a493a6cb25`. Result poll requires `EXT_PROXY_URL` (currently unset). `canMoveFunds: false`.
+**FCC (SIMULATED + TEE PRODUCTION status):** TEE `0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed` on FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE` is **status 2 = PRODUCTION** (evidence: `docs/evidence/fcc-tee-production.json`). InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46`. `EXT_PROXY_URL` may be an ephemeral trycloudflare tunnel — instruction→result can stay **PARTIAL** on poll 404. `canMoveFunds: false`. Value-protection: `POST /v1/fcc/policy/evaluate` (ALLOW/DENY). Smart Accounts = **STUB**.
 
 See `docs/FLARE_FINAL_AUDIT.md`.
 
@@ -144,7 +144,7 @@ Copy from [`.env.example`](./.env.example). Groups:
 | Data | `DATABASE_URL`, `DATABASE_URL_DIRECT`, `DATABASE_SSL`, `REDIS_URL`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` |
 | AI | `AI_BASE_URL`, `AI_API_KEY`, `AI_PROXY_URL`, `AI_PROXY_SECRET`, `AI_MODEL_*`, `AI_REQUIRE_REAL`, OpenAI/Anthropic mirrors |
 | Billing contracts | `X402_TOKEN_ADDRESS`, `X402_FACILITATOR_ADDRESS`, `X402_PAYEE_ADDRESS`, `BEACON_JOB_REGISTRY`, `BEACON_ESCROW`, `BEACON_CREDIT`, `BEACON_AGENT_VAULT_ADDRESS`, `VAULT_EXECUTOR`, `BEACON_SWAP_DESK_ADDRESS` |
-| FCC | `FCC_MODE`, `SIMULATED_TEE`, `LOCAL_MODE`, `EXT_PROXY_URL`, -> |
+| FCC | `FCC_MODE`, `SIMULATED_TEE`, `LOCAL_MODE`, `EXT_PROXY_URL`, `TEE_ID`, `FLARE_TEE_MANAGER`, -> |
 | Feature flags | `ENABLE_API`, `ENABLE_FCC`, `ENABLE_PIPELINE`, `ENABLE_SETTLER`, `ENABLE_FUNDING`, `ENABLE_WEB` |
 
 `npm run verify:env` treats these as required when checking: `NODE_ENV`, `API_PORT`, `CHAIN_ID`, `COSTON2_RPC_URL`, `DATABASE_URL`, `DATABASE_URL_DIRECT`, `SESSION_SECRET`.

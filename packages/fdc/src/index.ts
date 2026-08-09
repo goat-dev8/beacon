@@ -12,7 +12,13 @@
  * Honesty: Never invent abiEncodedRequest or proofs. All data comes from official Flare infrastructure.
  */
 
-import { Contract, JsonRpcProvider, Wallet, type TransactionReceipt } from "ethers";
+import {
+  AbiCoder,
+  Contract,
+  JsonRpcProvider,
+  Wallet,
+  type TransactionReceipt,
+} from "ethers";
 import { loadEnv, type BeaconEnv } from "@beacon/shared";
 
 export * from "./fcc.js";
@@ -85,10 +91,40 @@ export interface WaitFinalizedResult {
   error?: string;
 }
 
+/** IAddressValidity.RequestBody */
+export interface AddressValidityResponseRequestBody {
+  addressStr: string;
+}
+
+/** IAddressValidity.ResponseBody */
+export interface AddressValidityResponseBody {
+  isValid: boolean;
+  standardAddress: string;
+  standardAddressHash: string;
+}
+
+/** IAddressValidity.Response — matches on-chain / DA response_hex ABI */
+export interface AddressValidityResponse {
+  attestationType: string;
+  sourceId: string;
+  votingRound: bigint | number;
+  lowestUsedTimestamp: bigint | number;
+  requestBody: AddressValidityResponseRequestBody;
+  responseBody: AddressValidityResponseBody;
+}
+
+/** IAddressValidity.Proof — argument to FdcVerification.verifyAddressValidity */
+export interface AddressValidityProof {
+  merkleProof: string[];
+  data: AddressValidityResponse;
+}
+
 export interface FetchProofResult {
   ok: boolean;
   proof?: string[];
   responseHex?: string;
+  /** Decoded Response when available (from response_hex or structured DA payload) */
+  response?: AddressValidityResponse;
   attestationType?: string;
   status: "AVAILABLE" | "NOT_AVAILABLE" | "ERROR";
   urlTried?: string;
@@ -96,21 +132,37 @@ export interface FetchProofResult {
   raw?: unknown;
 }
 
+export interface VerifyAddressValidityResult {
+  ok: boolean;
+  verified: boolean;
+  fdcVerificationAddress?: string;
+  /** VIEW staticCall — no broadcast tx; still REAL on-chain evidence */
+  callKind: "staticCall";
+  error?: string;
+  responseBody?: AddressValidityResponseBody;
+}
+
 export interface FullAttestationResult {
   ok: boolean;
-  stage: "prepare" | "submit" | "wait" | "proof" | "complete";
+  stage: "prepare" | "submit" | "wait" | "proof" | "verify" | "complete";
   abiEncodedRequest?: string;
   txHash?: string;
   roundId?: number;
   proof?: string[];
   responseHex?: string;
+  response?: AddressValidityResponse;
   explorerUrl?: string;
+  onChainVerified?: boolean;
+  fdcVerificationAddress?: string;
+  /** Honesty label: VERIFIED only when FdcVerification.verifyAddressValidity returned true */
+  honesty?: "REAL" | "VERIFIED" | "PARTIAL" | "ERROR";
   error?: string;
   timings?: {
     prepareMs: number;
     submitMs: number;
     waitMs: number;
     proofMs: number;
+    verifyMs?: number;
     totalMs: number;
   };
 }
@@ -160,14 +212,62 @@ const FLARE_SYSTEMS_MANAGER_ABI = [
 
 const RELAY_ABI = ["function isFinalized(uint256 _protocolId, uint256 _votingRoundId) view returns (bool)"];
 
-/** Reserved for typed on-chain verify* calls once Proof structs are decoded from DA response_hex. */
-const _FDC_VERIFICATION_ABI = [
+/**
+ * FdcVerification + IAddressValidity.Proof ABI.
+ * verifyAddressValidity is a VIEW function — staticCall is sufficient for VERIFIED evidence.
+ */
+const FDC_VERIFICATION_ABI = [
+  {
+    type: "function",
+    name: "verifyAddressValidity",
+    stateMutability: "view",
+    inputs: [
+      {
+        name: "_proof",
+        type: "tuple",
+        components: [
+          { name: "merkleProof", type: "bytes32[]" },
+          {
+            name: "data",
+            type: "tuple",
+            components: [
+              { name: "attestationType", type: "bytes32" },
+              { name: "sourceId", type: "bytes32" },
+              { name: "votingRound", type: "uint64" },
+              { name: "lowestUsedTimestamp", type: "uint64" },
+              {
+                name: "requestBody",
+                type: "tuple",
+                components: [{ name: "addressStr", type: "string" }],
+              },
+              {
+                name: "responseBody",
+                type: "tuple",
+                components: [
+                  { name: "isValid", type: "bool" },
+                  { name: "standardAddress", type: "string" },
+                  { name: "standardAddressHash", type: "bytes32" },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    outputs: [{ name: "_proved", type: "bool" }],
+  },
   "function fdcProtocolId() view returns (uint8)",
 ] as const;
-void _FDC_VERIFICATION_ABI;
+
+/** ABI type string for IAddressValidity.Response (DA response_hex) */
+const ADDRESS_VALIDITY_RESPONSE_ABI =
+  "tuple(bytes32 attestationType, bytes32 sourceId, uint64 votingRound, uint64 lowestUsedTimestamp, tuple(string addressStr) requestBody, tuple(bool isValid, string standardAddress, bytes32 standardAddressHash) responseBody)";
 
 // Canonical ContractRegistry address on all Flare networks
 const CONTRACT_REGISTRY_ADDRESS = "0xaD67FE66660Fb8dFE9d6b1b4240d8650e30F6019";
+
+/** Known Coston2 FdcVerification (also resolved via ContractRegistry) */
+export const COSTON2_FDC_VERIFICATION = "0x906507E0B64bcD494Db73bd0459d1C667e14B933";
 
 // FDC Protocol ID for Relay.isFinalized
 const FDC_PROTOCOL_ID = 200;
@@ -189,6 +289,126 @@ export function toBytes32String(s: string): string {
     hex += s.charCodeAt(i).toString(16);
   }
   return "0x" + hex.padEnd(64, "0");
+}
+
+/**
+ * Decodes ABI-encoded IAddressValidity.Response from DA `response_hex`.
+ */
+export function decodeAddressValidityResponseHex(responseHex: string): AddressValidityResponse {
+  const hex = responseHex.startsWith("0x") ? responseHex : `0x${responseHex}`;
+  const decoded = AbiCoder.defaultAbiCoder().decode([ADDRESS_VALIDITY_RESPONSE_ABI], hex);
+  const row = decoded[0] as {
+    attestationType: string;
+    sourceId: string;
+    votingRound: bigint;
+    lowestUsedTimestamp: bigint;
+    requestBody: { addressStr: string };
+    responseBody: { isValid: boolean; standardAddress: string; standardAddressHash: string };
+  };
+  return {
+    attestationType: row.attestationType,
+    sourceId: row.sourceId,
+    votingRound: row.votingRound,
+    lowestUsedTimestamp: row.lowestUsedTimestamp,
+    requestBody: { addressStr: row.requestBody.addressStr },
+    responseBody: {
+      isValid: Boolean(row.responseBody.isValid),
+      standardAddress: row.responseBody.standardAddress,
+      standardAddressHash: row.responseBody.standardAddressHash,
+    },
+  };
+}
+
+/**
+ * Builds AddressValidityResponse from a structured DA `response` object.
+ */
+export function parseStructuredAddressValidityResponse(
+  response: Record<string, unknown>,
+): AddressValidityResponse {
+  const requestBody = (response.requestBody ?? {}) as Record<string, unknown>;
+  const responseBody = (response.responseBody ?? {}) as Record<string, unknown>;
+  return {
+    attestationType: String(response.attestationType ?? ""),
+    sourceId: String(response.sourceId ?? ""),
+    votingRound: BigInt(String(response.votingRound ?? 0)),
+    lowestUsedTimestamp: BigInt(String(response.lowestUsedTimestamp ?? 0)),
+    requestBody: {
+      addressStr: String(requestBody.addressStr ?? ""),
+    },
+    responseBody: {
+      isValid: Boolean(responseBody.isValid),
+      standardAddress: String(responseBody.standardAddress ?? ""),
+      standardAddressHash: String(
+        responseBody.standardAddressHash ??
+          "0x0000000000000000000000000000000000000000000000000000000000000000",
+      ),
+    },
+  };
+}
+
+/**
+ * Resolves a typed IAddressValidity.Proof from DA fetch fields.
+ * Prefers `response_hex` ABI decode; falls back to structured `response`.
+ */
+export function buildAddressValidityProof(params: {
+  merkleProof: string[];
+  responseHex?: string;
+  response?: AddressValidityResponse | Record<string, unknown>;
+}): AddressValidityProof {
+  let data: AddressValidityResponse | undefined;
+
+  if (params.responseHex && params.responseHex.startsWith("0x") && params.responseHex.length > 10) {
+    // JSON-stringified structured payloads are not ABI hex — skip decode for those.
+    const looksLikeAbiHex = /^0x[0-9a-fA-F]+$/.test(params.responseHex) && params.responseHex.length >= 64;
+    if (looksLikeAbiHex) {
+      try {
+        data = decodeAddressValidityResponseHex(params.responseHex);
+      } catch {
+        data = undefined;
+      }
+    }
+  }
+
+  if (!data && params.response) {
+    if (
+      typeof params.response === "object" &&
+      "attestationType" in params.response &&
+      "responseBody" in params.response &&
+      "requestBody" in params.response
+    ) {
+      const r = params.response as AddressValidityResponse;
+      if (typeof r.responseBody?.isValid === "boolean" && typeof r.requestBody?.addressStr === "string") {
+        data = {
+          attestationType: String(r.attestationType),
+          sourceId: String(r.sourceId),
+          votingRound: typeof r.votingRound === "bigint" ? r.votingRound : BigInt(r.votingRound),
+          lowestUsedTimestamp:
+            typeof r.lowestUsedTimestamp === "bigint"
+              ? r.lowestUsedTimestamp
+              : BigInt(r.lowestUsedTimestamp),
+          requestBody: { addressStr: r.requestBody.addressStr },
+          responseBody: {
+            isValid: Boolean(r.responseBody.isValid),
+            standardAddress: r.responseBody.standardAddress,
+            standardAddressHash: r.responseBody.standardAddressHash,
+          },
+        };
+      } else {
+        data = parseStructuredAddressValidityResponse(params.response as Record<string, unknown>);
+      }
+    } else {
+      data = parseStructuredAddressValidityResponse(params.response as Record<string, unknown>);
+    }
+  }
+
+  if (!data) {
+    throw new Error("Cannot build AddressValidity Proof — missing decodable response_hex or structured response");
+  }
+
+  return {
+    merkleProof: params.merkleProof ?? [],
+    data,
+  };
 }
 
 /**
@@ -433,6 +653,14 @@ export class FdcClient {
   async getFdcVerification(): Promise<string> {
     if (!this.contracts.fdcVerification) {
       this.contracts.fdcVerification = await this.resolveContract("FdcVerification");
+      if (
+        this.cfg.expectedFdcVerification &&
+        this.contracts.fdcVerification.toLowerCase() !== this.cfg.expectedFdcVerification.toLowerCase()
+      ) {
+        console.warn(
+          `FdcVerification address mismatch: expected ${this.cfg.expectedFdcVerification}, got ${this.contracts.fdcVerification}`,
+        );
+      }
     }
     return this.contracts.fdcVerification;
   }
@@ -755,16 +983,18 @@ export class FdcClient {
   /**
    * Fetches the attestation proof from the DA Layer.
    *
+   * Prefers `/api/v1/fdc/proof-by-request-round-raw` (response_hex ABI) for typed verify.
+   *
    * @param abiEncodedRequest - The original encoded request
    * @param roundId - The voting round ID
    * @returns FetchProofResult with proof and responseHex
    */
   async fetchProof(abiEncodedRequest: string, roundId: number): Promise<FetchProofResult> {
-    // Official DA endpoints (Coston2): prefer structured proof, then raw hex.
+    // Prefer raw (response_hex) for on-chain decode, then structured, then legacy.
     const base = this.cfg.daLayerUrl.replace(/\/$/, "");
     const endpoints = [
-      `${base}/api/v1/fdc/proof-by-request-round`,
       `${base}/api/v1/fdc/proof-by-request-round-raw`,
+      `${base}/api/v1/fdc/proof-by-request-round`,
       `${base}/api/v0/fdc/get-proof-round-id-bytes`,
     ];
 
@@ -790,19 +1020,40 @@ export class FdcClient {
         const raw = await safeJson(response);
         const data = raw as Record<string, unknown>;
 
-        const responseHex = (data.response_hex ?? data.responseHex) as string | undefined;
+        const responseHexRaw = (data.response_hex ?? data.responseHex) as string | undefined;
         const responseObj = data.response as Record<string, unknown> | undefined;
         const proof = (data.proof ?? data.merkleProof) as string[] | undefined;
         const attestationType =
           (data.attestation_type as string | undefined) ??
           (responseObj?.attestationType as string | undefined);
 
-        // Structured DA response (v0 / v1 non-raw) OR raw hex both count as REAL proof bytes.
-        if (responseHex || (proof && proof.length > 0) || responseObj) {
+        // Prefer ABI hex; do not treat JSON.stringify(response) as responseHex.
+        const responseHex =
+          responseHexRaw && /^0x[0-9a-fA-F]+$/.test(responseHexRaw) ? responseHexRaw : undefined;
+
+        let decodedResponse: AddressValidityResponse | undefined;
+        if (responseHex) {
+          try {
+            decodedResponse = decodeAddressValidityResponseHex(responseHex);
+          } catch {
+            decodedResponse = undefined;
+          }
+        }
+        if (!decodedResponse && responseObj) {
+          try {
+            decodedResponse = parseStructuredAddressValidityResponse(responseObj);
+          } catch {
+            decodedResponse = undefined;
+          }
+        }
+
+        // Structured DA response OR raw hex both count as REAL proof bytes.
+        if (responseHex || responseObj || (proof && proof.length > 0)) {
           return {
             ok: true,
             proof: proof ?? [],
-            responseHex: responseHex ?? (responseObj ? JSON.stringify(responseObj) : undefined),
+            responseHex,
+            response: decodedResponse,
             attestationType,
             status: "AVAILABLE",
             urlTried: url,
@@ -848,6 +1099,93 @@ export class FdcClient {
   }
 
   // ---------------------------------------------------------------------------
+  // Step 5: On-chain verify via FdcVerification.verifyAddressValidity (VIEW)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Calls FdcVerification.verifyAddressValidity via staticCall (view).
+   * No transaction is broadcast — return value is still REAL on-chain evidence.
+   */
+  async verifyAddressValidityOnChain(
+    proof: AddressValidityProof,
+  ): Promise<VerifyAddressValidityResult> {
+    try {
+      const provider = this.getProvider();
+      const fdcVerificationAddress = await this.getFdcVerification();
+      const verification = new Contract(fdcVerificationAddress, FDC_VERIFICATION_ABI, provider);
+
+      const proofTuple = {
+        merkleProof: proof.merkleProof,
+        data: {
+          attestationType: proof.data.attestationType,
+          sourceId: proof.data.sourceId,
+          votingRound: BigInt(proof.data.votingRound),
+          lowestUsedTimestamp: BigInt(proof.data.lowestUsedTimestamp),
+          requestBody: {
+            addressStr: proof.data.requestBody.addressStr,
+          },
+          responseBody: {
+            isValid: proof.data.responseBody.isValid,
+            standardAddress: proof.data.responseBody.standardAddress,
+            standardAddressHash: proof.data.responseBody.standardAddressHash,
+          },
+        },
+      };
+
+      const verified = Boolean(await verification.verifyAddressValidity.staticCall(proofTuple));
+
+      return {
+        ok: true,
+        verified,
+        fdcVerificationAddress,
+        callKind: "staticCall",
+        responseBody: proof.data.responseBody,
+      };
+    } catch (err) {
+      return {
+        ok: false,
+        verified: false,
+        callKind: "staticCall",
+        error: `verifyAddressValidity failed: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+  }
+
+  /**
+   * Convenience: build Proof from DA fetch result and verify on-chain.
+   */
+  async verifyAddressValidityFromDaProof(da: {
+    proof?: string[];
+    responseHex?: string;
+    response?: AddressValidityResponse;
+    raw?: unknown;
+  }): Promise<VerifyAddressValidityResult> {
+    try {
+      const structured =
+        da.response ??
+        (typeof da.raw === "object" &&
+        da.raw &&
+        "response" in (da.raw as object)
+          ? ((da.raw as { response: Record<string, unknown> }).response as Record<string, unknown>)
+          : undefined);
+
+      const typedProof = buildAddressValidityProof({
+        merkleProof: da.proof ?? [],
+        responseHex: da.responseHex,
+        response: structured,
+      });
+      return this.verifyAddressValidityOnChain(typedProof);
+    } catch (err) {
+      return {
+        ok: false,
+        verified: false,
+        callKind: "staticCall",
+        error: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Full Attestation Lifecycle
   // ---------------------------------------------------------------------------
 
@@ -857,6 +1195,7 @@ export class FdcClient {
    * 2. Submit to FdcHub
    * 3. Wait for finalization
    * 4. Fetch proof from DA layer
+   * 5. Optionally verify on-chain via FdcVerification.verifyAddressValidity (VIEW staticCall)
    *
    * @param attestationType - Type name (e.g., "AddressValidity")
    * @param sourceId - Source chain identifier
@@ -872,6 +1211,8 @@ export class FdcClient {
       waitTimeoutMs?: number;
       proofRetries?: number;
       skipWaitFinalized?: boolean;
+      /** When true (default for AddressValidity), call verifyAddressValidity after DA proof */
+      verifyOnChain?: boolean;
     } = {},
   ): Promise<FullAttestationResult> {
     const timings = {
@@ -879,9 +1220,13 @@ export class FdcClient {
       submitMs: 0,
       waitMs: 0,
       proofMs: 0,
+      verifyMs: 0,
       totalMs: 0,
     };
     const startTotal = Date.now();
+    const shouldVerifyOnChain =
+      options.verifyOnChain ??
+      (attestationType === "AddressValidity" || attestationType.includes("AddressValidity"));
 
     // Step 1: Prepare
     const prepareStart = Date.now();
@@ -892,6 +1237,7 @@ export class FdcClient {
       return {
         ok: false,
         stage: "prepare",
+        honesty: "ERROR",
         error: prepareResult.error ?? "Prepare failed",
         timings: { ...timings, totalMs: Date.now() - startTotal },
       };
@@ -910,6 +1256,7 @@ export class FdcClient {
         stage: "submit",
         abiEncodedRequest,
         txHash: submitResult.txHash,
+        honesty: "ERROR",
         error: submitResult.error ?? "Submit failed",
         timings: { ...timings, totalMs: Date.now() - startTotal },
       };
@@ -931,6 +1278,7 @@ export class FdcClient {
           txHash: submitResult.txHash,
           roundId,
           explorerUrl: submitResult.explorerUrl,
+          honesty: "PARTIAL",
           error: waitResult.error ?? "Wait finalized timed out",
           timings: { ...timings, totalMs: Date.now() - startTotal },
         };
@@ -941,9 +1289,9 @@ export class FdcClient {
     const proofStart = Date.now();
     const proofResult = await this.fetchProofWithRetry(abiEncodedRequest, roundId, options.proofRetries ?? 6);
     timings.proofMs = Date.now() - proofStart;
-    timings.totalMs = Date.now() - startTotal;
 
     if (!proofResult.ok) {
+      timings.totalMs = Date.now() - startTotal;
       return {
         ok: false,
         stage: "proof",
@@ -951,10 +1299,53 @@ export class FdcClient {
         txHash: submitResult.txHash,
         roundId,
         explorerUrl: submitResult.explorerUrl,
+        honesty: "PARTIAL",
         error: proofResult.error ?? "Proof fetch failed",
         timings,
       };
     }
+
+    // Step 5: On-chain verify (AddressValidity)
+    let onChainVerified: boolean | undefined;
+    let fdcVerificationAddress: string | undefined;
+    let honesty: FullAttestationResult["honesty"] = "REAL";
+
+    if (shouldVerifyOnChain) {
+      const verifyStart = Date.now();
+      const verifyResult = await this.verifyAddressValidityFromDaProof({
+        proof: proofResult.proof,
+        responseHex: proofResult.responseHex,
+        response: proofResult.response,
+        raw: proofResult.raw,
+      });
+      timings.verifyMs = Date.now() - verifyStart;
+      fdcVerificationAddress = verifyResult.fdcVerificationAddress;
+      onChainVerified = verifyResult.verified;
+
+      if (!verifyResult.ok) {
+        timings.totalMs = Date.now() - startTotal;
+        return {
+          ok: false,
+          stage: "verify",
+          abiEncodedRequest,
+          txHash: submitResult.txHash,
+          roundId,
+          proof: proofResult.proof,
+          responseHex: proofResult.responseHex,
+          response: proofResult.response,
+          explorerUrl: submitResult.explorerUrl,
+          onChainVerified: false,
+          fdcVerificationAddress,
+          honesty: "PARTIAL",
+          error: verifyResult.error ?? "On-chain verify failed",
+          timings,
+        };
+      }
+
+      honesty = verifyResult.verified ? "VERIFIED" : "PARTIAL";
+    }
+
+    timings.totalMs = Date.now() - startTotal;
 
     return {
       ok: true,
@@ -964,7 +1355,11 @@ export class FdcClient {
       roundId,
       proof: proofResult.proof,
       responseHex: proofResult.responseHex,
+      response: proofResult.response,
       explorerUrl: submitResult.explorerUrl,
+      onChainVerified,
+      fdcVerificationAddress,
+      honesty,
       timings,
     };
   }

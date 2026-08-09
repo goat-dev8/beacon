@@ -100,18 +100,19 @@ async runFullAttestationLifecycle(attestationType, sourceId, requestBody, option
 
 ### Gaps
 
-- On-chain `FdcVerification.verify*()` call not yet automated (proof struct encoding complex)
-- `lifecycle: "Finalized"` means DA proof fetched; `lifecycle: "Verified"` requires contract call
+- Automated mint / operator XRPL fields remain separate from FDC verify
+- Value-moving product paths still require Accepted business policy in addition to on-chain verify
 
 ### Implementation Path
 
-1. Add typed proof encoder for `verifyAddressValidity` / `verifyEVMTransaction`
-2. Add optional `--verify` flag to `/v1/fdc/prepare` endpoint
+1. Typed proof encoder for `verifyAddressValidity` / `verifyEVMTransaction` — **done for AddressValidity**
+2. Optional verify on `/v1/fdc/*` prepare/recover paths — **done** (`onChainVerified` via staticCall)
 
 ### Test Required
 
 - [x] Full lifecycle: prepare AddressValidity → submit → wait finalized → fetch proof
 - [x] Verify DA layer returns proof bytes after finalization
+- [x] On-chain `verifyAddressValidity` staticCall returns true (evidence JSON)
 
 ### On-Chain Evidence Required
 
@@ -119,80 +120,86 @@ async runFullAttestationLifecycle(attestationType, sourceId, requestBody, option
 - Relay `isFinalized(200, 1420937)` returns **true**
 - DA layer proof: **AVAILABLE**, `responseBody.isValid: true` via `/api/v1/fdc/proof-by-request-round`
 - Systems explorer: https://coston2-systems-explorer.flare.network/voting-round/1420937?tab=fdc
+- **On-chain VERIFIED:** `docs/evidence/fdc-address-validity-verify.json` — `onChainVerified: true`, `callKind: staticCall`, FdcVerification `0x906507E0B64bcD494Db73bd0459d1C667e14B933`
 
-**Live classification note (2026-08-10):** prepare→submit→finalize→proof is **REAL**. Automated `FdcVerification.verifyAddressValidity` typed struct call remains a gap (PARTIAL for on-chain verify step only).
+**Live classification note (2026-08-10):** prepare→submit→finalize→proof is **REAL**. AddressValidity on-chain verify is **VERIFIED** (VIEW/staticCall — not a state-changing tx).
 
 ---
 
 ## 3. FCC (Flare Confidential Compute) / TEE
 
-### Classification: **SIMULATED** (instruction submit **PARTIAL** with live tx)
+### Classification: **SIMULATED** (TEE machine **PRODUCTION** status 2; instruction→result may be **PARTIAL**)
 
 | Aspect | Status | Evidence |
 |--------|--------|----------|
 | SIMULATED_TEE | SIMULATED | `SIMULATED_TEE=true` — hackathon-accepted |
-| InstructionSender | DEPLOYED + LIVE TX | `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46` |
-| Live smoke `sendSayHello` | PARTIAL | tx `0x1e64917aeed71c20cf628131dcd8415e195dab89bb71f07eec3bf7a493a6cb25` |
-| TEE_PROXY_URL | AVAILABLE | `https://tee-proxy-coston2-1.flare.rocks` returns 200 |
-| EXT_PROXY_URL | UNAVAILABLE | Empty — blocks result polling (**blocker**) |
-| Hardware TEE | UNAVAILABLE | Official FCC docs: not yet publicly available |
+| TEE machine | PRODUCTION (status 2) | `0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed` via FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE` |
+| Extension / sender | LIVE | Extension `65925`, InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46` |
+| Stack versions | LIVE | tee-node `v0.0.24`, tee-proxy `v0.0.21`, `register-tee rRap` + availability proof |
+| InstructionSender smoke | PARTIAL | tx `0x1e64917aeed71c20cf628131dcd8415e195dab89bb71f07eec3bf7a493a6cb25` |
+| TEE_PROXY_URL | AVAILABLE | `https://tee-proxy-coston2-1.flare.rocks` |
+| EXT_PROXY_URL | EPHEMERAL | Live trycloudflare tunnel — must stay alive or re-register; poll may 404 → PARTIAL |
+| Hardware TEE | UNAVAILABLE | Not GCP Confidential Space; do not claim hardware |
+| Value-protection API | REAL (decision) | `POST /v1/fcc/policy/evaluate` ALLOW/DENY; `canMoveFunds: false` |
+| Smart Accounts | STUB | Parallel XRPL rail not live |
 
 ### Official Mechanism
 
-FCC uses Intel SGX/TDX enclaves to execute confidential compute. The lifecycle:
+FCC uses confidential compute enclaves to execute policy. The lifecycle:
 1. Deploy InstructionSender contract linked to TEE extension
-2. Call `sendSayHello` / `sendEvaluateFit` / `sendAccept` with payload
-3. TEE processes instruction off-chain
+2. Register TEE machine (`register-tee rRap`) → FlareTeeManager status **2 = PRODUCTION**
+3. Call `sendSayHello` / `sendEvaluateFit` / `sendAccept` with payload
 4. Poll extension proxy for result via instruction ID
 
 ### Beacon Implementation
 
 ```typescript
-// packages/fdc/src/fcc.ts - FccExtensionClient
-async sendAndWait(method: string, args: unknown[]): Promise<FccInstructionResult> {
-  // 1. Call sender contract with fee
-  // 2. Extract instructionId from TeeInstructionsSent event
-  // 3. Poll EXT_PROXY_URL/action/result/{instructionId}
-}
+// packages/fdc/src/fcc.ts - getFccLifecycleStatus
+// Probes FlareTeeManager.getTeeMachineStatus(teeId) → teeProduction when status===2
+// Honesty: SIMULATED_TEE PRODUCTION ≠ hardware Confidential Space
+// canMoveFunds: false until result polled+verified (never faked)
 ```
 
 ### Gaps
 
 | Gap | Impact | Status |
 |-----|--------|--------|
-| `EXT_PROXY_URL` empty | Cannot poll instruction results | BLOCKER |
-| `sendEvaluateFit` / `sendAccept` may not exist | Only `sendSayHello` on deployed contract | Needs probe |
-| Hardware attestation | Cannot claim TEE security | DOCUMENTED |
+| trycloudflare EXT_PROXY ephemeral | Tunnel die ⇒ result poll PARTIAL/404 | DOCUMENTED |
+| instruction→result poll | May 404 while tunnel/registration lag | PARTIAL |
+| `sendEvaluateFit` / `sendAccept` may not exist | Fallback `sendSayHello` | Needs probe |
+| Hardware attestation | Cannot claim TEE hardware security | DOCUMENTED |
+| Smart Accounts PersonalAccount | Parallel rail | STUB |
 
 ### Honesty Labels
 
 ```typescript
-// SIMULATED_TEE mode:
-"FCC simulated mode (SIMULATED_TEE) — shadow authorization for development/hackathon. 
-Not hardware-attested. Valid for Coston2 testing only."
-
-// canMoveFunds: false ALWAYS
-// hardwareClaim: false unless verified attestation chain
+// SIMULATED_TEE + status 2:
+"PRODUCTION (status=2) via SIMULATED_TEE availability attestation — NOT GCP Confidential Space hardware"
+// canMoveFunds: false ALWAYS until result verified
+// hardwareClaim: false
 ```
 
 ### Implementation Path
 
-1. Configure `EXT_PROXY_URL` when Flare provides public extension proxy
-2. Probe contract interface to detect available methods
-3. Fall back to `sendSayHello` with JSON policy payload for lifecycle smoke
+1. `GET /v1/fcc/lifecycle` reports teeMachineStatus / teeProduction / instructionPath honestly
+2. `POST /v1/fcc/policy/evaluate` value-protection ALLOW/DENY (amount cap / recipient / expiry)
+3. Opt-in `submitInstruction: true` for on-chain FCC (does not auto-spend from Jobs/Chat/Safe)
+4. Stable EXT_PROXY domain when leaving ephemeral tunnel
 
 ### Test Required
 
 - [x] Verify InstructionSender bytecode at `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46`
 - [x] On-chain `sendSayHello` smoke tx `0x1e64917aeed71c20cf628131dcd8415e195dab89bb71f07eec3bf7a493a6cb25`
-- [ ] `GET /v1/fcc/lifecycle` on **production** after redeploy
-- [x] Shadow authorization returns `canMoveFunds: false`
+- [x] FlareTeeManager status 2 PRODUCTION evidence (`docs/evidence/fcc-tee-production.json`)
+- [ ] `GET /v1/fcc/lifecycle` on **production** after redeploy (expects teeProduction + SIMULATED honesty)
+- [x] Shadow / value-protection returns `canMoveFunds: false`
 
 ### On-Chain Evidence Required
 
+- TEE PRODUCTION evidence: **`docs/evidence/fcc-tee-production.json`**
 - InstructionSender live instruction tx: **`0x1e64917aeed71c20cf628131dcd8415e195dab89bb71f07eec3bf7a493a6cb25`**
 - Explorer: https://coston2-explorer.flare.network/tx/0x1e64917aeed71c20cf628131dcd8415e195dab89bb71f07eec3bf7a493a6cb25
-- Result poll: **blocked** until `EXT_PROXY_URL` is set to a reachable Beacon extension proxy
+- Result poll: **may remain PARTIAL** while EXT_PROXY is ephemeral trycloudflare or returns 404
 
 ---
 
@@ -542,8 +549,8 @@ interface EvidenceEnvelope {
 | Integration | Status | Blocker | Test Coverage |
 |-------------|--------|---------|---------------|
 | FTSO | **REAL** | None | Good |
-| FDC | **REAL** | On-chain verify encoding | Good |
-| FCC/TEE | **SIMULATED** | EXT_PROXY_URL empty, no public FCC | Partial |
+| FDC | **REAL** (+ AddressValidity on-chain VERIFIED staticCall) | None for AV path | Good |
+| FCC/TEE | **SIMULATED** + machine **PRODUCTION** (status 2) | Ephemeral trycloudflare EXT_PROXY; instruction→result may PARTIAL | Partial |
 | FAssets | **PARTIAL** | Automated mint | Good for redeem |
 | Smart Accounts | **STUB** | PersonalAccount executor | None |
 | x402 | **REAL** | None | Good |
@@ -563,24 +570,29 @@ interface EvidenceEnvelope {
 DA_LAYER_URL=https://ctn2-data-availability.flare.network
 # Proof endpoint: /api/v1/fdc/proof-by-request-round-raw
 
-# FCC (SIMULATED mode)
+# FCC (SIMULATED mode — PRODUCTION status ≠ hardware)
 SIMULATED_TEE=true
-TEE_PROXY_URL=https://tee-proxy-coston2-1.flare.rocks  # Returns 200
-EXT_PROXY_URL=                                          # EMPTY — blocker
+TEE_PROXY_URL=https://tee-proxy-coston2-1.flare.rocks
+EXT_PROXY_URL=https://<ephemeral>.trycloudflare.com   # ephemeral — keep alive or re-register
 INSTRUCTION_SENDER=0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46
+TEE_ID=0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed
+FLARE_TEE_MANAGER=0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE
+EXTENSION_ID=65925
 
 # FDC
 FDC_VERIFIER_XRP_URL=https://fdc-verifiers-testnet.flare.network/verifier/xrp/
 EXPECTED_FDC_HUB=0x48aC463d7975828989331F4De43341627b9c5f1D
+EXPECTED_FDC_VERIFICATION=0x906507E0B64bcD494Db73bd0459d1C667e14B933
 ```
 
 ---
 
 ## Community Acceptance Notes
 
-1. **SIMULATED_TEE accepted for hackathon** — FCC hardware TEE not publicly available
-2. **One closed loop demonstrated** — x402 + FCC shadow + policy evaluation
-3. **FDC for real attestations** — Full lifecycle prepare → submit → finalize → proof
+1. **SIMULATED_TEE accepted for hackathon** — FCC hardware TEE not publicly available; FlareTeeManager PRODUCTION (status 2) is availability attestation only
+2. **One closed loop demonstrated** — x402 + FCC value-protection ALLOW/DENY + policy evaluation (`canMoveFunds: false`)
+3. **FDC for real attestations** — Full lifecycle prepare → submit → finalize → proof → on-chain AddressValidity VERIFIED (staticCall)
+4. **Remaining honesty** — instruction→result PARTIAL if poll 404; trycloudflare ephemeral; Smart Accounts STUB
 
 ---
 
@@ -596,6 +608,8 @@ EXPECTED_FDC_HUB=0x48aC463d7975828989331F4De43341627b9c5f1D
 | AssetManagerFXRP | `0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA` | Yes |
 | FXRP Token | `0x0b6A3645c240605887a5532109323A3E12273dc7` | Yes |
 | InstructionSender | `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46` | Yes |
+| FlareTeeManager | `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE` | Yes |
+| TEE machine (PRODUCTION status 2, SIMULATED) | `0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed` | Yes |
 | MockUSDT0 | `0x6fd8a72a972040f3153894BBd0d829a58f1Fe86c` | Yes |
 | x402 Facilitator | `0x1f409a809cE6e8A4467C1fD40943aC40169f4779` | Yes |
 | Beacon Safe Factory | `0x9e88ADFB4dA7530675acC520cC9a0a818543c4F2` | Yes |

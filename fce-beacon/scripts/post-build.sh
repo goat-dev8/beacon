@@ -145,12 +145,17 @@ log "Simulated TEE: $SIMULATED_TEE"
 
 # --- Step 3: Register TEE on-chain ---
 step 3 "Register TEE machine"
+# Capital R in rRap = fresh challenge (required when stuck INITIALIZED / after URL change).
+# Override with REGISTER_TEE_COMMAND=rap to resume without fresh challenge.
+REGISTER_TEE_COMMAND="${REGISTER_TEE_COMMAND:-rRap}"
+log "register-tee command: $REGISTER_TEE_COMMAND"
 go run ./cmd/register-tee \
     -a "$ADDRESSES_FILE" \
     -c "$CHAIN_URL" \
     -p "$EXT_PROXY_URL" \
     -h "${EXT_PROXY_HOST_URL:-$EXT_PROXY_URL}" \
     -ep "$NORMAL_PROXY_URL" \
+    -command "$REGISTER_TEE_COMMAND" \
     -state "$PROJECT_DIR/config/register-tee.state" \
     || die "Register TEE failed"
 

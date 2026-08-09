@@ -99,6 +99,10 @@ export const envSchema = z.object({
   GOVERNANCE_THRESHOLD: optionalInt(1),
   EXTENSION_ID: optionalString,
   INSTRUCTION_SENDER: optionalString,
+  /** TEE machine address registered on FlareTeeManager (optional probe). */
+  TEE_ID: optionalString,
+  /** FlareTeeManager diamond (Coston2 default used when unset). */
+  FLARE_TEE_MANAGER: optionalString,
 
   COSTON2_INDEXER_DB_HOST: optionalString,
   COSTON2_INDEXER_DB_PORT: optionalInt(3306),

@@ -48,10 +48,14 @@ export interface AttestationPersistShape {
   txHash?: string;
   proof?: unknown;
   responseHex?: string;
+  onChainVerified?: boolean;
+  fdcVerificationAddress?: string;
   verification?: {
     verified: boolean;
     verifierUrl?: string;
     timestamp: string;
+    callKind?: "staticCall";
+    error?: string;
   };
   lifecycle: AttestationLifecycle;
   status: IntegrationStatus;
@@ -317,8 +321,12 @@ export class AttestationAdapter {
 
   /**
    * Step 4: Fetch proof from DA Layer.
+   * Optionally Step 5: on-chain verify via FdcVerification.verifyAddressValidity (VIEW).
    */
-  async fetchProof(attestation: AttestationPersistShape): Promise<AttestationPersistShape> {
+  async fetchProof(
+    attestation: AttestationPersistShape,
+    options: { verifyOnChain?: boolean } = {},
+  ): Promise<AttestationPersistShape> {
     const now = new Date().toISOString();
 
     if (!attestation.requestId || !attestation.votingRound) {
@@ -350,21 +358,50 @@ export class AttestationAdapter {
         };
       }
 
+      const shouldVerify =
+        options.verifyOnChain ?? attestation.kind === "AddressValidity";
+
+      let onChainVerified = false;
+      let fdcVerificationAddress: string | undefined;
+      let verifyError: string | undefined;
+      let lifecycle: AttestationLifecycle = "Finalized";
+
+      if (shouldVerify) {
+        const verifyResult = await client.verifyAddressValidityFromDaProof({
+          proof: result.proof,
+          responseHex: result.responseHex,
+          response: result.response,
+          raw: result.raw,
+        });
+        fdcVerificationAddress = verifyResult.fdcVerificationAddress;
+        onChainVerified = verifyResult.verified;
+        verifyError = verifyResult.error;
+        if (verifyResult.ok && verifyResult.verified) {
+          lifecycle = "Verified";
+        }
+      }
+
       return {
         ...attestation,
-        lifecycle: "Finalized",
+        lifecycle,
         proof: {
           merkleProof: result.proof,
           responseHex: result.responseHex,
           attestationType: result.attestationType,
+          response: result.response,
         },
         responseHex: result.responseHex,
+        onChainVerified: shouldVerify ? onChainVerified : undefined,
+        fdcVerificationAddress,
         verification: {
-          verified: false, // DA layer proof ≠ on-chain verification
-          verifierUrl: this.env.DA_LAYER_URL,
+          verified: onChainVerified,
+          verifierUrl: fdcVerificationAddress ?? this.env.DA_LAYER_URL,
           timestamp: new Date().toISOString(),
+          callKind: shouldVerify ? "staticCall" : undefined,
+          error: verifyError,
         },
         updatedAt: new Date().toISOString(),
+        error: verifyError && !onChainVerified ? verifyError : attestation.error,
       };
     } catch (err) {
       return {
@@ -376,13 +413,14 @@ export class AttestationAdapter {
   }
 
   /**
-   * Run full lifecycle: prepare → submit → wait → proof
+   * Run full lifecycle: prepare → submit → wait → proof → (optional) on-chain verify
    */
   async runFullLifecycle(
     request: AttestationRequest,
     options: {
       waitTimeoutMs?: number;
       skipOnChain?: boolean;
+      verifyOnChain?: boolean;
     } = {},
   ): Promise<AttestationPersistShape> {
     // Step 1: Prepare
@@ -408,8 +446,10 @@ export class AttestationAdapter {
       return attestation;
     }
 
-    // Step 4: Fetch proof
-    attestation = await this.fetchProof(attestation);
+    // Step 4–5: Fetch proof + optional on-chain verify
+    attestation = await this.fetchProof(attestation, {
+      verifyOnChain: options.verifyOnChain ?? request.kind === "AddressValidity",
+    });
 
     return attestation;
   }

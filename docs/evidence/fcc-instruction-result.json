@@ -1,0 +1,35 @@
+{
+  "ok": true,
+  "teeId": "0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed",
+  "teeStatus": 2,
+  "teeStatusLabel": "PRODUCTION",
+  "flareTeeManager": "0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE",
+  "extensionId": 65925,
+  "instructionSender": "0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46",
+  "txHash": "0x6fa9631deffa66ec4711b7da810abbcd78f00cf93fa31975872bd4ce0c3d94c3",
+  "instructionId": "0xa4e0bf653860ac6167a8bbe683957487cfc907a85997844c6d33510a214a2144",
+  "explorer": "https://coston2-explorer.flare.network/tx/0x6fa9631deffa66ec4711b7da810abbcd78f00cf93fa31975872bd4ce0c3d94c3",
+  "httpStatus": 200,
+  "result": {
+    "result": {
+      "id": "0xa4e0bf653860ac6167a8bbe683957487cfc907a85997844c6d33510a214a2144",
+      "submissionTag": "threshold",
+      "status": 1,
+      "log": "ok",
+      "opType": "0x4752454554494e47000000000000000000000000000000000000000000000000",
+      "opCommand": "0x5341595f48454c4c4f0000000000000000000000000000000000000000000000",
+      "additionalResultStatus": "0x",
+      "version": "0.1.0",
+      "data": "0x7b226772656574696e67223a2248656c6c6f2c20426561636f6e506f6c696379212057656c636f6d6520746f20466c61726520436f6e666964656e7469616c20436f6d707574652e222c226772656574696e674e756d626572223a317d"
+    },
+    "signature": "0xc27e4ea96469191fc3a9863c815e6c8e8e3dce794a4e0d558d4114f0013f08b5460b4ae6fa400ae959dbd0e47559241fa3c586a29e877e766ca2a77da520041a00",
+    "proxySignature": "0x8886942f719ff6f0f9e36a4ca331e86290e913fc1265d48c30ab36184130e32b615e16bd07d5a6d4f06d51aad562ef8e1ccb26124facf95a1cccfb951932b00701"
+  },
+  "simulatedTee": true,
+  "extProxyUrl": "https://robert-seattle-stationery-researcher.trycloudflare.com",
+  "payload": {
+    "name": "BeaconPolicy"
+  },
+  "honesty": "SIMULATED_TEE PRODUCTION path — result signatures from registered TEE identity, not GCP Confidential Space",
+  "timestamp": "2026-08-09T23:45:14.606Z"
+}

@@ -108,22 +108,28 @@ export function registerFlareNativeRoutes(
   });
 
   /**
-   * FCC Lifecycle Status — honest reporting of InstructionSender, extension, proxy configuration.
-   * canMoveFunds: false ALWAYS. hardwareClaim: false unless verified attestation chain.
+   * FCC Lifecycle Status — honest reporting of InstructionSender, extension, proxy, TEE machine.
+   * canMoveFunds: false ALWAYS until a polled TEE result is verified (never faked).
+   * teeProduction (status===2) ≠ hardware Confidential Space when SIMULATED_TEE=true.
    */
   app.get("/v1/fcc/lifecycle", async () => {
     const status = await getFccLifecycleStatus(env);
     return {
       ...status,
       daLayerNote: `Correct DA base: https://ctn2-data-availability.flare.network/ — proof endpoint: /api/v1/fdc/proof-by-request-round-raw`,
+      evidence: {
+        teeProduction: "docs/evidence/fcc-tee-production.json",
+        fdcAddressValidity: "docs/evidence/fdc-address-validity-verify.json",
+      },
     };
   });
 
   /**
-   * FCC Policy Evaluation — server policy + optional FCC shadow authorization.
+   * FCC Policy Evaluation — Beacon value-protection (agent payout / amount cap / recipient / expiry).
    *
-   * NEVER claims funds moved. NEVER fail-open to allow spend when FCC unavailable for enforced mode.
-   * Shadow authorization always attached for comparison via @beacon/flare ConfidentialComputeAdapter.
+   * ALWAYS returns clear ALLOW | DENY for the value-protection decision.
+   * NEVER claims funds moved. canMoveFunds stays false until TEE result is polled+verified.
+   * On-chain FCC instruction submit is opt-in (`submitInstruction: true`) so Jobs/Chat/Safe are not hit with gas.
    */
   app.post("/v1/fcc/policy/evaluate", async (req) => {
     const body = z
@@ -131,10 +137,59 @@ export function registerFlareNativeRoutes(
         wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
         actionHash: z.string().min(8),
         amountUsdt0: z.number().optional(),
+        /** Value-protection amount cap (DENY when amountUsdt0 > amountCapUsdt0). */
+        amountCapUsdt0: z.number().positive().optional(),
+        /** Required recipient for agent payout use case. */
+        recipient: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
+        /** Unix seconds — DENY when now >= expiresAt. */
+        expiresAt: z.number().int().positive().optional(),
         agentId: z.string().optional(),
+        useCase: z
+          .enum(["agent_payout", "amount_cap", "recipient_gate", "expiry_gate", "generic"])
+          .default("agent_payout"),
         allowHint: z.boolean().optional(),
+        /** Opt-in: submit on-chain FCC instruction (costs gas). Default false. */
+        submitInstruction: z.boolean().optional().default(false),
       })
       .parse(req.body ?? {});
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const valueProtectionChecks: Record<string, unknown> = {
+      useCase: body.useCase,
+      amountUsdt0: body.amountUsdt0 ?? null,
+      amountCapUsdt0: body.amountCapUsdt0 ?? null,
+      recipient: body.recipient?.toLowerCase() ?? null,
+      expiresAt: body.expiresAt ?? null,
+      nowSec,
+    };
+    const denyReasons: string[] = [];
+
+    if (body.amountCapUsdt0 != null) {
+      const amount = body.amountUsdt0 ?? 0;
+      const underCap = amount <= body.amountCapUsdt0;
+      valueProtectionChecks.underAmountCap = underCap;
+      if (!underCap) {
+        denyReasons.push(
+          `Amount ${amount} USDT0 exceeds cap ${body.amountCapUsdt0} USDT0`,
+        );
+      }
+    }
+
+    if (body.useCase === "agent_payout" || body.useCase === "recipient_gate") {
+      const hasRecipient = Boolean(body.recipient);
+      valueProtectionChecks.recipientPresent = hasRecipient;
+      if (!hasRecipient) {
+        denyReasons.push("Recipient required for agent payout / recipient gate");
+      }
+    }
+
+    if (body.expiresAt != null) {
+      const notExpired = nowSec < body.expiresAt;
+      valueProtectionChecks.notExpired = notExpired;
+      if (!notExpired) {
+        denyReasons.push(`Policy expired at ${body.expiresAt} (now ${nowSec})`);
+      }
+    }
 
     // 1. Always run server policy first
     const serverPolicy = await evaluatePolicy(redis, {
@@ -143,57 +198,91 @@ export function registerFlareNativeRoutes(
       amountUsdt0: body.amountUsdt0,
     });
 
+    if (!serverPolicy.allowed) {
+      denyReasons.push(serverPolicy.reason);
+    }
+
+    const valueProtectionDecision: "ALLOW" | "DENY" =
+      denyReasons.length === 0 ? "ALLOW" : "DENY";
+
     // 2. Shadow FCC authorization (for comparison only — cannot move funds)
     const fccAdapter = createConfidentialComputeAdapter(env);
     const shadowFcc = fccAdapter.evaluateShadowAuthorization({
       actionHash: body.actionHash,
-      policyHash: `v${serverPolicy.policyVersion}:${serverPolicy.fccMode}`,
+      policyHash: `v${serverPolicy.policyVersion}:${serverPolicy.fccMode}:${body.useCase}`,
       nonce: `${Date.now()}`,
-      allow: body.allowHint ?? serverPolicy.allowed,
-      reasonCommitment: serverPolicy.allowed ? "server_policy_pass" : serverPolicy.reason,
+      allow: body.allowHint ?? (valueProtectionDecision === "ALLOW"),
+      reasonCommitment:
+        valueProtectionDecision === "ALLOW" ? "value_protection_allow" : denyReasons.join("; "),
+      validBefore: body.expiresAt != null ? String(body.expiresAt) : undefined,
     });
 
-    // 3. Attempt FCC extension client if configured
+    // 3. Lifecycle (TEE PRODUCTION + instruction path honesty)
+    const fccLifecycle = await getFccLifecycleStatus(env);
+
+    // 4. Optional on-chain instruction — never fakes a verified TEE result
     let onChainInstruction: {
       txHash: string;
       instructionId: string;
       status: string;
       partial: boolean;
+      resultPolled: boolean;
+      resultVerified: false;
     } | null = null;
 
-    const fccLifecycle = await getFccLifecycleStatus(env);
+    let teeResultVerified = false;
 
-    // Only attempt on-chain if EXT_PROXY_URL is configured AND InstructionSender has bytecode
-    if (fccLifecycle.extProxyConfigured && fccLifecycle.instructionSenderHasBytecode) {
+    if (
+      body.submitInstruction &&
+      valueProtectionDecision === "ALLOW" &&
+      fccLifecycle.extProxyConfigured &&
+      fccLifecycle.instructionSenderHasBytecode
+    ) {
       try {
         const fccConfig = fccConfigFromEnv(env);
         const fccClient = new FccExtensionClient(fccConfig);
-
-        // Probe contract capabilities
         const caps = await fccClient.probeContractCapabilities();
 
         if (caps.hasSendEvaluateFit || caps.hasSendSayHello) {
-          // Attempt to send evaluate instruction
           const payload = {
+            useCase: body.useCase,
             wallet: body.wallet ?? "unknown",
             actionHash: body.actionHash,
             amountUsdt0: body.amountUsdt0 ?? 0,
+            amountCapUsdt0: body.amountCapUsdt0 ?? null,
+            recipient: body.recipient ?? null,
+            expiresAt: body.expiresAt ?? null,
             agentId: body.agentId ?? "unknown",
             serverPolicyAllowed: serverPolicy.allowed,
+            valueProtectionDecision,
             timestamp: Date.now(),
           };
 
           try {
             const result = await fccClient.sendEvaluateFit(payload);
+            // sendAndWait polls result — if we got here, poll succeeded
+            teeResultVerified = result.status === 0;
             onChainInstruction = {
               txHash: result.txHash,
               instructionId: result.instructionId,
               status: result.status === 0 ? "success" : `status_${result.status}`,
-              partial: !caps.hasSendEvaluateFit, // Partial if fell back to sendSayHello
+              partial: !caps.hasSendEvaluateFit,
+              resultPolled: true,
+              resultVerified: false, // Beacon still does not claim TEE-verified fund authority
             };
           } catch (err) {
-            // FCC instruction failed — do not fail-open
-            onChainInstruction = null;
+            const msg = err instanceof Error ? err.message : String(err);
+            onChainInstruction = {
+              txHash: "",
+              instructionId: "",
+              status: msg.includes("Timed out") || msg.includes("last HTTP")
+                ? "result_poll_PARTIAL"
+                : "instruction_failed",
+              partial: true,
+              resultPolled: false,
+              resultVerified: false,
+            };
+            teeResultVerified = false;
           }
         }
       } catch {
@@ -201,8 +290,24 @@ export function registerFlareNativeRoutes(
       }
     }
 
-    // 4. Build response with honesty labels
+    // Funds never move from this endpoint. Even after a successful poll, FCC does not unlock spend.
+    const canMoveFunds = false as const;
+
     const response = {
+      useCase: body.useCase,
+      valueProtection: {
+        decision: valueProtectionDecision,
+        allow: valueProtectionDecision === "ALLOW",
+        deny: valueProtectionDecision === "DENY",
+        reasons: denyReasons,
+        checks: valueProtectionChecks,
+        canMoveFunds,
+        teeResultVerified,
+        note:
+          valueProtectionDecision === "ALLOW"
+            ? "ALLOW — server/value-protection checks passed. Funds not moved; FCC result not treated as spend authority."
+            : `DENY — ${denyReasons.join("; ")}`,
+      },
       serverPolicy: {
         allowed: serverPolicy.allowed,
         reason: serverPolicy.reason,
@@ -219,23 +324,51 @@ export function registerFlareNativeRoutes(
         honestyLabel: shadowFcc.honestyLabel,
         authorization: shadowFcc.authorization,
       },
+      tee: {
+        teeId: fccLifecycle.teeId,
+        flareTeeManager: fccLifecycle.flareTeeManager,
+        teeMachineStatus: fccLifecycle.teeMachineStatus,
+        teeMachineStatusLabel: fccLifecycle.teeMachineStatusLabel,
+        teeProduction: fccLifecycle.teeProduction,
+        simulatedTee: fccLifecycle.simulatedTee,
+        attestationKind: fccLifecycle.attestationKind,
+        instructionPath: fccLifecycle.instructionPath,
+        extProxyEphemeral: fccLifecycle.extProxyEphemeral,
+      },
       onChainInstruction,
       honesty: {
         serverPolicy: "REAL — Redis-backed spend accounting with fail-closed on unavailable",
+        valueProtection:
+          valueProtectionDecision === "ALLOW"
+            ? "ALLOW path clear — still canMoveFunds:false until separate Safe/x402 rails execute under their own gates"
+            : "DENY path clear — spend must not proceed on this decision",
         shadowFcc: fccLifecycle.mode === "simulated"
           ? "SIMULATED_TEE — hackathon-accepted, NOT hardware-attested"
           : fccLifecycle.mode === "unavailable"
             ? "NOT_AVAILABLE — FCC not configured"
             : "VERIFIED mode configured but hardware attestation not verified by Beacon",
+        teeMachine:
+          fccLifecycle.teeProduction
+            ? fccLifecycle.simulatedTee
+              ? "PRODUCTION (status=2) via SIMULATED_TEE availability attestation — NOT GCP Confidential Space hardware"
+              : "PRODUCTION (status=2) reported — Beacon still sets hardwareClaim:false without measured codeHash proof"
+            : fccLifecycle.teeMachineStatus != null
+              ? `teeMachineStatus=${fccLifecycle.teeMachineStatus} (${fccLifecycle.teeMachineStatusLabel}) — not PRODUCTION`
+              : "TEE machine status not probed",
         onChainFcc: onChainInstruction
-          ? onChainInstruction.partial
-            ? "PARTIAL — used sendSayHello fallback, sendEvaluateFit not detected on contract"
-            : "REAL — instruction sent via FccExtensionClient"
-          : fccLifecycle.blockers.length > 0
-            ? `NOT_AVAILABLE — ${fccLifecycle.blockers.join("; ")}`
-            : "NOT_ATTEMPTED",
+          ? onChainInstruction.resultPolled
+            ? onChainInstruction.partial
+              ? "PARTIAL — instruction+poll via sendSayHello fallback; not TEE-verified fund authority"
+              : "PARTIAL — instruction result polled; canMoveFunds still false (no fake TEE verified spend)"
+            : "PARTIAL — instruction submit and/or result poll incomplete (e.g. poll 404)"
+          : body.submitInstruction
+            ? fccLifecycle.blockers.length > 0
+              ? `NOT_AVAILABLE — ${fccLifecycle.blockers.join("; ")}`
+              : "NOT_ATTEMPTED"
+            : "NOT_SUBMITTED — pass submitInstruction:true to attempt on-chain FCC (opt-in)",
         fundsMoved: "NEVER — this endpoint does not move funds",
-        hardwareClaim: "false — Beacon does not verify hardware TEE attestation chain",
+        hardwareClaim: "false — Beacon does not claim hardware Confidential Space while SIMULATED_TEE or without attestation chain",
+        canMoveFunds: "false — kept false until result verified; never faked",
       },
       daLayerNote: "Correct DA base: https://ctn2-data-availability.flare.network/ — proof path: /api/v1/fdc/proof-by-request-round-raw",
       docs: [
@@ -347,10 +480,16 @@ export function registerFlareNativeRoutes(
       return {
         ...result,
         fullLifecycle: true,
+        onChainVerified: result.onChainVerified,
+        fdcVerificationAddress: result.fdcVerificationAddress,
         honesty:
-          result.lifecycle === "Finalized" && result.proof
-            ? "Full FDC lifecycle complete: prepare → submit → finalize → proof. Proof retrieved from DA layer. On-chain verification via FdcVerification not yet performed."
-            : `FDC lifecycle reached stage: ${result.lifecycle}. ${result.error ?? ""}`,
+          result.lifecycle === "Verified" && result.onChainVerified
+            ? "Full FDC lifecycle complete: prepare → submit → finalize → proof → FdcVerification.verifyAddressValidity (VIEW staticCall) = true. Honesty: VERIFIED."
+            : result.lifecycle === "Finalized" && result.proof
+              ? result.onChainVerified === false
+                ? "DA proof retrieved; on-chain FdcVerification.verifyAddressValidity returned false or failed. Honesty: PARTIAL (not VERIFIED)."
+                : "Full FDC lifecycle through DA proof. On-chain verify not performed for this attestation type."
+              : `FDC lifecycle reached stage: ${result.lifecycle}. ${result.error ?? ""}`,
       };
     }
 
@@ -458,9 +597,17 @@ export function registerFlareNativeRoutes(
     await redis.set(FDC_KEY(requestId), result, { ex: 60 * 60 * 48 });
     return {
       ...result,
-      honesty: result.proof
-        ? "Proof retrieved from DA layer. On-chain verification via FdcVerification.verifyAddressValidity/verifyEVMTransaction not yet performed — that requires passing the typed Proof struct to the contract."
-        : "Proof not yet available from DA layer.",
+      onChainVerified: result.onChainVerified,
+      fdcVerificationAddress: result.fdcVerificationAddress,
+      honesty: result.onChainVerified
+        ? "Proof retrieved from DA layer and verified on-chain via FdcVerification.verifyAddressValidity (VIEW staticCall). Honesty: VERIFIED."
+        : result.proof
+          ? result.verification?.error
+            ? `Proof retrieved from DA layer; on-chain verify failed: ${result.verification.error}`
+            : result.onChainVerified === false
+              ? "Proof retrieved from DA layer; FdcVerification.verifyAddressValidity returned false."
+              : "Proof retrieved from DA layer. On-chain verification not performed for this request."
+          : "Proof not yet available from DA layer.",
     };
   });
 
@@ -501,7 +648,9 @@ export function registerFlareNativeRoutes(
         },
       ],
       note:
-        "Finalized means DA proof bytes were retrieved. Verified requires on-chain FdcVerification — not claimed from fetch alone.",
+        result.lifecycle === "Verified" && result.onChainVerified
+          ? "Verified means FdcVerification.verifyAddressValidity (VIEW staticCall) returned true on Coston2."
+          : "Finalized means DA proof bytes were retrieved. Verified requires on-chain FdcVerification — not claimed from fetch alone.",
     };
   });
 
@@ -696,7 +845,17 @@ export function registerFlareNativeRoutes(
             instructionSenderDeployed: fccLifecycle.instructionSenderHasBytecode,
             instructionSenderAddress: fccLifecycle.instructionSenderAddress,
             extProxyConfigured: fccLifecycle.extProxyConfigured,
+            extProxyReachable: fccLifecycle.extProxyReachable,
+            extProxyEphemeral: fccLifecycle.extProxyEphemeral,
             teeProxyAvailable: fccLifecycle.teeProxyAvailable,
+            teeId: fccLifecycle.teeId,
+            flareTeeManager: fccLifecycle.flareTeeManager,
+            teeMachineStatus: fccLifecycle.teeMachineStatus,
+            teeMachineStatusLabel: fccLifecycle.teeMachineStatusLabel,
+            teeProduction: fccLifecycle.teeProduction,
+            simulatedTee: fccLifecycle.simulatedTee,
+            attestationKind: fccLifecycle.attestationKind,
+            instructionPath: fccLifecycle.instructionPath,
             blockers: fccLifecycle.blockers,
             canMoveFunds: false,
             hardwareClaim: false,

@@ -282,6 +282,26 @@ function extractInstructionId(receipt: {
 // FCC Lifecycle Status Helper
 // -----------------------------------------------------------------------------
 
+/** Known Coston2 FlareTeeManager diamond (evidence 2026-08-10). */
+export const COSTON2_FLARE_TEE_MANAGER = "0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE";
+
+/** Known Beacon TEE machine used for Coston2 PRODUCTION evidence (SIMULATED_TEE). */
+export const COSTON2_EVIDENCE_TEE_ID = "0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed";
+
+const TEE_MANAGER_ABI = [
+  "function getTeeMachineStatus(address) view returns (uint8)",
+  "function getTeeMachine(address) view returns (address teeAddress, address owner, string url)",
+  "function getRandomTeeIds(uint256 _extensionId, uint256 _count) view returns (address[])",
+];
+
+export type TeeMachineStatusLabel =
+  | "NONE"
+  | "INITIALIZED"
+  | "PRODUCTION"
+  | "UNKNOWN";
+
+export type FccAttestationKind = "simulated" | "hardware" | "unknown";
+
 export interface FccLifecycleStatus {
   mode: "verified" | "simulated" | "unavailable";
   instructionSenderConfigured: boolean;
@@ -291,14 +311,70 @@ export interface FccLifecycleStatus {
   extensionId: string | null;
   extProxyConfigured: boolean;
   extProxyUrl: string | null;
+  extProxyReachable: boolean;
+  extProxyEphemeral: boolean;
   teeProxyAvailable: boolean;
   teeProxyUrl: string | null;
+  /** TEE machine address when TEE_ID set or probeable via manager. */
+  teeId: string | null;
+  flareTeeManager: string | null;
+  /** Raw FlareTeeManager.getTeeMachineStatus uint8 when probeable. */
+  teeMachineStatus: number | null;
+  teeMachineStatusLabel: TeeMachineStatusLabel | null;
+  /** True when on-chain status === 2 (PRODUCTION). Does NOT imply hardware TEE. */
+  teeProduction: boolean;
+  simulatedTee: boolean;
+  attestationKind: FccAttestationKind;
+  instructionPath: {
+    senderReady: boolean;
+    canSubmitInstruction: boolean;
+    canPollResult: boolean;
+    resultVerified: false;
+    note: string;
+  };
+  /** Always false until a TEE action result is polled and verified — never faked. */
   canMoveFunds: false;
   hardwareClaim: false;
   contractCapabilities: FccContractCapabilities | null;
   honesty: string;
   blockers: string[];
   docs: string[];
+}
+
+/** Map FlareTeeManager machine status uint8 → label. Status 2 = PRODUCTION. */
+export function teeMachineStatusLabel(status: number | null | undefined): TeeMachineStatusLabel | null {
+  if (status == null || Number.isNaN(status)) return null;
+  if (status === 0) return "NONE";
+  if (status === 1) return "INITIALIZED";
+  if (status === 2) return "PRODUCTION";
+  return "UNKNOWN";
+}
+
+export function isTeeProduction(status: number | null | undefined): boolean {
+  return status === 2;
+}
+
+export function isEphemeralExtProxyUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host.endsWith(".trycloudflare.com") || host.endsWith(".ngrok-free.app") || host.endsWith(".ngrok.io");
+  } catch {
+    return /trycloudflare\.com|ngrok/i.test(url);
+  }
+}
+
+function resolveTeeManagerAddress(env: BeaconEnv): string {
+  return (env.FLARE_TEE_MANAGER || COSTON2_FLARE_TEE_MANAGER).trim();
+}
+
+function parseExtensionIdNumeric(raw: string | undefined | null): bigint | null {
+  if (!raw) return null;
+  try {
+    return BigInt(raw);
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -311,20 +387,31 @@ export async function getFccLifecycleStatus(env: BeaconEnv = loadEnv()): Promise
   const instructionSenderConfigured = Boolean(env.INSTRUCTION_SENDER);
   const extensionIdConfigured = Boolean(env.EXTENSION_ID);
   const extProxyConfigured = Boolean(env.EXT_PROXY_URL);
+  const simulatedTee = Boolean(env.SIMULATED_TEE);
+  const flareTeeManager = resolveTeeManagerAddress(env);
 
   let instructionSenderHasBytecode = false;
   let contractCapabilities: FccContractCapabilities | null = null;
   let teeProxyAvailable = false;
+  let extProxyReachable = false;
+  let teeId: string | null = env.TEE_ID?.trim() || null;
+  let teeMachineStatus: number | null = null;
+
+  const rpcUrl = env.CHAIN_URL || env.COSTON2_RPC_URL;
+  let provider: JsonRpcProvider | null = null;
+  try {
+    provider = new JsonRpcProvider(rpcUrl);
+  } catch {
+    provider = null;
+  }
 
   // Check InstructionSender bytecode
-  if (instructionSenderConfigured) {
+  if (instructionSenderConfigured && provider) {
     try {
-      const provider = new JsonRpcProvider(env.CHAIN_URL || env.COSTON2_RPC_URL);
       const code = await provider.getCode(env.INSTRUCTION_SENDER!);
       instructionSenderHasBytecode = code.length > 2;
 
       if (instructionSenderHasBytecode) {
-        // Probe capabilities
         const iface = new Interface(SENDER_DETECT_ABI);
         const caps: FccContractCapabilities = {
           hasBytecode: true,
@@ -370,15 +457,61 @@ export async function getFccLifecycleStatus(env: BeaconEnv = loadEnv()): Promise
     }
   }
 
+  // Probe FlareTeeManager for machine status when TEE_ID set or probeable via extension
+  if (provider) {
+    try {
+      const mgr = new Contract(flareTeeManager, TEE_MANAGER_ABI, provider);
+      if (!teeId) {
+        const extNum = parseExtensionIdNumeric(env.EXTENSION_ID);
+        if (extNum != null) {
+          try {
+            const ids = (await mgr.getRandomTeeIds(extNum, 1)) as string[];
+            if (ids?.[0]) teeId = ids[0];
+          } catch {
+            // Fall back to evidence TEE when configured on Coston2 path
+            if (simulatedTee) teeId = COSTON2_EVIDENCE_TEE_ID;
+          }
+        } else if (simulatedTee) {
+          teeId = COSTON2_EVIDENCE_TEE_ID;
+        }
+      }
+      if (teeId) {
+        const status = Number(await mgr.getTeeMachineStatus(teeId));
+        if (Number.isFinite(status)) teeMachineStatus = status;
+      }
+    } catch {
+      // Manager probe failed — leave status null
+    }
+  }
+
   // Check TEE proxy availability
   if (env.TEE_PROXY_URL) {
     try {
-      const resp = await fetch(`${env.TEE_PROXY_URL}/info`, { method: "GET" });
+      const resp = await fetch(`${env.TEE_PROXY_URL.replace(/\/$/, "")}/info`, { method: "GET" });
       teeProxyAvailable = resp.ok;
     } catch {
       // Proxy unreachable
     }
   }
+
+  // Check extension proxy (result poll path)
+  if (extProxyConfigured && env.EXT_PROXY_URL) {
+    try {
+      const base = env.EXT_PROXY_URL.replace(/\/$/, "");
+      const resp = await fetch(`${base}/info`, { method: "GET" });
+      extProxyReachable = resp.ok;
+      if (!extProxyReachable) {
+        const health = await fetch(`${base}/health`, { method: "GET" });
+        extProxyReachable = health.ok;
+      }
+    } catch {
+      extProxyReachable = false;
+    }
+  }
+
+  const extProxyEphemeral = isEphemeralExtProxyUrl(env.EXT_PROXY_URL);
+  const statusLabel = teeMachineStatusLabel(teeMachineStatus);
+  const teeProduction = isTeeProduction(teeMachineStatus);
 
   // Identify blockers
   if (!instructionSenderConfigured) {
@@ -389,21 +522,60 @@ export async function getFccLifecycleStatus(env: BeaconEnv = loadEnv()): Promise
 
   if (!extProxyConfigured) {
     blockers.push("EXT_PROXY_URL not configured — cannot poll instruction results");
+  } else if (!extProxyReachable) {
+    blockers.push("EXT_PROXY_URL configured but unreachable — instruction→result poll PARTIAL");
   }
 
-  // Determine mode
+  if (extProxyEphemeral) {
+    blockers.push(
+      "EXT_PROXY_URL is ephemeral (trycloudflare/ngrok) — tunnel must stay alive or re-register with a stable domain",
+    );
+  }
+
+  // Determine mode — SIMULATED_TEE never upgrades to "verified" hardware claim
   let mode: "verified" | "simulated" | "unavailable" = "unavailable";
-  if (env.SIMULATED_TEE) {
+  if (simulatedTee) {
     mode = "simulated";
   } else if (blockers.length === 0 && instructionSenderHasBytecode && extProxyConfigured) {
-    mode = "verified"; // Would be verified if hardware TEE was available
+    mode = "verified";
   }
 
-  const honesty = mode === "simulated"
-    ? "FCC mode is SIMULATED_TEE — hackathon-accepted for Coston2. NOT hardware-attested Confidential Space. canMoveFunds: false, hardwareClaim: false."
+  const attestationKind: FccAttestationKind = simulatedTee
+    ? "simulated"
+    : mode === "verified"
+      ? "hardware"
+      : "unknown";
+
+  const canPollResult = extProxyConfigured && extProxyReachable;
+  const canSubmitInstruction = instructionSenderHasBytecode && Boolean(env.INSTRUCTION_SENDER);
+
+  const productionNote = teeProduction
+    ? `FlareTeeManager status=2 PRODUCTION for tee ${teeId}.`
+    : teeMachineStatus != null
+      ? `FlareTeeManager status=${teeMachineStatus} (${statusLabel}).`
+      : "TEE machine status not probed.";
+
+  const honesty = simulatedTee
+    ? [
+        "FCC mode is SIMULATED_TEE — hackathon-accepted for Coston2.",
+        productionNote,
+        "PRODUCTION here means on-chain availability registration (rRap), NOT GCP Confidential Space hardware.",
+        "canMoveFunds: false until instruction result is polled and verified — never faked.",
+        "hardwareClaim: false.",
+        extProxyEphemeral
+          ? "EXT_PROXY_URL uses an ephemeral tunnel — keep it alive or re-register."
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ")
     : mode === "unavailable"
       ? `FCC unavailable: ${blockers.join("; ")}. Shadow authorization fail-closed.`
-      : "FCC mode is verified — but Beacon does not verify hardware attestation chain. Do NOT trust as hardware TEE proof.";
+      : [
+          "FCC mode claims verified path, but Beacon does not independently verify hardware attestation chain.",
+          productionNote,
+          "Do NOT treat as hardware TEE proof without measured codeHash + Confidential Space evidence.",
+          "canMoveFunds: false until instruction result verified.",
+        ].join(" ");
 
   return {
     mode,
@@ -414,8 +586,26 @@ export async function getFccLifecycleStatus(env: BeaconEnv = loadEnv()): Promise
     extensionId: env.EXTENSION_ID ?? null,
     extProxyConfigured,
     extProxyUrl: extProxyConfigured ? env.EXT_PROXY_URL! : null,
+    extProxyReachable,
+    extProxyEphemeral,
     teeProxyAvailable,
     teeProxyUrl: env.TEE_PROXY_URL ?? null,
+    teeId,
+    flareTeeManager,
+    teeMachineStatus,
+    teeMachineStatusLabel: statusLabel,
+    teeProduction,
+    simulatedTee,
+    attestationKind,
+    instructionPath: {
+      senderReady: canSubmitInstruction,
+      canSubmitInstruction,
+      canPollResult,
+      resultVerified: false,
+      note: canPollResult
+        ? "Instruction submit possible; result poll reachable — still not auto-verified for fund movement."
+        : "Instruction→result is PARTIAL until EXT_PROXY_URL is reachable and a result is polled.",
+    },
     canMoveFunds: false,
     hardwareClaim: false,
     contractCapabilities,
@@ -424,6 +614,7 @@ export async function getFccLifecycleStatus(env: BeaconEnv = loadEnv()): Promise
     docs: [
       "https://dev.flare.network/fcc/overview",
       "https://dev.flare.network/fcc/developer-guides",
+      "docs/evidence/fcc-tee-production.json",
     ],
   };
 }

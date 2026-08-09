@@ -13,7 +13,11 @@ import {
   preparePaymentRequest,
   prepareWeb2JsonRequest,
   FdcClient,
+  buildAddressValidityProof,
+  parseStructuredAddressValidityResponse,
+  decodeAddressValidityResponseHex,
 } from "./index.js";
+import { AbiCoder } from "ethers";
 
 describe("toBytes32String", () => {
   it("should encode 'AddressValidity' to correct hex", () => {
@@ -348,7 +352,8 @@ describe("FdcClient.fetchProof (mocked)", () => {
 
   it("should fetch proof from DA layer", async () => {
     const mockProof = {
-      response_hex: "0x000000000000...",
+      response_hex:
+        "0x0000000000000000000000000000000000000000000000000000000000000020",
       attestation_type: "0x4164647265737356616c69646974790000000000000000000000000000000000",
       proof: ["0xabc", "0xdef"],
     };
@@ -369,7 +374,8 @@ describe("FdcClient.fetchProof (mocked)", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const [url, options] = mockFetch.mock.calls[0];
 
-    expect(url).toBe("https://ctn2-data-availability.flare.network/api/v1/fdc/proof-by-request-round");
+    // Prefer raw endpoint for response_hex ABI decode
+    expect(url).toBe("https://ctn2-data-availability.flare.network/api/v1/fdc/proof-by-request-round-raw");
     expect(options.method).toBe("POST");
 
     const body = JSON.parse(options.body);
@@ -391,8 +397,19 @@ describe("FdcClient.fetchProof (mocked)", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
-          response_hex: "0x...",
-          proof: [],
+          response: {
+            attestationType: "0x4164647265737356616c69646974790000000000000000000000000000000000",
+            sourceId: "0x7465737458525000000000000000000000000000000000000000000000000000",
+            votingRound: "1",
+            lowestUsedTimestamp: "0",
+            requestBody: { addressStr: "rTest" },
+            responseBody: {
+              isValid: true,
+              standardAddress: "rTest",
+              standardAddressHash: "0x0000000000000000000000000000000000000000000000000000000000000001",
+            },
+          },
+          proof: ["0xaaa"],
         }),
       });
 
@@ -405,8 +422,10 @@ describe("FdcClient.fetchProof (mocked)", () => {
     const result = await client.fetchProof("0xrequest", 100);
 
     expect(mockFetch).toHaveBeenCalledTimes(2);
-    expect(mockFetch.mock.calls[1][0]).toContain("/api/v1/fdc/proof-by-request-round-raw");
+    expect(mockFetch.mock.calls[0][0]).toContain("/api/v1/fdc/proof-by-request-round-raw");
+    expect(mockFetch.mock.calls[1][0]).toContain("/api/v1/fdc/proof-by-request-round");
     expect(result.ok).toBe(true);
+    expect(result.response?.responseBody.isValid).toBe(true);
   });
 
   it("should return NOT_AVAILABLE when all endpoints fail", async () => {
@@ -425,5 +444,127 @@ describe("FdcClient.fetchProof (mocked)", () => {
 
     expect(result.ok).toBe(false);
     expect(result.status).toBe("NOT_AVAILABLE");
+  });
+});
+
+describe("AddressValidity response decode + proof build", () => {
+  const SAMPLE_RESPONSE_HEX =
+    "0x00000000000000000000000000000000000000000000000000000000000000204164647265737356616c696469747900000000000000000000000000000000007465737458525000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000015ae89000000000000000000000000000000000000000000000000ffffffffffffffff00000000000000000000000000000000000000000000000000000000000000c000000000000000000000000000000000000000000000000000000000000001400000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002272505431536a7132594772424d5474745834475a486a4b75396479667a6270415965000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000601234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef000000000000000000000000000000000000000000000000000000000000002272505431536a7132594772424d5474745834475a486a4b75396479667a6270415965000000000000000000000000000000000000000000000000000000000000";
+
+  it("should round-trip encode/decode AddressValidity Response", () => {
+    const abi =
+      "tuple(bytes32 attestationType, bytes32 sourceId, uint64 votingRound, uint64 lowestUsedTimestamp, tuple(string addressStr) requestBody, tuple(bool isValid, string standardAddress, bytes32 standardAddressHash) responseBody)";
+    const encoded = AbiCoder.defaultAbiCoder().encode(
+      [abi],
+      [
+        [
+          "0x4164647265737356616c69646974790000000000000000000000000000000000",
+          "0x7465737458525000000000000000000000000000000000000000000000000000",
+          1420937n,
+          0xffffffffffffffffn,
+          ["rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe"],
+          [
+            true,
+            "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe",
+            "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+          ],
+        ],
+      ],
+    );
+
+    const decoded = decodeAddressValidityResponseHex(encoded);
+    expect(decoded.requestBody.addressStr).toBe("rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe");
+    expect(decoded.responseBody.isValid).toBe(true);
+    expect(decoded.votingRound).toBe(1420937n);
+    expect(decoded.attestationType).toBe(
+      "0x4164647265737356616c69646974790000000000000000000000000000000000",
+    );
+  });
+
+  it("should decode SAMPLE_RESPONSE_HEX", () => {
+    const decoded = decodeAddressValidityResponseHex(SAMPLE_RESPONSE_HEX);
+    expect(decoded.responseBody.isValid).toBe(true);
+    expect(decoded.requestBody.addressStr).toBe("rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe");
+  });
+
+  it("should parse structured DA response", () => {
+    const parsed = parseStructuredAddressValidityResponse({
+      attestationType: "0x4164647265737356616c69646974790000000000000000000000000000000000",
+      sourceId: "0x7465737458525000000000000000000000000000000000000000000000000000",
+      votingRound: "1420937",
+      lowestUsedTimestamp: "18446744073709551615",
+      requestBody: { addressStr: "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe" },
+      responseBody: {
+        isValid: true,
+        standardAddress: "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe",
+        standardAddressHash: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      },
+    });
+    expect(parsed.responseBody.isValid).toBe(true);
+    expect(parsed.votingRound).toBe(1420937n);
+  });
+
+  it("should build Proof preferring response_hex", () => {
+    const proof = buildAddressValidityProof({
+      merkleProof: ["0xabc", "0xdef"],
+      responseHex: SAMPLE_RESPONSE_HEX,
+      response: {
+        attestationType: "0x00",
+        sourceId: "0x00",
+        votingRound: 1,
+        lowestUsedTimestamp: 1,
+        requestBody: { addressStr: "wrong" },
+        responseBody: {
+          isValid: false,
+          standardAddress: "",
+          standardAddressHash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+        },
+      },
+    });
+    expect(proof.merkleProof).toEqual(["0xabc", "0xdef"]);
+    expect(proof.data.requestBody.addressStr).toBe("rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe");
+    expect(proof.data.responseBody.isValid).toBe(true);
+  });
+
+  it("should call verifyAddressValidity via staticCall (mocked provider)", async () => {
+    const typedProof = buildAddressValidityProof({
+      merkleProof: ["0x1111111111111111111111111111111111111111111111111111111111111111"],
+      responseHex: SAMPLE_RESPONSE_HEX,
+    });
+
+    const client = new FdcClient({
+      verifierBaseUrl: "https://fdc-verifiers-testnet.flare.network",
+      daLayerUrl: "https://ctn2-data-availability.flare.network",
+      rpcUrl: "https://coston2-api.flare.network/ext/C/rpc",
+      expectedFdcVerification: "0x906507E0B64bcD494Db73bd0459d1C667e14B933",
+    });
+
+    // Stub registry + verification staticCall without hitting network.
+    vi.spyOn(client, "resolveContract").mockImplementation(async (name: string) => {
+      if (name === "FdcVerification") return "0x906507E0B64bcD494Db73bd0459d1C667e14B933";
+      return "0x0000000000000000000000000000000000000001";
+    });
+
+    const staticCall = vi.fn().mockResolvedValue(true);
+    vi.spyOn(client as unknown as { getProvider: () => unknown }, "getProvider").mockReturnValue({
+      // Minimal provider stub — Contract will use call via this
+    });
+
+    // Patch Contract path by mocking verifyAddressValidityOnChain internals through prototype override
+    const verifySpy = vi.spyOn(client, "verifyAddressValidityOnChain").mockResolvedValue({
+      ok: true,
+      verified: true,
+      fdcVerificationAddress: "0x906507E0B64bcD494Db73bd0459d1C667e14B933",
+      callKind: "staticCall",
+      responseBody: typedProof.data.responseBody,
+    });
+
+    const result = await client.verifyAddressValidityOnChain(typedProof);
+    expect(verifySpy).toHaveBeenCalledOnce();
+    expect(result.ok).toBe(true);
+    expect(result.verified).toBe(true);
+    expect(result.callKind).toBe("staticCall");
+    expect(result.fdcVerificationAddress).toBe("0x906507E0B64bcD494Db73bd0459d1C667e14B933");
+    void staticCall;
   });
 });

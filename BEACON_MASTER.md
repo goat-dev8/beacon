@@ -2,7 +2,7 @@
 
 **Single source of truth for Beacon (Flare AI OS).**  
 **Network:** Flare Testnet Coston2 (chain ID **114**)  
-**Last aligned with:** `history.md` (2026-08-10 FDC REAL + FCC PARTIAL), `docs/FLARE_FINAL_AUDIT.md`, `docs/FLARE_*.md`  
+**Last aligned with:** `history.md` (2026-08-10 FCC TEE PRODUCTION + FDC on-chain VERIFIED), `docs/FLARE_FINAL_AUDIT.md`, `docs/FLARE_*.md`  
 **Rule:** Do not invent facts. Mark unknowns as TODO. No secrets in this file.
 
 ---
@@ -29,7 +29,7 @@ Landing (/)
   -> Connect wallet (MetaMask / Rabby, Coston2 only)
   -> Fund Beacon Safe (EIP-3009 deposit or transfer of MockUSDT0)
   -> Set spending policy (caps, window, session, pause)
-  -> FCC path is honest: SIMULATED_TEE on Coston2 (not hardware enclave)
+  -> FCC path is honest: SIMULATED_TEE on Coston2; FlareTeeManager may show PRODUCTION (status 2) without claiming hardware Confidential Space
   -> x402 micropays in Flow (Facilitator + EIP-3009) and/or Agent Jobs escrow
   -> Receipts (job receipt + explorer tx links)
   -> Flow (/flow) for ongoing chat OS work
@@ -86,12 +86,12 @@ Nav rail (`ProductShell`): Flow -> Jobs -> Safe.
   Coston2 (chain 114):
   MockUSDT0, Facilitator, Escrow, AgentVault, JobRegistry, SwapDesk
   FTSO (execution guard on Safe swaps), FAssets status/redeem, LayerZero OFT + delivery track
-  FDC API lifecycle (REAL only with verifier URLs; never invented proofs)
-  FCC shadow auth (SIMULATED_TEE — not hardware Confidential Space)
+  FDC API lifecycle (REAL + on-chain AddressValidity VERIFIED via staticCall; never invented proofs)
+  FCC shadow + value-protection evaluate (SIMULATED_TEE; FlareTeeManager PRODUCTION status 2 ≠ hardware)
 
-* FDC: API `/v1/fdc/*` wired; Flow does not silently fake attestations. Value-moving FDC accept requires on-chain verify.
-* FCC: SIMULATED_TEE / FCC_MODE=simulated - not hardware Confidential Space. Shadow only — cannot move funds.
-* Beacon Safe ≠ Flare Smart Account. Local credit memo markers are `0xbe`/`0xbc`, not SA `0xff`.
+* FDC: API `/v1/fdc/*` wired; Flow does not silently fake attestations. Evidence: `docs/evidence/fdc-address-validity-verify.json` (`onChainVerified: true`).
+* FCC: SIMULATED_TEE / FCC_MODE=simulated — not hardware Confidential Space. TEE `0x6516…c8ed` on manager `0x1a9C…18aE` is **PRODUCTION (status 2)** via availability attestation. Shadow / value-protection evaluate cannot move funds (`canMoveFunds: false`). Instruction→result may still be PARTIAL if EXT_PROXY poll 404; trycloudflare EXT_PROXY is ephemeral.
+* Beacon Safe ≠ Flare Smart Account. Smart Accounts rail = **STUB**. Local credit memo markers are `0xbe`/`0xbc`, not SA `0xff`.
 ```
 
 ### Packages (workspaces)
@@ -178,7 +178,7 @@ Agent Jobs escrow is a **product extension** (lock until acceptance), not a repl
 ## 7. Honesty constraints (non-negotiable)
 
 1. **EIP-3009 cannot forge from Safe.** Signature must recover to `from`. A contract Safe has no private key for that address. Beacon does **not** set `from = Safe` with a wallet signature. Safe jobs use `vault.execute` + `escrow.lockPrepaid`.
-2. **FCC = SIMULATED_TEE on Coston2.** Live: `SIMULATED_TEE=true`, `FCC_MODE=simulated`. Do not claim hardware Confidential Space / verified enclave.
+2. **FCC = SIMULATED_TEE on Coston2.** Live: `SIMULATED_TEE=true`, `FCC_MODE=simulated`. FlareTeeManager may report **PRODUCTION (status 2)** for a registered machine — that is availability attestation, **not** hardware Confidential Space / measured enclave. `canMoveFunds: false` until instruction result is polled and verified (never faked). EXT_PROXY may be an ephemeral trycloudflare tunnel.
 3. **Beacon Safe -> Flare Smart Accounts.** Smart Accounts are XRPL-controlled personal accounts. BeaconAgentVault is a MetaMask/agent policy vault.
 4. **MockUSDT0** (`0x6fd8…e86c`) is the payment asset for Safe / Jobs / x402 until FXRP (or faucet USDT0) has official EIP-3009 in Flare x402 guides. Faucet [Coston2](https://faucet.flare.network/coston2) supplies **C2FLR gas** (and optional USDT0/FXRP for other demos). See `docs/RESEARCH_USDT0_FAUCET_VS_MOCK.md`.
 5. **Coston2 only** for agent / Safe product rails (chain 114). SparkDEX Mainnet paths are blocked for Safe auto-spend; Safe FXRP uses SwapDesk + FTSO.
@@ -285,7 +285,7 @@ Production Render may run API with **embedded workers** (`startEmbeddedWorkers`)
 
 ### FCC
 
-`FCC_MODE`, `SIMULATED_TEE`, `LOCAL_MODE`, `MODE`, `TEE_PROXY_URL`, `NORMAL_PROXY_URL`, `EXT_PROXY_URL`, `EXT_PROXY_PORT`, `CHAIN_URL`, `LANGUAGE`, `TEE_NODE_VERSION`, `EXTENSION_PORT`, `GOVERNANCE_SIGNERS`, `GOVERNANCE_THRESHOLD`, `EXTENSION_ID`, `INSTRUCTION_SENDER`
+`FCC_MODE`, `SIMULATED_TEE`, `LOCAL_MODE`, `MODE`, `TEE_PROXY_URL`, `NORMAL_PROXY_URL`, `EXT_PROXY_URL`, `EXT_PROXY_PORT`, `CHAIN_URL`, `LANGUAGE`, `TEE_NODE_VERSION`, `EXTENSION_PORT`, `GOVERNANCE_SIGNERS`, `GOVERNANCE_THRESHOLD`, `EXTENSION_ID`, `INSTRUCTION_SENDER`, `TEE_ID`, `FLARE_TEE_MANAGER`
 
 ### Data / AI / media
 
@@ -334,8 +334,8 @@ Local desk (dev): `http://localhost:5173` -> API `http://127.0.0.1:3001` (when r
 | **FAssets / FXRP** | Flow FAssets desk + Safe FXRP swaps | Compliant (Flow / Safe desk) |
 | **LayerZero OFT** | Flow bridge intents / agent bridge | Compliant (Flow) |
 | **x402** | Flow micropays via Facilitator + EIP-3009 | Compliant |
-| **FDC** | Flow attestation paths | Not claimed on Jobs desk |
-| **FCC** | Instruction / TEE composition demos | `SIMULATED_TEE` only |
+| **FDC** | Flow attestation paths + on-chain AddressValidity VERIFIED (staticCall) | Not claimed on Jobs desk |
+| **FCC** | Lifecycle + value-protection evaluate (ALLOW/DENY) | `SIMULATED_TEE`; PRODUCTION status 2 ≠ hardware; result poll may be PARTIAL |
 | **EIP-3009 / MockUSDT0** | Safe funding, wallet job locks, x402 | Compliant; no forged Safe-as-from |
 
 ---
@@ -353,7 +353,7 @@ Method used in history: Chrome DevTools against production desk + MetaMask on Co
 - **Bridge:** quote -> Confirm -> Execute with Beacon Agent; explorer + LZ Scan links when on-chain
 - **x402:** Unpaid -> EIP-3009 on chain 114 -> settle
 - **Agent Jobs:** brief -> quote -> **Pay from Beacon Safe** (primary) or wallet EIP-3009 -> generate -> PASS/CLOSED or NEEDS_LOOK with deliverable; receipt + explorer; Safe timeline shows `vault.execute` + `lockPrepaid`
-- **FCC badge:** SIMULATED_TEE honesty (not hardware)
+- **FCC badge:** SIMULATED_TEE honesty (PRODUCTION status 2 ≠ hardware Confidential Space)
 - **CI local:** `npm run typecheck`, `npm test`, `npm run test:contracts`, `npm run web:build`
 
 ### Scripted e2e

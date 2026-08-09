@@ -1,0 +1,16 @@
+﻿{
+  "ok": true,
+  "path": "DENY",
+  "note": "TEE returned status 0 for invalid SAY_HELLO payload (unknown field / empty name). Signed result available.",
+  "instructionId": "0x2bd689749c798cf92001ac17e8cefa231b6a73e59b899eed98dd700826db6c67",
+  "txHash": "0x1446f4143a1c317f4eaf71b0a981c1ff751bec485870b093d9ac498d5a124aa5",
+  "explorer": "https://coston2-explorer.flare.network/tx/0x1446f4143a1c317f4eaf71b0a981c1ff751bec485870b093d9ac498d5a124aa5",
+  "actionStatus": 0,
+  "log": "error: decoding request: json: unknown field \"kind\"",
+  "decision": "DENY",
+  "teeStatus": 2,
+  "teeStatusLabel": "PRODUCTION",
+  "hasSignature": true,
+  "honesty": "SIMULATED_TEE PRODUCTION — DENY when TEE action status != 1",
+  "timestamp": "2026-08-09T23:54:00.000Z"
+}
