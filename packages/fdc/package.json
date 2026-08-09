@@ -13,10 +13,14 @@
   },
   "scripts": {
     "build": "node -e \"process.stdout.write('skip\\n')\"",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@beacon/shared": "*",
     "ethers": "^6.17.0"
+  },
+  "devDependencies": {
+    "vitest": "^3.1.2"
   }
 }

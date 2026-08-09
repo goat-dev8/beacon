@@ -1,4 +1,4 @@
-import { Contract, JsonRpcProvider, Wallet, getBytes, toUtf8Bytes } from "ethers";
+import { Contract, JsonRpcProvider, Wallet, getBytes, toUtf8Bytes, Interface } from "ethers";
 import { honestyMessage, loadEnv, type BeaconEnv } from "@beacon/shared";
 
 /** Registry instruction fee used by official scaffold tools (wei). */
@@ -10,6 +10,24 @@ const SENDER_ABI = [
   "function sendAccept(bytes _payload) payable",
   "function getExtensionId() view returns (uint256)",
 ];
+
+/** Minimal ABI for interface detection */
+const SENDER_DETECT_ABI = [
+  "function sendSayHello(bytes) payable",
+  "function sendEvaluateFit(bytes) payable",
+  "function sendAccept(bytes) payable",
+  "function getExtensionId() view returns (uint256)",
+];
+
+export interface FccContractCapabilities {
+  hasBytecode: boolean;
+  hasSendSayHello: boolean;
+  hasSendEvaluateFit: boolean;
+  hasSendAccept: boolean;
+  hasGetExtensionId: boolean;
+  extensionId: string | null;
+  detectedMethods: string[];
+}
 
 export interface FccExtensionConfig {
   rpcUrl: string;
@@ -49,16 +67,78 @@ export class FccExtensionClient {
   private readonly wallet: Wallet;
   private readonly sender: Contract;
   private readonly cfg: FccExtensionConfig;
+  private readonly provider: JsonRpcProvider;
+  private capabilitiesCache: FccContractCapabilities | null = null;
 
   constructor(cfg: FccExtensionConfig) {
     this.cfg = cfg;
-    const provider = new JsonRpcProvider(cfg.rpcUrl);
-    this.wallet = new Wallet(cfg.privateKey, provider);
+    this.provider = new JsonRpcProvider(cfg.rpcUrl);
+    this.wallet = new Wallet(cfg.privateKey, this.provider);
     this.sender = new Contract(cfg.instructionSender, SENDER_ABI, this.wallet);
   }
 
   honesty(): string {
     return honestyMessage(this.cfg.simulatedTee);
+  }
+
+  /**
+   * Probe the InstructionSender contract to detect available methods.
+   * This helps determine if sendEvaluateFit/sendAccept exist or only sendSayHello.
+   */
+  async probeContractCapabilities(): Promise<FccContractCapabilities> {
+    if (this.capabilitiesCache) return this.capabilitiesCache;
+
+    const result: FccContractCapabilities = {
+      hasBytecode: false,
+      hasSendSayHello: false,
+      hasSendEvaluateFit: false,
+      hasSendAccept: false,
+      hasGetExtensionId: false,
+      extensionId: null,
+      detectedMethods: [],
+    };
+
+    try {
+      const code = await this.provider.getCode(this.cfg.instructionSender);
+      result.hasBytecode = code.length > 2;
+
+      if (!result.hasBytecode) {
+        this.capabilitiesCache = result;
+        return result;
+      }
+
+      const iface = new Interface(SENDER_DETECT_ABI);
+      const methodSelectors = {
+        sendSayHello: iface.getFunction("sendSayHello")?.selector,
+        sendEvaluateFit: iface.getFunction("sendEvaluateFit")?.selector,
+        sendAccept: iface.getFunction("sendAccept")?.selector,
+        getExtensionId: iface.getFunction("getExtensionId")?.selector,
+      };
+
+      for (const [name, selector] of Object.entries(methodSelectors)) {
+        if (selector && code.includes(selector.slice(2))) {
+          result.detectedMethods.push(name);
+          if (name === "sendSayHello") result.hasSendSayHello = true;
+          if (name === "sendEvaluateFit") result.hasSendEvaluateFit = true;
+          if (name === "sendAccept") result.hasSendAccept = true;
+          if (name === "getExtensionId") result.hasGetExtensionId = true;
+        }
+      }
+
+      if (result.hasGetExtensionId) {
+        try {
+          const extId = await this.sender.getExtensionId();
+          result.extensionId = `0x${BigInt(extId).toString(16).padStart(64, "0")}`;
+        } catch {
+          // Extension ID read failed — contract may revert
+        }
+      }
+    } catch {
+      // RPC or ABI error
+    }
+
+    this.capabilitiesCache = result;
+    return result;
   }
 
   async proxyInfo(): Promise<unknown> {
@@ -72,11 +152,39 @@ export class FccExtensionClient {
   }
 
   async sendEvaluateFit(payload: Record<string, unknown>): Promise<FccInstructionResult> {
+    const caps = await this.probeContractCapabilities();
+    if (!caps.hasSendEvaluateFit) {
+      // Fall back to sendSayHello with policy payload for lifecycle smoke
+      return this.sendSayHelloWithPolicyPayload(payload);
+    }
     return this.sendAndWait("sendEvaluateFit", [toUtf8Bytes(JSON.stringify(payload))]);
   }
 
   async sendAccept(payload: Record<string, unknown>): Promise<FccInstructionResult> {
+    const caps = await this.probeContractCapabilities();
+    if (!caps.hasSendAccept) {
+      // Fall back to sendSayHello with accept payload for lifecycle smoke
+      return this.sendSayHelloWithPolicyPayload({ ...payload, _action: "accept" });
+    }
     return this.sendAndWait("sendAccept", [toUtf8Bytes(JSON.stringify(payload))]);
+  }
+
+  /**
+   * Fallback: use sendSayHello with JSON policy payload when sendEvaluateFit/sendAccept unavailable.
+   * Labeled as PARTIAL lifecycle proof.
+   */
+  private async sendSayHelloWithPolicyPayload(payload: Record<string, unknown>): Promise<FccInstructionResult> {
+    const wrappedPayload = {
+      _fallback: true,
+      _method: "policy_evaluate",
+      ...payload,
+    };
+    const result = await this.sendAndWait("sendSayHello", [toUtf8Bytes(JSON.stringify(wrappedPayload))]);
+    return {
+      ...result,
+      log: `[PARTIAL] Used sendSayHello fallback — sendEvaluateFit/sendAccept not detected on contract. ${result.log ?? ""}`,
+      honesty: `${result.honesty} [PARTIAL lifecycle proof via sendSayHello fallback]`,
+    };
   }
 
   private async sendAndWait(method: string, args: unknown[]): Promise<FccInstructionResult> {
@@ -168,4 +276,154 @@ function extractInstructionId(receipt: {
   }
 
   return null;
+}
+
+// -----------------------------------------------------------------------------
+// FCC Lifecycle Status Helper
+// -----------------------------------------------------------------------------
+
+export interface FccLifecycleStatus {
+  mode: "verified" | "simulated" | "unavailable";
+  instructionSenderConfigured: boolean;
+  instructionSenderAddress: string | null;
+  instructionSenderHasBytecode: boolean;
+  extensionIdConfigured: boolean;
+  extensionId: string | null;
+  extProxyConfigured: boolean;
+  extProxyUrl: string | null;
+  teeProxyAvailable: boolean;
+  teeProxyUrl: string | null;
+  canMoveFunds: false;
+  hardwareClaim: false;
+  contractCapabilities: FccContractCapabilities | null;
+  honesty: string;
+  blockers: string[];
+  docs: string[];
+}
+
+/**
+ * Get comprehensive FCC lifecycle status without requiring full FccExtensionClient config.
+ * Useful for /v1/fcc/lifecycle endpoint.
+ */
+export async function getFccLifecycleStatus(env: BeaconEnv = loadEnv()): Promise<FccLifecycleStatus> {
+  const blockers: string[] = [];
+
+  const instructionSenderConfigured = Boolean(env.INSTRUCTION_SENDER);
+  const extensionIdConfigured = Boolean(env.EXTENSION_ID);
+  const extProxyConfigured = Boolean(env.EXT_PROXY_URL);
+
+  let instructionSenderHasBytecode = false;
+  let contractCapabilities: FccContractCapabilities | null = null;
+  let teeProxyAvailable = false;
+
+  // Check InstructionSender bytecode
+  if (instructionSenderConfigured) {
+    try {
+      const provider = new JsonRpcProvider(env.CHAIN_URL || env.COSTON2_RPC_URL);
+      const code = await provider.getCode(env.INSTRUCTION_SENDER!);
+      instructionSenderHasBytecode = code.length > 2;
+
+      if (instructionSenderHasBytecode) {
+        // Probe capabilities
+        const iface = new Interface(SENDER_DETECT_ABI);
+        const caps: FccContractCapabilities = {
+          hasBytecode: true,
+          hasSendSayHello: false,
+          hasSendEvaluateFit: false,
+          hasSendAccept: false,
+          hasGetExtensionId: false,
+          extensionId: null,
+          detectedMethods: [],
+        };
+
+        const methodSelectors = {
+          sendSayHello: iface.getFunction("sendSayHello")?.selector,
+          sendEvaluateFit: iface.getFunction("sendEvaluateFit")?.selector,
+          sendAccept: iface.getFunction("sendAccept")?.selector,
+          getExtensionId: iface.getFunction("getExtensionId")?.selector,
+        };
+
+        for (const [name, selector] of Object.entries(methodSelectors)) {
+          if (selector && code.includes(selector.slice(2))) {
+            caps.detectedMethods.push(name);
+            if (name === "sendSayHello") caps.hasSendSayHello = true;
+            if (name === "sendEvaluateFit") caps.hasSendEvaluateFit = true;
+            if (name === "sendAccept") caps.hasSendAccept = true;
+            if (name === "getExtensionId") caps.hasGetExtensionId = true;
+          }
+        }
+
+        if (caps.hasGetExtensionId) {
+          try {
+            const sender = new Contract(env.INSTRUCTION_SENDER!, SENDER_ABI, provider);
+            const extId = await sender.getExtensionId();
+            caps.extensionId = `0x${BigInt(extId).toString(16).padStart(64, "0")}`;
+          } catch {
+            // ignore
+          }
+        }
+
+        contractCapabilities = caps;
+      }
+    } catch {
+      // RPC error
+    }
+  }
+
+  // Check TEE proxy availability
+  if (env.TEE_PROXY_URL) {
+    try {
+      const resp = await fetch(`${env.TEE_PROXY_URL}/info`, { method: "GET" });
+      teeProxyAvailable = resp.ok;
+    } catch {
+      // Proxy unreachable
+    }
+  }
+
+  // Identify blockers
+  if (!instructionSenderConfigured) {
+    blockers.push("INSTRUCTION_SENDER not configured");
+  } else if (!instructionSenderHasBytecode) {
+    blockers.push("INSTRUCTION_SENDER has no bytecode on-chain");
+  }
+
+  if (!extProxyConfigured) {
+    blockers.push("EXT_PROXY_URL not configured — cannot poll instruction results");
+  }
+
+  // Determine mode
+  let mode: "verified" | "simulated" | "unavailable" = "unavailable";
+  if (env.SIMULATED_TEE) {
+    mode = "simulated";
+  } else if (blockers.length === 0 && instructionSenderHasBytecode && extProxyConfigured) {
+    mode = "verified"; // Would be verified if hardware TEE was available
+  }
+
+  const honesty = mode === "simulated"
+    ? "FCC mode is SIMULATED_TEE — hackathon-accepted for Coston2. NOT hardware-attested Confidential Space. canMoveFunds: false, hardwareClaim: false."
+    : mode === "unavailable"
+      ? `FCC unavailable: ${blockers.join("; ")}. Shadow authorization fail-closed.`
+      : "FCC mode is verified — but Beacon does not verify hardware attestation chain. Do NOT trust as hardware TEE proof.";
+
+  return {
+    mode,
+    instructionSenderConfigured,
+    instructionSenderAddress: env.INSTRUCTION_SENDER ?? null,
+    instructionSenderHasBytecode,
+    extensionIdConfigured,
+    extensionId: env.EXTENSION_ID ?? null,
+    extProxyConfigured,
+    extProxyUrl: extProxyConfigured ? env.EXT_PROXY_URL! : null,
+    teeProxyAvailable,
+    teeProxyUrl: env.TEE_PROXY_URL ?? null,
+    canMoveFunds: false,
+    hardwareClaim: false,
+    contractCapabilities,
+    honesty,
+    blockers,
+    docs: [
+      "https://dev.flare.network/fcc/overview",
+      "https://dev.flare.network/fcc/developer-guides",
+    ],
+  };
 }

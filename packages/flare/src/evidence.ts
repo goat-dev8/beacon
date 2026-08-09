@@ -53,6 +53,9 @@ export interface FdcProofEvidence {
   verifierUrl?: string;
   timestamp?: string;
   hash?: string;
+  /** FdcHub.requestAttestation transaction hash when submitted on-chain. */
+  txHash?: string;
+  proofAvailable?: boolean;
 }
 
 export interface PolicyDecisionEvidence {

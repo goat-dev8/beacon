@@ -4,7 +4,34 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-10 - FLARE INTEGRATION HARDENING (FDC REAL + FCC PARTIAL)
+
+### Audit
+- Added `docs/FLARE_FINAL_AUDIT.md` with REAL/PARTIAL/SIMULATED/STUB/UNAVAILABLE matrix.
+
+### FDC — REAL lifecycle evidence (Coston2)
+- Rewrote `@beacon/fdc` to official path: verifier `prepareRequest` → `FdcHub.requestAttestation` → `Relay.isFinalized(200)` → DA proof.
+- Live AddressValidity (`testXRP` / `rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe`):
+  - **txHash:** `0x2c62375359beeb5491c648260d79c2ec69a71fc2260bcb21027b7ad86be04516`
+  - **roundId:** `1420937` (finalized)
+  - **explorer:** https://coston2-systems-explorer.flare.network/voting-round/1420937?tab=fdc
+  - **DA proof:** AVAILABLE via `/api/v1/fdc/proof-by-request-round` — `responseBody.isValid: true`
+- Registry-resolved: FdcHub `0x48aC…5f1D`, FdcVerification `0x9065…B933`, Relay `0xa10B…7dE`.
+
+### FCC — PARTIAL (honest SIMULATED_TEE)
+- InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46` on-chain `sendSayHello` smoke:
+  - **txHash:** `0x1e64917aeed71c20cf628131dcd8415e195dab89bb71f07eec3bf7a493a6cb25`
+  - **explorer:** https://coston2-explorer.flare.network/tx/0x1e64917aeed71c20cf628131dcd8415e195dab89bb71f07eec3bf7a493a6cb25
+- **Blocker:** `EXT_PROXY_URL` empty — cannot poll TEE action results. `canMoveFunds: false`, no hardware claim.
+- APIs: `GET /v1/fcc/lifecycle`, `POST /v1/fcc/policy/evaluate` (server policy + shadow FCC).
+
+### Tests
+- typecheck green; vitest green after DA endpoint test update; web:build green.
+
+---
+
 ## 2026-08-09 - FLARE-NATIVE EXECUTION LAYER (PHASE 0–10 CORE)
+
 
 ### Research (Phase 0)
 - Added sourced docs (no invented hashes/APIs):

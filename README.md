@@ -42,7 +42,13 @@ The browser session is authentication, not custody: it never signs token transfe
 
 FCC on live Coston2 is **simulated TEE** (`SIMULATED_TEE=true`, `FCC_MODE=simulated`). Do not claim a hardware enclave.
 
-**Flare-native execution (2026-08-09):** Safe job approve is **policy-before-spend**. FTSOv2 guards Safe swaps (stale / slippage / deviation). Package `@beacon/flare` provides protocol adapters + `EvidenceEnvelope`. FDC/FCC APIs are honesty-labeled — FDC never invents proofs; FCC shadow cannot move funds.
+**Flare-native execution (2026-08-09/10):** Safe job approve is **policy-before-spend**. FTSOv2 guards Safe swaps. Package `@beacon/flare` provides protocol adapters + `EvidenceEnvelope`.
+
+**FDC (REAL lifecycle evidence):** AddressValidity on Coston2 — FdcHub tx `0x2c62375359beeb5491c648260d79c2ec69a71fc2260bcb21027b7ad86be04516`, round `1420937` finalized, DA proof `isValid: true`.
+
+**FCC (SIMULATED / PARTIAL):** InstructionSender smoke tx `0x1e64917aeed71c20cf628131dcd8415e195dab89bb71f07eec3bf7a493a6cb25`. Result poll requires `EXT_PROXY_URL` (currently unset). `canMoveFunds: false`.
+
+See `docs/FLARE_FINAL_AUDIT.md`.
 
 ### Runtime shape
 

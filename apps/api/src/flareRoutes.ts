@@ -23,6 +23,8 @@ import {
   type EvidenceEnvelope,
   type AttestationPersistShape,
 } from "@beacon/flare";
+import { getFccLifecycleStatus, FccExtensionClient, fccConfigFromEnv } from "@beacon/fdc";
+import { evaluatePolicy } from "./policyEvaluator.js";
 import { createHash } from "node:crypto";
 
 const FDC_KEY = (id: string) => `flare:fdc:${id}`;
@@ -105,22 +107,189 @@ export function registerFlareNativeRoutes(
     };
   });
 
+  /**
+   * FCC Lifecycle Status — honest reporting of InstructionSender, extension, proxy configuration.
+   * canMoveFunds: false ALWAYS. hardwareClaim: false unless verified attestation chain.
+   */
+  app.get("/v1/fcc/lifecycle", async () => {
+    const status = await getFccLifecycleStatus(env);
+    return {
+      ...status,
+      daLayerNote: `Correct DA base: https://ctn2-data-availability.flare.network/ — proof endpoint: /api/v1/fdc/proof-by-request-round-raw`,
+    };
+  });
+
+  /**
+   * FCC Policy Evaluation — server policy + optional FCC shadow authorization.
+   *
+   * NEVER claims funds moved. NEVER fail-open to allow spend when FCC unavailable for enforced mode.
+   * Shadow authorization always attached for comparison via @beacon/flare ConfidentialComputeAdapter.
+   */
+  app.post("/v1/fcc/policy/evaluate", async (req) => {
+    const body = z
+      .object({
+        wallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
+        actionHash: z.string().min(8),
+        amountUsdt0: z.number().optional(),
+        agentId: z.string().optional(),
+        allowHint: z.boolean().optional(),
+      })
+      .parse(req.body ?? {});
+
+    // 1. Always run server policy first
+    const serverPolicy = await evaluatePolicy(redis, {
+      wallet: body.wallet,
+      agentId: body.agentId,
+      amountUsdt0: body.amountUsdt0,
+    });
+
+    // 2. Shadow FCC authorization (for comparison only — cannot move funds)
+    const fccAdapter = createConfidentialComputeAdapter(env);
+    const shadowFcc = fccAdapter.evaluateShadowAuthorization({
+      actionHash: body.actionHash,
+      policyHash: `v${serverPolicy.policyVersion}:${serverPolicy.fccMode}`,
+      nonce: `${Date.now()}`,
+      allow: body.allowHint ?? serverPolicy.allowed,
+      reasonCommitment: serverPolicy.allowed ? "server_policy_pass" : serverPolicy.reason,
+    });
+
+    // 3. Attempt FCC extension client if configured
+    let onChainInstruction: {
+      txHash: string;
+      instructionId: string;
+      status: string;
+      partial: boolean;
+    } | null = null;
+
+    const fccLifecycle = await getFccLifecycleStatus(env);
+
+    // Only attempt on-chain if EXT_PROXY_URL is configured AND InstructionSender has bytecode
+    if (fccLifecycle.extProxyConfigured && fccLifecycle.instructionSenderHasBytecode) {
+      try {
+        const fccConfig = fccConfigFromEnv(env);
+        const fccClient = new FccExtensionClient(fccConfig);
+
+        // Probe contract capabilities
+        const caps = await fccClient.probeContractCapabilities();
+
+        if (caps.hasSendEvaluateFit || caps.hasSendSayHello) {
+          // Attempt to send evaluate instruction
+          const payload = {
+            wallet: body.wallet ?? "unknown",
+            actionHash: body.actionHash,
+            amountUsdt0: body.amountUsdt0 ?? 0,
+            agentId: body.agentId ?? "unknown",
+            serverPolicyAllowed: serverPolicy.allowed,
+            timestamp: Date.now(),
+          };
+
+          try {
+            const result = await fccClient.sendEvaluateFit(payload);
+            onChainInstruction = {
+              txHash: result.txHash,
+              instructionId: result.instructionId,
+              status: result.status === 0 ? "success" : `status_${result.status}`,
+              partial: !caps.hasSendEvaluateFit, // Partial if fell back to sendSayHello
+            };
+          } catch (err) {
+            // FCC instruction failed — do not fail-open
+            onChainInstruction = null;
+          }
+        }
+      } catch {
+        // FCC config error — continue with shadow only
+      }
+    }
+
+    // 4. Build response with honesty labels
+    const response = {
+      serverPolicy: {
+        allowed: serverPolicy.allowed,
+        reason: serverPolicy.reason,
+        policyVersion: serverPolicy.policyVersion,
+        enforcement: serverPolicy.enforcement,
+        fccMode: serverPolicy.fccMode,
+        checks: serverPolicy.checks,
+      },
+      shadowFcc: {
+        status: shadowFcc.status,
+        mode: shadowFcc.mode,
+        allow: shadowFcc.authorization.allow,
+        canMoveFunds: shadowFcc.canMoveFunds,
+        honestyLabel: shadowFcc.honestyLabel,
+        authorization: shadowFcc.authorization,
+      },
+      onChainInstruction,
+      honesty: {
+        serverPolicy: "REAL — Redis-backed spend accounting with fail-closed on unavailable",
+        shadowFcc: fccLifecycle.mode === "simulated"
+          ? "SIMULATED_TEE — hackathon-accepted, NOT hardware-attested"
+          : fccLifecycle.mode === "unavailable"
+            ? "NOT_AVAILABLE — FCC not configured"
+            : "VERIFIED mode configured but hardware attestation not verified by Beacon",
+        onChainFcc: onChainInstruction
+          ? onChainInstruction.partial
+            ? "PARTIAL — used sendSayHello fallback, sendEvaluateFit not detected on contract"
+            : "REAL — instruction sent via FccExtensionClient"
+          : fccLifecycle.blockers.length > 0
+            ? `NOT_AVAILABLE — ${fccLifecycle.blockers.join("; ")}`
+            : "NOT_ATTEMPTED",
+        fundsMoved: "NEVER — this endpoint does not move funds",
+        hardwareClaim: "false — Beacon does not verify hardware TEE attestation chain",
+      },
+      daLayerNote: "Correct DA base: https://ctn2-data-availability.flare.network/ — proof path: /api/v1/fdc/proof-by-request-round-raw",
+      docs: [
+        "https://dev.flare.network/fcc/overview",
+        "https://dev.flare.network/fcc/developer-guides",
+      ],
+    };
+
+    return response;
+  });
+
   /** FDC attestation lifecycle — REAL only when verifier URLs work; never fake proofs. */
   app.get("/v1/fdc/status", async () => {
     const adapter = createAttestationAdapter(env);
     const xrp = adapter.isAvailable("xrp");
     const evm = adapter.isAvailable("evm");
+    const canSubmit = adapter.canSubmit();
+
+    // DA Layer configuration with correct URL documentation
+    const daLayerUrl = env.DA_LAYER_URL || "https://ctn2-data-availability.flare.network";
+    const daLayerConfigured = Boolean(env.DA_LAYER_URL || env.DA_LAYER_API_URL);
+
     return {
       status: xrp || evm ? ("REAL" as const) : ("NOT_AVAILABLE" as const),
       xrpVerifierConfigured: xrp,
       evmVerifierConfigured: evm,
-      daLayerConfigured: Boolean(env.DA_LAYER_URL || env.DA_LAYER_API_URL),
+      daLayerConfigured,
+      daLayer: {
+        baseUrl: daLayerUrl,
+        proofEndpoint: "/api/v1/fdc/proof-by-request-round-raw",
+        legacyEndpoint: "/api/v0/fdc/get-proof-round-id-bytes",
+        note: "Use v1 endpoint for new integrations. Base URL should be https://ctn2-data-availability.flare.network/ (no trailing /api/v0)",
+      },
+      canSubmitOnChain: canSubmit,
+      lifecycle: {
+        prepareAvailable: xrp || evm,
+        submitAvailable: canSubmit,
+        waitFinalizedAvailable: true,
+        fetchProofAvailable: daLayerConfigured,
+        onChainVerifyNote:
+          "On-chain verification via FdcVerification requires encoding the Proof struct. The API can fetch proofs but typed verification needs contract interaction.",
+      },
+      supportedTypes: ["AddressValidity", "EVMTransaction", "Payment", "Web2Json"],
+      supportedSources: {
+        xrp: ["testXRP", "testBTC", "testDOGE", "XRP", "BTC", "DOGE"],
+        evm: ["testETH", "testFLR", "ETH", "FLR", "SGB"],
+      },
       honesty: xrp || evm
         ? "FDC verifier endpoints configured — prepare/submit talk to official verifier URLs. Proofs are never invented."
         : "FDC verifier URLs not configured — attestation API returns NOT_AVAILABLE. Flow does not silently fake FDC.",
       docs: [
         "https://dev.flare.network/fdc/overview",
         "https://dev.flare.network/fdc/getting-started",
+        "https://dev.flare.network/fdc/guides/hardhat/address-validity",
       ],
     };
   });
@@ -132,10 +301,60 @@ export function registerFlareNativeRoutes(
         source: z.enum(["xrp", "evm"]),
         payload: z.record(z.string(), z.unknown()).default({}),
         jobId: z.string().optional(),
+        runOnChain: z.boolean().optional().default(false),
+        waitTimeoutMs: z.number().optional(),
       })
       .parse(req.body ?? {});
 
     const adapter = createAttestationAdapter(env);
+
+    // If runOnChain is true, run the full FDC lifecycle
+    if (body.runOnChain) {
+      const result = await adapter.runFullLifecycle(
+        { kind: body.kind, source: body.source, payload: body.payload },
+        { waitTimeoutMs: body.waitTimeoutMs, skipOnChain: false },
+      );
+
+      if (redis && result.requestId) {
+        await redis.set(FDC_KEY(result.requestId), result, { ex: 60 * 60 * 48 });
+      }
+
+      if (redis && body.jobId) {
+        let envelope = createEvidenceEnvelope({ jobId: body.jobId });
+        envelope = appendEvidenceStage(envelope, "fdc_full_lifecycle", {
+          status: result.status,
+          hash: result.requestId || undefined,
+          payload: {
+            lifecycle: result.lifecycle,
+            txHash: result.txHash,
+            votingRound: result.votingRound,
+            hasProof: Boolean(result.proof),
+          },
+        });
+        if (result.requestId) {
+          envelope.fdcProof = {
+            requestId: result.requestId,
+            attestationType: result.kind,
+            timestamp: result.createdAt,
+            txHash: result.txHash,
+            votingRound: result.votingRound,
+            proofAvailable: Boolean(result.proof),
+          };
+        }
+        await redis.set(EVIDENCE_KEY(body.jobId), envelope, { ex: 60 * 60 * 48 });
+      }
+
+      return {
+        ...result,
+        fullLifecycle: true,
+        honesty:
+          result.lifecycle === "Finalized" && result.proof
+            ? "Full FDC lifecycle complete: prepare → submit → finalize → proof. Proof retrieved from DA layer. On-chain verification via FdcVerification not yet performed."
+            : `FDC lifecycle reached stage: ${result.lifecycle}. ${result.error ?? ""}`,
+      };
+    }
+
+    // Standard prepare-only flow
     const result = await adapter.prepare(body);
 
     if (redis && result.requestId) {
@@ -180,6 +399,69 @@ export function registerFlareNativeRoutes(
     const result = await adapter.submit(stored);
     await redis.set(FDC_KEY(requestId), result, { ex: 60 * 60 * 48 });
     return result;
+  });
+
+  /** Wait for round finalization (blocking, with timeout) */
+  app.post("/v1/fdc/:requestId/wait", async (req) => {
+    const requestId = (req.params as { requestId: string }).requestId;
+    const body = z
+      .object({
+        timeoutMs: z.number().optional().default(180_000),
+      })
+      .parse(req.body ?? {});
+
+    if (!redis) {
+      throw new AppError("VALIDATION", {
+        message: "Redis required to persist FDC attestation state.",
+        statusCode: 503,
+      });
+    }
+    const stored = await redis.get<AttestationPersistShape>(FDC_KEY(requestId));
+    if (!stored) {
+      throw new AppError("VALIDATION", {
+        message: "Unknown FDC requestId — prepare and submit first.",
+      });
+    }
+    if (!stored.votingRound) {
+      throw new AppError("VALIDATION", {
+        message: "Attestation not yet submitted — no voting round assigned.",
+      });
+    }
+    const adapter = createAttestationAdapter(env);
+    const result = await adapter.waitForFinalization(stored, body.timeoutMs);
+    await redis.set(FDC_KEY(requestId), result, { ex: 60 * 60 * 48 });
+    return result;
+  });
+
+  /** Fetch proof from DA layer */
+  app.post("/v1/fdc/:requestId/proof", async (req) => {
+    const requestId = (req.params as { requestId: string }).requestId;
+    if (!redis) {
+      throw new AppError("VALIDATION", {
+        message: "Redis required to persist FDC attestation state.",
+        statusCode: 503,
+      });
+    }
+    const stored = await redis.get<AttestationPersistShape>(FDC_KEY(requestId));
+    if (!stored) {
+      throw new AppError("VALIDATION", {
+        message: "Unknown FDC requestId — prepare and submit first.",
+      });
+    }
+    if (!stored.votingRound) {
+      throw new AppError("VALIDATION", {
+        message: "Attestation not yet submitted — no voting round assigned.",
+      });
+    }
+    const adapter = createAttestationAdapter(env);
+    const result = await adapter.fetchProof(stored);
+    await redis.set(FDC_KEY(requestId), result, { ex: 60 * 60 * 48 });
+    return {
+      ...result,
+      honesty: result.proof
+        ? "Proof retrieved from DA layer. On-chain verification via FdcVerification.verifyAddressValidity/verifyEVMTransaction not yet performed — that requires passing the typed Proof struct to the contract."
+        : "Proof not yet available from DA layer.",
+    };
   });
 
   app.get("/v1/fdc/:requestId", async (req) => {
@@ -376,6 +658,7 @@ export function registerFlareNativeRoutes(
     const fdc = createAttestationAdapter(env);
     const fcc = createConfidentialComputeAdapter(env);
     const fccStatus = fcc.getStatus();
+    const fccLifecycle = await getFccLifecycleStatus(env);
     let ftsoOk = false;
     try {
       await oracle.getSnapshot();
@@ -398,12 +681,26 @@ export function registerFlareNativeRoutes(
           status: fdc.isAvailable("xrp") || fdc.isAvailable("evm") ? "REAL" : "NOT_AVAILABLE",
           role: "external_evidence",
           note: "Attestation API wired; proofs never invented.",
+          daLayer: {
+            baseUrl: "https://ctn2-data-availability.flare.network",
+            proofPath: "/api/v1/fdc/proof-by-request-round-raw",
+          },
         },
         {
           id: "fcc",
           status: fccStatus.status,
           role: "shadow_authorization",
           note: fccStatus.note,
+          lifecycle: {
+            mode: fccLifecycle.mode,
+            instructionSenderDeployed: fccLifecycle.instructionSenderHasBytecode,
+            instructionSenderAddress: fccLifecycle.instructionSenderAddress,
+            extProxyConfigured: fccLifecycle.extProxyConfigured,
+            teeProxyAvailable: fccLifecycle.teeProxyAvailable,
+            blockers: fccLifecycle.blockers,
+            canMoveFunds: false,
+            hardwareClaim: false,
+          },
         },
         {
           id: "fassets",
@@ -437,6 +734,7 @@ export function registerFlareNativeRoutes(
         },
       ],
       fccMode: resolveFccMode(process.env, env.SIMULATED_TEE),
+      daLayerNote: "Correct DA base: https://ctn2-data-availability.flare.network/ — proof path: /api/v1/fdc/proof-by-request-round-raw",
     };
   });
 

@@ -2,7 +2,7 @@
 
 **Single source of truth for Beacon (Flare AI OS).**  
 **Network:** Flare Testnet Coston2 (chain ID **114**)  
-**Last aligned with:** `history.md` (2026-08-09 Flare-native layer), `docs/FLARE_*.md`, `ARCHITECTURE_AUDIT.md`, `apps/web/src/lib/chain.ts`  
+**Last aligned with:** `history.md` (2026-08-10 FDC REAL + FCC PARTIAL), `docs/FLARE_FINAL_AUDIT.md`, `docs/FLARE_*.md`  
 **Rule:** Do not invent facts. Mark unknowns as TODO. No secrets in this file.
 
 ---

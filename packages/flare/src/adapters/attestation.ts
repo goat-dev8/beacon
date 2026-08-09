@@ -1,12 +1,26 @@
 /**
  * AttestationAdapter — wraps @beacon/fdc FdcClient with honest status tracking.
  *
+ * Now uses the official FDC lifecycle:
+ * 1. prepareRequest via verifier
+ * 2. submitAttestation to FdcHub
+ * 3. waitFinalized via Relay
+ * 4. fetchProof from DA Layer
+ *
  * Lifecycle statuses: Requested | Submitted | Finalized | Verified | Accepted | Rejected | Timeout
  *
  * If verifier URLs are missing, returns status NOT_AVAILABLE honestly — never fakes proofs.
  */
 
-import { FdcClient, type PrepareRequest } from "@beacon/fdc";
+import {
+  FdcClient,
+  fdcClientFromEnv,
+  fdcClientReadOnly,
+  prepareAddressValidityRequest,
+  prepareEvmTransactionRequest,
+  preparePaymentRequest,
+  type SourceId,
+} from "@beacon/fdc";
 import { loadEnv, type BeaconEnv } from "@beacon/shared";
 import type { IntegrationStatus } from "../honesty.js";
 
@@ -26,11 +40,14 @@ export interface AttestationRequest {
 }
 
 export interface AttestationPersistShape {
+  /** The abiEncodedRequest from verifier (this is the canonical request ID) */
   requestId: string;
   kind: AttestationRequest["kind"];
   source: AttestationRequest["source"];
   votingRound?: number;
+  txHash?: string;
   proof?: unknown;
+  responseHex?: string;
   verification?: {
     verified: boolean;
     verifierUrl?: string;
@@ -41,53 +58,71 @@ export interface AttestationPersistShape {
   createdAt: string;
   updatedAt: string;
   error?: string;
+  explorerUrl?: string;
 }
 
 export interface AttestationAdapterConfig {
-  verifierXrpUrl?: string;
-  verifierEvmUrl?: string;
+  verifierBaseUrl?: string;
   apiKey?: string;
   daLayerUrl?: string;
+  rpcUrl?: string;
+  privateKey?: string;
 }
 
 export class AttestationAdapter {
   private client: FdcClient | null = null;
+  private readOnlyClient: FdcClient | null = null;
   private config: AttestationAdapterConfig;
+  private env: BeaconEnv;
 
-  constructor(config?: AttestationAdapterConfig) {
+  constructor(config?: AttestationAdapterConfig, env?: BeaconEnv) {
     this.config = config ?? {};
+    this.env = env ?? loadEnv();
   }
 
   private getClient(): FdcClient | null {
     if (this.client) return this.client;
 
-    const verifierXrpUrl = this.config.verifierXrpUrl;
-    const verifierEvmUrl = this.config.verifierEvmUrl;
-
-    if (!verifierXrpUrl && !verifierEvmUrl) {
+    // Check if we have the required config
+    const hasVerifier = Boolean(this.config.verifierBaseUrl || this.env.FDC_VERIFIER_EVM_URL || this.env.FDC_VERIFIER_XRP_URL);
+    if (!hasVerifier) {
       return null;
     }
 
-    this.client = new FdcClient({
-      verifierXrpUrl: verifierXrpUrl ?? "",
-      verifierEvmUrl: verifierEvmUrl ?? "",
-      apiKey: this.config.apiKey,
-      daLayerUrl: this.config.daLayerUrl,
-    });
+    const hasKey = Boolean(this.config.privateKey || this.env.DEPLOYER_PRIVATE_KEY || this.env.SETTLER_PRIVATE_KEY);
+    if (!hasKey) {
+      return null;
+    }
 
+    this.client = fdcClientFromEnv(this.env);
     return this.client;
   }
 
+  private getReadOnlyClient(): FdcClient | null {
+    if (this.readOnlyClient) return this.readOnlyClient;
+
+    const hasVerifier = Boolean(this.config.verifierBaseUrl || this.env.FDC_VERIFIER_EVM_URL || this.env.FDC_VERIFIER_XRP_URL);
+    if (!hasVerifier) {
+      return null;
+    }
+
+    this.readOnlyClient = fdcClientReadOnly(this.env);
+    return this.readOnlyClient;
+  }
+
   isAvailable(source: "xrp" | "evm"): boolean {
-    const url = source === "xrp"
-      ? this.config.verifierXrpUrl
-      : this.config.verifierEvmUrl;
+    const url = source === "xrp" ? this.env.FDC_VERIFIER_XRP_URL : this.env.FDC_VERIFIER_EVM_URL;
     return Boolean(url);
   }
 
-  async prepare(
-    request: AttestationRequest,
-  ): Promise<AttestationPersistShape> {
+  canSubmit(): boolean {
+    return Boolean(this.env.DEPLOYER_PRIVATE_KEY || this.env.SETTLER_PRIVATE_KEY || this.env.DEPLOYMENT_PRIVATE_KEY);
+  }
+
+  /**
+   * Step 1: Prepare attestation request via verifier.
+   */
+  async prepare(request: AttestationRequest): Promise<AttestationPersistShape> {
     const now = new Date().toISOString();
 
     if (!this.isAvailable(request.source)) {
@@ -103,7 +138,7 @@ export class AttestationAdapter {
       };
     }
 
-    const client = this.getClient();
+    const client = this.getReadOnlyClient();
     if (!client) {
       return {
         requestId: "",
@@ -118,15 +153,13 @@ export class AttestationAdapter {
     }
 
     try {
-      const prepareReq: PrepareRequest = {
-        kind: request.kind,
-        source: request.source,
-        payload: request.payload,
-      };
+      // Determine source ID based on source type and kind
+      const sourceId = this.resolveSourceId(request.source, request.kind, request.payload);
 
-      const response = await client.prepare(prepareReq);
+      // Prepare request via verifier
+      const result = await client.prepareRequest(request.kind, sourceId, request.payload);
 
-      if (response.status === "error" || !response.requestId) {
+      if (!result.ok || !result.abiEncodedRequest) {
         return {
           requestId: "",
           kind: request.kind,
@@ -135,12 +168,12 @@ export class AttestationAdapter {
           status: "REAL",
           createdAt: now,
           updatedAt: now,
-          error: response.message ?? "Prepare failed — verifier rejected request",
+          error: result.error ?? `Prepare failed: verifier returned ${result.status}`,
         };
       }
 
       return {
-        requestId: response.requestId,
+        requestId: result.abiEncodedRequest,
         kind: request.kind,
         source: request.source,
         lifecycle: "Requested",
@@ -162,9 +195,10 @@ export class AttestationAdapter {
     }
   }
 
-  async submit(
-    attestation: AttestationPersistShape,
-  ): Promise<AttestationPersistShape> {
+  /**
+   * Step 2: Submit attestation to FdcHub on-chain.
+   */
+  async submit(attestation: AttestationPersistShape): Promise<AttestationPersistShape> {
     const now = new Date().toISOString();
 
     if (!attestation.requestId) {
@@ -172,17 +206,17 @@ export class AttestationAdapter {
         ...attestation,
         lifecycle: "Rejected",
         updatedAt: now,
-        error: "Cannot submit without requestId",
+        error: "Cannot submit without requestId (abiEncodedRequest)",
       };
     }
 
-    if (!this.isAvailable(attestation.source)) {
+    if (!this.canSubmit()) {
       return {
         ...attestation,
         lifecycle: "Rejected",
         status: "NOT_AVAILABLE",
         updatedAt: now,
-        error: `FDC verifier URL not configured for ${attestation.source}`,
+        error: "No private key configured — cannot submit on-chain",
       };
     }
 
@@ -198,20 +232,23 @@ export class AttestationAdapter {
     }
 
     try {
-      const response = await client.submit(attestation.requestId, attestation.source);
+      const result = await client.submitAttestation(attestation.requestId);
 
-      if (response.status === "error") {
+      if (!result.ok) {
         return {
           ...attestation,
           lifecycle: "Rejected",
           updatedAt: now,
-          error: response.message ?? "Submit failed",
+          error: result.error ?? "Submit failed",
         };
       }
 
       return {
         ...attestation,
         lifecycle: "Submitted",
+        txHash: result.txHash,
+        votingRound: result.roundId,
+        explorerUrl: result.explorerUrl,
         updatedAt: now,
       };
     } catch (err) {
@@ -224,20 +261,24 @@ export class AttestationAdapter {
     }
   }
 
-  async getStatus(
+  /**
+   * Step 3: Wait for round finalization.
+   */
+  async waitForFinalization(
     attestation: AttestationPersistShape,
+    timeoutMs: number = 180_000,
   ): Promise<AttestationPersistShape> {
     const now = new Date().toISOString();
 
-    if (!attestation.requestId) {
+    if (!attestation.votingRound) {
       return {
         ...attestation,
         updatedAt: now,
-        error: "Cannot check status without requestId",
+        error: "Cannot wait for finalization without voting round ID",
       };
     }
 
-    const client = this.getClient();
+    const client = this.getReadOnlyClient();
     if (!client) {
       return {
         ...attestation,
@@ -248,35 +289,156 @@ export class AttestationAdapter {
     }
 
     try {
-      const proofResult = await client.fetchProof(attestation.requestId);
+      const result = await client.waitFinalized(attestation.votingRound, timeoutMs);
 
-      if (!proofResult.ok) {
+      if (!result.ok || !result.finalized) {
         return {
           ...attestation,
-          updatedAt: now,
-          error: proofResult.message ?? "Proof not available yet",
+          lifecycle: "Timeout",
+          updatedAt: new Date().toISOString(),
+          error: result.error ?? `Round ${attestation.votingRound} did not finalize within ${timeoutMs}ms`,
         };
       }
 
       return {
         ...attestation,
         lifecycle: "Finalized",
-        proof: proofResult.proof,
-        // Proof retrieved from DA layer ≠ on-chain FdcVerification success.
-        verification: {
-          verified: false,
-          verifierUrl: this.config.daLayerUrl,
-          timestamp: now,
-        },
-        updatedAt: now,
+        updatedAt: new Date().toISOString(),
       };
     } catch (err) {
       return {
         ...attestation,
-        updatedAt: now,
-        error: `Status check threw: ${err instanceof Error ? err.message : String(err)}`,
+        lifecycle: "Timeout",
+        updatedAt: new Date().toISOString(),
+        error: `Wait finalized threw: ${err instanceof Error ? err.message : String(err)}`,
       };
     }
+  }
+
+  /**
+   * Step 4: Fetch proof from DA Layer.
+   */
+  async fetchProof(attestation: AttestationPersistShape): Promise<AttestationPersistShape> {
+    const now = new Date().toISOString();
+
+    if (!attestation.requestId || !attestation.votingRound) {
+      return {
+        ...attestation,
+        updatedAt: now,
+        error: "Cannot fetch proof without requestId and voting round",
+      };
+    }
+
+    const client = this.getReadOnlyClient();
+    if (!client) {
+      return {
+        ...attestation,
+        status: "NOT_AVAILABLE",
+        updatedAt: now,
+        error: "FDC client not initialized",
+      };
+    }
+
+    try {
+      const result = await client.fetchProofWithRetry(attestation.requestId, attestation.votingRound);
+
+      if (!result.ok) {
+        return {
+          ...attestation,
+          updatedAt: new Date().toISOString(),
+          error: result.error ?? "Proof not available",
+        };
+      }
+
+      return {
+        ...attestation,
+        lifecycle: "Finalized",
+        proof: {
+          merkleProof: result.proof,
+          responseHex: result.responseHex,
+          attestationType: result.attestationType,
+        },
+        responseHex: result.responseHex,
+        verification: {
+          verified: false, // DA layer proof ≠ on-chain verification
+          verifierUrl: this.env.DA_LAYER_URL,
+          timestamp: new Date().toISOString(),
+        },
+        updatedAt: new Date().toISOString(),
+      };
+    } catch (err) {
+      return {
+        ...attestation,
+        updatedAt: new Date().toISOString(),
+        error: `Fetch proof threw: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+  }
+
+  /**
+   * Run full lifecycle: prepare → submit → wait → proof
+   */
+  async runFullLifecycle(
+    request: AttestationRequest,
+    options: {
+      waitTimeoutMs?: number;
+      skipOnChain?: boolean;
+    } = {},
+  ): Promise<AttestationPersistShape> {
+    // Step 1: Prepare
+    let attestation = await this.prepare(request);
+    if (attestation.lifecycle === "Rejected") {
+      return attestation;
+    }
+
+    // If skipOnChain, return after prepare
+    if (options.skipOnChain) {
+      return attestation;
+    }
+
+    // Step 2: Submit
+    attestation = await this.submit(attestation);
+    if (attestation.lifecycle === "Rejected") {
+      return attestation;
+    }
+
+    // Step 3: Wait for finalization
+    attestation = await this.waitForFinalization(attestation, options.waitTimeoutMs);
+    if (attestation.lifecycle === "Timeout" || attestation.lifecycle === "Rejected") {
+      return attestation;
+    }
+
+    // Step 4: Fetch proof
+    attestation = await this.fetchProof(attestation);
+
+    return attestation;
+  }
+
+  /**
+   * Get current status / check for proof availability.
+   * @deprecated Use fetchProof for explicit proof fetching
+   */
+  async getStatus(attestation: AttestationPersistShape): Promise<AttestationPersistShape> {
+    const now = new Date().toISOString();
+
+    if (!attestation.requestId) {
+      return {
+        ...attestation,
+        updatedAt: now,
+        error: "Cannot check status without requestId",
+      };
+    }
+
+    // If we have a voting round, try to fetch proof
+    if (attestation.votingRound) {
+      return this.fetchProof(attestation);
+    }
+
+    // Otherwise just update timestamp
+    return {
+      ...attestation,
+      updatedAt: now,
+    };
   }
 
   updateLifecycle(
@@ -292,14 +454,53 @@ export class AttestationAdapter {
       updatedAt: new Date().toISOString(),
     };
   }
+
+  /**
+   * Resolve source ID from request parameters.
+   */
+  private resolveSourceId(
+    source: "xrp" | "evm",
+    kind: AttestationRequest["kind"],
+    payload: Record<string, unknown>,
+  ): SourceId {
+    // Check for explicit sourceId in payload
+    const explicit = payload.sourceId as string | undefined;
+    if (explicit) {
+      return explicit as SourceId;
+    }
+
+    // Default mappings for testnet
+    if (source === "xrp") {
+      if (kind === "AddressValidity") {
+        // Check for BTC/DOGE addresses
+        const addr = (payload.addressStr as string) ?? "";
+        if (addr.startsWith("D")) return "testDOGE";
+        if (addr.startsWith("m") || addr.startsWith("n") || addr.startsWith("2") || addr.startsWith("tb1")) {
+          return "testBTC";
+        }
+        return "testXRP";
+      }
+      return "testXRP";
+    }
+
+    // EVM sources
+    return "testETH";
+  }
 }
 
 export function createAttestationAdapter(env?: BeaconEnv): AttestationAdapter {
   const e = env ?? loadEnv();
-  return new AttestationAdapter({
-    verifierXrpUrl: e.FDC_VERIFIER_XRP_URL || undefined,
-    verifierEvmUrl: e.FDC_VERIFIER_EVM_URL || undefined,
-    apiKey: e.FDC_API_KEY || undefined,
-    daLayerUrl: e.DA_LAYER_URL || undefined,
-  });
+  return new AttestationAdapter(
+    {
+      verifierBaseUrl: e.FDC_VERIFIER_EVM_URL || e.FDC_VERIFIER_XRP_URL || undefined,
+      apiKey: e.FDC_API_KEY || undefined,
+      daLayerUrl: e.DA_LAYER_URL || undefined,
+      rpcUrl: e.COSTON2_RPC_URL || undefined,
+      privateKey: e.DEPLOYER_PRIVATE_KEY || e.SETTLER_PRIVATE_KEY || undefined,
+    },
+    e,
+  );
 }
+
+// Re-export request helpers for convenience
+export { prepareAddressValidityRequest, prepareEvmTransactionRequest, preparePaymentRequest };
