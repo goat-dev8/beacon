@@ -234,8 +234,6 @@ Do **not** mark redemption COMPLETE without XRPL payment evidence.
 
 On-chain: AssetManagerFXRP `0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA` · FXRP `0x0b6A3645c240605887a5532109323A3E12273dc7` (registry-resolved).
 
-Note: [FAssets max real Coston2 flow](b1f89325-5675-49fc-9fd7-3bb7276962b4) landed prepare/queue/track wiring; the live redeemAmount broadcast + PENDING evidence was completed in parent (`0eda0e0`) after funding FXRP via Safe swap.
-
 ## 5. Smart Accounts
 
 ### Classification: **STUB**
