@@ -48,7 +48,7 @@ FCC on live Coston2 is **simulated TEE** (`SIMULATED_TEE=true`, `FCC_MODE=simula
 
 **FCC (SIMULATED + TEE PRODUCTION status):** TEE `0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed` on FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE` is **status 2 = PRODUCTION** (evidence: `docs/evidence/fcc-tee-production.json`). InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46`. Re-verified ALLOW tx `0xc40fb4d8…de702` / DENY tx `0x637b2e3f…e2d2b`. `EXT_PROXY_URL` may be an ephemeral trycloudflare tunnel — prefer named/reserved tunnel + `rRap` on rotate. `canMoveFunds: false`. Value-protection: `POST /v1/fcc/policy/evaluate` (ALLOW/DENY).
 
-**FAssets (PARTIAL → PENDING request):** Live AssetManagerFXRP status/queue + redeem prepare (lots/amount/tag). Real Coston2 `redeemAmount` REQUESTED: tx `0x2a2edb61…66440`, requestId `44497208`, lifecycle **PENDING** until `RedemptionPerformed` XRPL evidence (`docs/evidence/fassets-redemption-request.json`). Mint = docs handoff. **COMPLETED never claimed without XRPL proof.** Smart Accounts = **STUB**.
+**FAssets (REAL COMPLETE for request `44497208`):** Live AssetManagerFXRP + redeem prepare/track. Redeem tx `0x2a2edb61…66440` → XRPL pay `2C088911…E11A` (paymentReference match) → `RedemptionPerformed` `0x5466fbc6…9a14`. Evidence: `docs/evidence/fassets-redemption-44497208.json`. Tracker fixed for `uint256` requestId + chunked logs. Mint = docs handoff. Smart Accounts = **STUB**.
 
 See `docs/FLARE_FINAL_AUDIT.md` and `docs/FLARE_FINAL_IMPLEMENTATION_PLAN.md`.
 

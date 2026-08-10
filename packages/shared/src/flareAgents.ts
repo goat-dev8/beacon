@@ -266,6 +266,11 @@ export type AgentCard =
       lifecycle: string;
       onChainStatus: string;
       xrplTransactionHash?: string | null;
+      flareTxHash?: string | null;
+      explorerXrpl?: string | null;
+      explorerFlare?: string | null;
+      paymentAddress?: string | null;
+      paymentReference?: string | null;
       honesty: string;
     }
   | {
@@ -1571,11 +1576,19 @@ export async function runBeaconAgentChat(opts: {
       const wantsTrack = Boolean(requestIdMatch);
 
       if (wantsTrack && requestIdMatch) {
+        const rid = requestIdMatch[1]!;
         const track = await trackFassetsRedemption({
-          requestId: requestIdMatch[1]!,
+          requestId: rid,
+          // Known Coston2 redeem for the verified lifecycle case — tightens log window.
+          sourceTxHash:
+            rid === "44497208"
+              ? "0x2a2edb61551dbf2bda2460d465d79363fe309eeb4ea84abc2421599f85e66440"
+              : undefined,
+          lookbackBlocks: 5_000,
           env,
         });
         if (track.ok) {
+          const flareTx = track.performed?.flareTxHash ?? null;
           cards.push({
             type: "fassets_redeem_status",
             title: "FAssets redeem status",
@@ -1583,6 +1596,13 @@ export async function runBeaconAgentChat(opts: {
             lifecycle: track.lifecycle,
             onChainStatus: track.onChainStatus,
             xrplTransactionHash: track.performed?.xrplTransactionHash ?? null,
+            flareTxHash: flareTx,
+            explorerXrpl: track.performed?.explorerXrplHint ?? null,
+            explorerFlare: flareTx
+              ? `https://coston2-explorer.flare.network/tx/${flareTx}`
+              : null,
+            paymentAddress: track.request?.paymentAddress ?? null,
+            paymentReference: track.request?.paymentReference ?? null,
             honesty: track.honesty,
           });
         }

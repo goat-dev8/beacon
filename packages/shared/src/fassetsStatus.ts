@@ -34,10 +34,12 @@ const ASSET_MANAGER_ABI = [
   "function redeemWithTag(uint256 _amountUBA, string _redeemerUnderlyingAddressString, address payable _executor, uint256 _destinationTag) payable returns (uint256)",
   "function minimumRedeemAmountUBA() view returns (uint256)",
   "function redemptionQueue(uint256 _firstRedemptionTicketId, uint256 _pageSize) view returns (tuple(uint256 redemptionTicketId, address agentVault, uint256 ticketValueUBA)[] _queue, uint256 _nextRedemptionTicketId)",
-  "function redemptionRequestInfo(uint256 _redemptionRequestId) view returns (tuple(address agentVault, address redeemer, string paymentAddress, bool paymentAddressValid, uint256 valueUBA, uint256 feeUBA, uint256 firstUnderlyingBlock, uint256 lastUnderlyingBlock, uint256 lastUnderlyingTimestamp, bytes32 paymentReference, address executor, uint256 executorFeeNatWei, uint64 status, uint64 timestamp))",
+  // RedemptionRequestInfo.Data (flare-foundation/fassets) — status enum is NOT Redemption.Status
+  "function redemptionRequestInfo(uint256 _redemptionRequestId) view returns (tuple(uint64 redemptionRequestId, uint8 status, address agentVault, address redeemer, string paymentAddress, bytes32 paymentReference, uint128 valueUBA, uint128 feeUBA, uint16 poolFeeShareBIPS, uint64 firstUnderlyingBlock, uint64 lastUnderlyingBlock, uint64 lastUnderlyingTimestamp, uint64 timestamp, bool poolSelfClose, bool transferToCoreVault, address executor, uint256 executorFeeNatWei))",
   "event RedemptionRequested(address indexed agentVault, address indexed redeemer, uint256 indexed requestId, string paymentAddress, uint256 valueUBA, uint256 feeUBA, uint256 firstUnderlyingBlock, uint256 lastUnderlyingBlock, uint256 lastUnderlyingTimestamp, bytes32 paymentReference, address executor, uint256 executorFeeNatWei)",
   "event RedemptionWithTagRequested(address indexed agentVault, address indexed redeemer, uint256 indexed requestId, string paymentAddress, uint256 valueUBA, uint256 feeUBA, uint256 firstUnderlyingBlock, uint256 lastUnderlyingBlock, uint256 lastUnderlyingTimestamp, bytes32 paymentReference, address executor, uint256 executorFeeNatWei, uint256 destinationTag)",
-  "event RedemptionPerformed(address indexed agentVault, address indexed redeemer, uint64 indexed requestId, bytes32 transactionHash, uint256 redemptionAmountUBA, int256 spentUnderlyingUBA)",
+  // requestId is uint256 indexed (IAssetManagerEvents) — uint64 topic hash misses real logs
+  "event RedemptionPerformed(address indexed agentVault, address indexed redeemer, uint256 indexed requestId, bytes32 transactionHash, uint256 redemptionAmountUBA, int256 spentUnderlyingUBA)",
   "event RedemptionDefault(address indexed agentVault, address indexed redeemer, uint256 indexed requestId, uint256 redemptionAmountUBA, uint256 redeemedVaultCollateralWei, uint256 redeemedPoolCollateralWei)",
   "event RedemptionAmountIncomplete(address indexed redeemer, uint256 remainingAmountUBA)",
   "event RedemptionRequestIncomplete(address indexed redeemer, uint256 remainingLots)",
@@ -53,15 +55,28 @@ const ERC20_ABI = [
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 const XRPL_CLASSIC_RE = /^r[1-9A-HJ-NP-Za-km-z]{24,34}$/;
+/** Public Coston2 RPCs typically cap eth_getLogs at ~30 blocks. */
+const LOG_CHUNK = 30;
 
-/** On-chain Redemption.Status (EMPTY=0, ACTIVE=1, DEFAULTED=2). REJECTED finishes the request. */
-export type OnChainRedemptionStatus = "EMPTY" | "ACTIVE" | "DEFAULTED" | "UNKNOWN";
+/**
+ * RedemptionRequestInfo.Status:
+ * ACTIVE=0, DEFAULTED_UNCONFIRMED=1, SUCCESSFUL=2, DEFAULTED_FAILED=3, BLOCKED=4, REJECTED=5
+ */
+export type OnChainRedemptionStatus =
+  | "ACTIVE"
+  | "DEFAULTED_UNCONFIRMED"
+  | "SUCCESSFUL"
+  | "DEFAULTED_FAILED"
+  | "BLOCKED"
+  | "REJECTED"
+  | "EMPTY"
+  | "UNKNOWN";
 
 /**
  * Beacon lifecycle labels (honest):
  * - PENDING: request ACTIVE, awaiting agent XRPL payment / proof
- * - COMPLETED: RedemptionPerformed with non-zero XRPL transactionHash evidence
- * - DEFAULTED: on-chain DEFAULTED or RedemptionDefault event
+ * - COMPLETED: RedemptionPerformed with non-zero XRPL transactionHash evidence (or info SUCCESSFUL)
+ * - DEFAULTED: on-chain DEFAULTED_* or RedemptionDefault event
  * - NOT_FOUND: no open request and no performed evidence for this id
  * - PREPARED: calldata only (API prepare) — never a chain completion claim
  */
@@ -74,10 +89,47 @@ export type FAssetsLifecycleState =
 
 function mapOnChainStatus(raw: number | bigint): OnChainRedemptionStatus {
   const n = Number(raw);
-  if (n === 0) return "EMPTY";
-  if (n === 1) return "ACTIVE";
-  if (n === 2) return "DEFAULTED";
+  if (n === 0) return "ACTIVE";
+  if (n === 1) return "DEFAULTED_UNCONFIRMED";
+  if (n === 2) return "SUCCESSFUL";
+  if (n === 3) return "DEFAULTED_FAILED";
+  if (n === 4) return "BLOCKED";
+  if (n === 5) return "REJECTED";
   return "UNKNOWN";
+}
+
+function isZeroBytes32(h: string): boolean {
+  return (
+    !h ||
+    h === "0x" ||
+    /^0x0+$/i.test(h) ||
+    h === "0x0000000000000000000000000000000000000000000000000000000000000000"
+  );
+}
+
+async function queryFilterChunked(
+  manager: Contract,
+  filter: unknown,
+  fromBlock: number,
+  toBlock: number,
+): Promise<Array<{ transactionHash: string; blockNumber: number; args?: Record<string, unknown> }>> {
+  const out: Array<{ transactionHash: string; blockNumber: number; args?: Record<string, unknown> }> = [];
+  for (let b = fromBlock; b <= toBlock; b += LOG_CHUNK) {
+    const end = Math.min(b + LOG_CHUNK - 1, toBlock);
+    try {
+      const logs = await manager.queryFilter(filter as never, b, end);
+      for (const log of logs) {
+        out.push({
+          transactionHash: log.transactionHash,
+          blockNumber: log.blockNumber,
+          args: (log as { args?: Record<string, unknown> }).args,
+        });
+      }
+    } catch {
+      /* skip chunk on RPC limit / transient error */
+    }
+  }
+  return out;
 }
 
 function assertXrplClassic(addr: string): string | null {
@@ -732,21 +784,21 @@ export async function trackFassetsRedemption(
 
   try {
     const info = await manager.redemptionRequestInfo(requestId);
-    onChainStatus = mapOnChainStatus(info.status ?? info[12]);
+    onChainStatus = mapOnChainStatus(info.status ?? info[1]);
     request = {
-      agentVault: String(info.agentVault ?? info[0]),
-      redeemer: String(info.redeemer ?? info[1]),
-      paymentAddress: String(info.paymentAddress ?? info[2]),
-      paymentAddressValid: Boolean(info.paymentAddressValid ?? info[3]),
-      valueUBA: (info.valueUBA ?? info[4]).toString(),
-      feeUBA: (info.feeUBA ?? info[5]).toString(),
-      firstUnderlyingBlock: (info.firstUnderlyingBlock ?? info[6]).toString(),
-      lastUnderlyingBlock: (info.lastUnderlyingBlock ?? info[7]).toString(),
-      lastUnderlyingTimestamp: (info.lastUnderlyingTimestamp ?? info[8]).toString(),
-      paymentReference: String(info.paymentReference ?? info[9]),
-      executor: String(info.executor ?? info[10]),
-      executorFeeNatWei: (info.executorFeeNatWei ?? info[11]).toString(),
-      timestamp: (info.timestamp ?? info[13]).toString(),
+      agentVault: String(info.agentVault ?? info[2]),
+      redeemer: String(info.redeemer ?? info[3]),
+      paymentAddress: String(info.paymentAddress ?? info[4]),
+      paymentAddressValid: true,
+      valueUBA: (info.valueUBA ?? info[6]).toString(),
+      feeUBA: (info.feeUBA ?? info[7]).toString(),
+      firstUnderlyingBlock: (info.firstUnderlyingBlock ?? info[9]).toString(),
+      lastUnderlyingBlock: (info.lastUnderlyingBlock ?? info[10]).toString(),
+      lastUnderlyingTimestamp: (info.lastUnderlyingTimestamp ?? info[11]).toString(),
+      paymentReference: String(info.paymentReference ?? info[5]),
+      executor: String(info.executor ?? info[15]),
+      executorFeeNatWei: (info.executorFeeNatWei ?? info[16]).toString(),
+      timestamp: (info.timestamp ?? info[12]).toString(),
     };
   } catch {
     if (!request) {
@@ -755,32 +807,36 @@ export async function trackFassetsRedemption(
   }
 
   const latest = await provider.getBlockNumber();
-  // Public RPCs often reject huge eth_getLogs windows.
-  const lookback = opts.lookbackBlocks ?? 8_000;
-  const fromBlock = Math.max(0, latest - lookback);
+  // Prefer a tight window when source redeem tx is known (public RPC ~30-block log cap).
+  let fromBlock = Math.max(0, latest - (opts.lookbackBlocks ?? 2_000));
+  if (opts.sourceTxHash && /^0x[a-fA-F0-9]{64}$/.test(opts.sourceTxHash)) {
+    try {
+      const rc = await provider.getTransactionReceipt(opts.sourceTxHash);
+      if (rc?.blockNumber != null) {
+        fromBlock = Math.max(0, rc.blockNumber - 5);
+      }
+    } catch {
+      /* keep lookback */
+    }
+  }
 
   let performed: FAssetsRedemptionTrack["performed"] = null;
   let defaulted: FAssetsRedemptionTrack["defaulted"] = null;
 
   try {
-    const performedLogs = await manager.queryFilter(
-      manager.filters.RedemptionPerformed(),
+    const performedLogs = await queryFilterChunked(
+      manager,
+      manager.filters.RedemptionPerformed(null, null, requestId),
       fromBlock,
       latest,
     );
     for (const log of performedLogs) {
-      const args = (log as { args?: Record<string, unknown> }).args;
+      const args = log.args;
       if (!args) continue;
       const rid = BigInt(String(args.requestId ?? args[2] ?? "-1"));
       if (rid !== requestId) continue;
       const xrplHash = String(args.transactionHash ?? args[3] ?? "0x");
-      const zero =
-        !xrplHash ||
-        xrplHash === "0x" ||
-        /^0x0+$/i.test(xrplHash) ||
-        xrplHash ===
-          "0x0000000000000000000000000000000000000000000000000000000000000000";
-      if (zero) continue;
+      if (isZeroBytes32(xrplHash)) continue;
       performed = {
         flareTxHash: log.transactionHash,
         blockNumber: log.blockNumber,
@@ -793,17 +849,18 @@ export async function trackFassetsRedemption(
       break;
     }
   } catch {
-    /* RPC filter limits — leave performed null */
+    /* leave performed null */
   }
 
   try {
-    const defaultLogs = await manager.queryFilter(
-      manager.filters.RedemptionDefault(),
+    const defaultLogs = await queryFilterChunked(
+      manager,
+      manager.filters.RedemptionDefault(null, null, requestId),
       fromBlock,
       latest,
     );
     for (const log of defaultLogs) {
-      const args = (log as { args?: Record<string, unknown> }).args;
+      const args = log.args;
       if (!args) continue;
       const rid = BigInt(String(args.requestId ?? args[2] ?? "-1"));
       if (rid !== requestId) continue;
@@ -819,22 +876,30 @@ export async function trackFassetsRedemption(
   }
 
   let lifecycle: FAssetsLifecycleState = "NOT_FOUND";
-  if (performed) lifecycle = "COMPLETED";
-  else if (defaulted || onChainStatus === "DEFAULTED") lifecycle = "DEFAULTED";
-  else if (request && !performed) lifecycle = "PENDING";
+  if (performed || onChainStatus === "SUCCESSFUL") lifecycle = "COMPLETED";
+  else if (
+    defaulted ||
+    onChainStatus === "DEFAULTED_FAILED" ||
+    onChainStatus === "DEFAULTED_UNCONFIRMED"
+  ) {
+    lifecycle = "DEFAULTED";
+  } else if (onChainStatus === "BLOCKED" || onChainStatus === "REJECTED") {
+    lifecycle = "DEFAULTED";
+  } else if (request && !performed) lifecycle = "PENDING";
   else if (onChainStatus === "ACTIVE") lifecycle = "PENDING";
 
   // Fallback: if ABI layout for redemptionRequestInfo drifts, still treat a confirmed
-  // RedemptionRequested event for this requestId as PENDING (never COMPLETE).
+  // RedemptionRequested event for this requestId as PENDING (never COMPLETE without evidence).
   if (lifecycle === "NOT_FOUND" && !performed && !defaulted) {
     try {
-      const requestedLogs = await manager.queryFilter(
-        manager.filters.RedemptionRequested(),
+      const requestedLogs = await queryFilterChunked(
+        manager,
+        manager.filters.RedemptionRequested(null, null, requestId),
         fromBlock,
         latest,
       );
       for (const log of requestedLogs) {
-        const args = (log as { args?: Record<string, unknown> }).args;
+        const args = log.args;
         if (!args) continue;
         const rid = BigInt(String(args.requestId ?? args[2] ?? "-1"));
         if (rid !== requestId) continue;
@@ -874,7 +939,7 @@ export async function trackFassetsRedemption(
     performed,
     defaulted,
     honesty:
-      "COMPLETED requires RedemptionPerformed with non-zero XRPL transactionHash. ACTIVE without that evidence remains PENDING. Never treat prepare or REQUESTED as COMPLETE.",
+      "COMPLETED requires RedemptionPerformed with non-zero XRPL transactionHash (or redemptionRequestInfo SUCCESSFUL). ACTIVE without that evidence remains PENDING. Never treat prepare or REQUESTED as COMPLETE.",
     docs: [
       "https://dev.flare.network/fassets/redemption",
       "https://dev.flare.network/fassets/developer-guides/fassets-redeem",

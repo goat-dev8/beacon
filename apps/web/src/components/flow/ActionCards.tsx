@@ -457,6 +457,20 @@ export function ActionCard({
           : lifecycle === "PENDING"
             ? "text-sky-200 border-sky-400/40"
             : "text-[var(--p-muted)] border-[var(--p-border)]";
+    const xrplHash = card.xrplTransactionHash ? String(card.xrplTransactionHash) : "";
+    const flareTx = card.flareTxHash ? String(card.flareTxHash) : "";
+    const paymentRef = card.paymentReference ? String(card.paymentReference) : "";
+    const paymentAddr = card.paymentAddress ? String(card.paymentAddress) : "";
+    const xrplExplorer = card.explorerXrpl
+      ? String(card.explorerXrpl)
+      : xrplHash
+        ? `https://testnet.xrpl.org/transactions/${xrplHash.replace(/^0x/i, "")}`
+        : "";
+    const flareExplorer = card.explorerFlare
+      ? String(card.explorerFlare)
+      : flareTx
+        ? `https://coston2-explorer.flare.network/tx/${flareTx}`
+        : "";
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -470,10 +484,30 @@ export function ActionCard({
         <p className="mt-2 font-mono text-xs text-[var(--p-muted)]">
           requestId {String(card.requestId)} · on-chain {String(card.onChainStatus)}
         </p>
-        {card.xrplTransactionHash ? (
-          <p className="mt-2 break-all font-mono text-[10px] text-signal">
-            XRPL evidence: {String(card.xrplTransactionHash)}
+        {paymentAddr ? (
+          <p className="mt-1 font-mono text-[10px] text-[var(--p-muted)]">underlying {paymentAddr}</p>
+        ) : null}
+        {paymentRef ? (
+          <p className="mt-1 break-all font-mono text-[10px] text-[var(--p-muted)]">
+            paymentReference {paymentRef}
           </p>
+        ) : null}
+        {lifecycle === "COMPLETED" && xrplHash ? (
+          <div className="mt-2 space-y-1">
+            <p className="break-all font-mono text-[10px] text-signal">XRPL tx {xrplHash}</p>
+            {xrplExplorer ? (
+              <a href={xrplExplorer} target="_blank" rel="noreferrer" className="font-mono text-[10px] text-signal underline">
+                XRPL explorer
+              </a>
+            ) : null}
+            {flareExplorer ? (
+              <a href={flareExplorer} target="_blank" rel="noreferrer" className="ml-3 font-mono text-[10px] text-signal underline">
+                Flare RedemptionPerformed
+              </a>
+            ) : null}
+          </div>
+        ) : lifecycle === "COMPLETED" ? (
+          <p className="mt-2 text-xs text-signal">On-chain SUCCESSFUL — RedemptionPerformed confirmed.</p>
         ) : (
           <p className="mt-2 text-xs text-amber-100/90">
             No XRPL payment evidence yet — not COMPLETED.

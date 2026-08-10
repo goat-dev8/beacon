@@ -4,6 +4,30 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-10 - FINAL HARDENING: FAssets COMPLETED + FCC stable-proxy investigation + Chrome E2E
+
+### FAssets requestId `44497208` — COMPLETED (real Coston2 + XRPL)
+- Wrong ABI (`uint64` vs `uint256` requestId) + unchunked eth_getLogs caused false PENDING.
+- XRPL pay `2C088911…E11A` matched paymentReference; RedemptionPerformed Flare tx `0x5466fbc6…9a14`.
+- `redemptionRequestInfo` status SUCCESSFUL (2). Evidence: `docs/evidence/fassets-redemption-44497208.json`.
+- Tracker/UI fixed in `packages/shared/src/fassetsStatus.ts` + Flow status card.
+
+### FCC
+- Prod evaluate ALLOW + DENY (`fcc-allow-prod.json`, `fcc-deny-prod.json`). Status 2 + SIMULATED_TEE.
+- Stable proxy investigated — no ngrok/CF named tunnel credentials. trycloudflare ephemeral; not pinned on Render. `docs/evidence/fcc-final.json`.
+- Zod validation → HTTP 400 (was INTERNAL 500).
+
+### Chrome E2E
+- Evidence: `docs/evidence/chrome-e2e-final.json`. Landing/Wallet/Safe/Flow/FTSO/FCC/Jobs/Chat/x402/LZ PASS. FAssets on-chain COMPLETE; UI track needs deploy.
+
+### Tests
+- vitest 101; typecheck; forge 48/48; web:build.
+
+### Architecture freeze
+- FTSO+FCC+FDC+FAssets+LayerZero. Smart Accounts STUB. No new integrations.
+
+---
+
 ## 2026-08-10 - FAssets REAL redeemAmount PENDING + FCC re-verify + Chrome E2E
 
 ### Plan

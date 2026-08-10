@@ -1,5 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { Interface } from "ethers";
+import { Interface, id } from "ethers";
+
+describe("fassets redemption event ABI", () => {
+  it("uses uint256 indexed requestId for RedemptionPerformed (matches IAssetManagerEvents)", () => {
+    const correct = id(
+      "RedemptionPerformed(address,address,uint256,bytes32,uint256,int256)",
+    );
+    const wrongUint64 = id(
+      "RedemptionPerformed(address,address,uint64,bytes32,uint256,int256)",
+    );
+    expect(correct).toBe(
+      "0xd5150395b21c5be6cbb37ea167761efe7a013baccbd1bb7e5922fa261ccc3331",
+    );
+    expect(correct).not.toBe(wrongUint64);
+    const amIf = new Interface([
+      "event RedemptionPerformed(address indexed agentVault, address indexed redeemer, uint256 indexed requestId, bytes32 transactionHash, uint256 redemptionAmountUBA, int256 spentUnderlyingUBA)",
+    ]);
+    expect(amIf.getEvent("RedemptionPerformed")!.topicHash).toBe(correct);
+  });
+});
 
 describe("fassets redeem prepare encoding", () => {
   it("encodes AssetManager.redeem(lots, underlying, executor)", () => {

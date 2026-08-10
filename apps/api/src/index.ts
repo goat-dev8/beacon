@@ -182,6 +182,26 @@ app.setErrorHandler((error, _req, reply) => {
   if (isAppError(error)) {
     return reply.status(error.statusCode).send(error.toJSON());
   }
+  // Zod validation must not surface as INTERNAL 500
+  if (error instanceof z.ZodError) {
+    return reply.status(400).send({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Invalid request",
+        detail: error.issues.slice(0, 5),
+      },
+    });
+  }
+  const name = error instanceof Error ? error.name : "";
+  if (name === "ZodError" || (error as { issues?: unknown })?.issues) {
+    return reply.status(400).send({
+      error: {
+        code: "BAD_REQUEST",
+        message: "Invalid request",
+        detail: error instanceof Error ? error.message.slice(0, 400) : String(error).slice(0, 400),
+      },
+    });
+  }
   app.log.error(error);
   const detail = error instanceof Error ? error.message : String(error);
   return reply.status(500).send({

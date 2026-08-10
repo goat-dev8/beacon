@@ -212,25 +212,27 @@ FCC uses confidential compute enclaves to execute policy. The lifecycle:
 | Redemption Queue | REAL | `readFassetsRedemptionQueue()` |
 | Redeem Submit | REAL | Coston2 `redeemAmount` REQUESTED — see evidence below |
 | Lifecycle Track | REAL | `trackFassetsRedemption()` → PENDING / COMPLETED / DEFAULTED / NOT_FOUND |
-| PENDING | VERIFIED | requestId `44497208` tracked ACTIVE after `RedemptionRequested` |
-| COMPLETED | GATED | Only when `RedemptionPerformed` includes non-zero XRPL `transactionHash` |
+| PENDING | SUPERSEDED | Was ACTIVE until XRPL + RedemptionPerformed confirmed |
+| COMPLETED | VERIFIED | requestId `44497208` — XRPL + RedemptionPerformed evidence |
 | Automated Mint | NOT_AVAILABLE | docs handoff (XRPL/Xaman) |
 
 Evidence:
 - `docs/evidence/fassets-coston2-status.json`
 - `docs/evidence/fassets-redeem-prepare.json`
-- `docs/evidence/fassets-redemption-request.json` — **on-chain redeem**
+- `docs/evidence/fassets-redemption-request.json` — on-chain redeem REQUEST
+- `docs/evidence/fassets-redemption-44497208.json` — **COMPLETED** lifecycle
 
-On-chain redemption REQUEST (not COMPLETE):
+On-chain redemption COMPLETE:
 - approve: `0x5e0a5fb5a6a2a041142920faf77b2048a06d3deda696200106e5d9cf26263ce2`
 - redeemAmount: `0x2a2edb61551dbf2bda2460d465d79363fe309eeb4ea84abc2421599f85e66440`
 - requestId: `44497208`
-- explorer: https://coston2-explorer.flare.network/tx/0x2a2edb61551dbf2bda2460d465d79363fe309eeb4ea84abc2421599f85e66440
-- lifecycle: **PENDING** (awaiting agent XRPL pay + `RedemptionPerformed`)
+- XRPL: `2C0889111F1B352AFB17E1DA28F548FBD492541113229ABA6B4A25B8E1A1E11A`
+- RedemptionPerformed: `0x5466fbc65babe862e93242ec58ea4379a2dafe772e326479c76a0781b52e9a14`
+- explorer redeem: https://coston2-explorer.flare.network/tx/0x2a2edb61551dbf2bda2460d465d79363fe309eeb4ea84abc2421599f85e66440
+- explorer performed: https://coston2-explorer.flare.network/tx/0x5466fbc65babe862e93242ec58ea4379a2dafe772e326479c76a0781b52e9a14
+- lifecycle: **COMPLETED**
 
-Do **not** mark redemption COMPLETE without XRPL payment evidence.
-
-### Classification: **PARTIAL** (real REQUESTED / PENDING; COMPLETE gated on XRPL)
+### Classification: **REAL** (this request COMPLETED; mint remains docs handoff)
 
 On-chain: AssetManagerFXRP `0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA` · FXRP `0x0b6A3645c240605887a5532109323A3E12273dc7` (registry-resolved).
 
