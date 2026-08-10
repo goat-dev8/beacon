@@ -210,19 +210,31 @@ FCC uses confidential compute enclaves to execute policy. The lifecycle:
 | Status/Desk Read | REAL | `AssetManagerFXRP` via registry, `readFassetsDesk()` incl. min redeem + available agents |
 | Redeem Prepare | REAL | `redeem` / `redeemAmount` / `redeemWithTag` calldata (`prepareFassetsRedeem*`) |
 | Redemption Queue | REAL | `readFassetsRedemptionQueue()` |
+| Redeem Submit | REAL | Coston2 `redeemAmount` REQUESTED — see evidence below |
 | Lifecycle Track | REAL | `trackFassetsRedemption()` → PENDING / COMPLETED / DEFAULTED / NOT_FOUND |
+| PENDING | VERIFIED | requestId `44497208` tracked ACTIVE after `RedemptionRequested` |
 | COMPLETED | GATED | Only when `RedemptionPerformed` includes non-zero XRPL `transactionHash` |
 | Automated Mint | NOT_AVAILABLE | docs handoff (XRPL/Xaman) |
 
-Evidence: `docs/evidence/fassets-coston2-status.json`, `docs/evidence/fassets-redeem-prepare.json`.
+Evidence:
+- `docs/evidence/fassets-coston2-status.json`
+- `docs/evidence/fassets-redeem-prepare.json`
+- `docs/evidence/fassets-redemption-request.json` — **on-chain redeem**
+
+On-chain redemption REQUEST (not COMPLETE):
+- approve: `0x5e0a5fb5a6a2a041142920faf77b2048a06d3deda696200106e5d9cf26263ce2`
+- redeemAmount: `0x2a2edb61551dbf2bda2460d465d79363fe309eeb4ea84abc2421599f85e66440`
+- requestId: `44497208`
+- explorer: https://coston2-explorer.flare.network/tx/0x2a2edb61551dbf2bda2460d465d79363fe309eeb4ea84abc2421599f85e66440
+- lifecycle: **PENDING** (awaiting agent XRPL pay + `RedemptionPerformed`)
 
 Do **not** mark redemption COMPLETE without XRPL payment evidence.
 
-### Classification: **PARTIAL** (max real prepare + honest lifecycle; COMPLETE gated)
+### Classification: **PARTIAL** (real REQUESTED / PENDING; COMPLETE gated on XRPL)
 
 On-chain: AssetManagerFXRP `0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA` · FXRP `0x0b6A3645c240605887a5532109323A3E12273dc7` (registry-resolved).
 
----
+Note: [FAssets max real Coston2 flow](b1f89325-5675-49fc-9fd7-3bb7276962b4) landed prepare/queue/track wiring; the live redeemAmount broadcast + PENDING evidence was completed in parent (`0eda0e0`) after funding FXRP via Safe swap.
 
 ## 5. Smart Accounts
 
