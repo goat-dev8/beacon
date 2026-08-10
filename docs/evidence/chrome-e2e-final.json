@@ -1,65 +1,30 @@
 {
-  "capturedAt": "2026-08-10T01:22:00.000Z",
+  "capturedAt": "2026-08-10T01:32:30.000Z",
   "productionUrl": "https://beacon-desk.vercel.app",
   "apiUrl": "https://beacon-api-97gl.onrender.com",
+  "commit": "88bf4d3f00b5cfa28ed17f6f85a6d05279a38847",
   "walletObserved": "0x3bE5…c794",
-  "flows": {
-    "Landing": {
-      "result": "PASS",
-      "notes": "Hero, nav, CTAs, Flare rails visible. Console: Reown font preload warning only."
-    },
-    "Wallet": {
-      "result": "PASS",
-      "notes": "Connected account shown on Safe and Flow (0x3bE5…c794). Network Coston2."
-    },
-    "Safe": {
-      "result": "PASS",
-      "notes": "Balance 498.986274 USDT0, rolling 48.986274/50, per-trade 10, SIMULATED TEE badge, explorer link to vault."
-    },
-    "Flow": {
-      "result": "PASS",
-      "notes": "History + live FTSO-aged Safe swap quote; past OFT and x402 explorer receipts present."
-    },
-    "FTSO": {
-      "result": "PASS",
-      "notes": "Signals and swap path show live FTSO age (e.g. 5s). Guard evidence docs/evidence/ftso-guard.json."
-    },
-    "FCC": {
-      "result": "PASS",
-      "notes": "Prod evaluate ALLOW + DENY value-protection. TEE status 2 SIMULATED. EXT_PROXY not on Render (honest). Local trycloudflare /info alive."
-    },
-    "FDC": {
-      "result": "PASS",
-      "notes": "Prior on-chain AddressValidity verify evidence retained; not re-submitted this pass."
-    },
-    "FAssets": {
-      "result": "PASS_ONCHAIN_UI_PENDING_DEPLOY",
-      "notes": "On-chain COMPLETED for 44497208 with XRPL+RedemptionPerformed evidence. Pre-deploy prod track UI showed NOT_FOUND/EMPTY due to wrong event ABI — fixed in this commit; re-check after deploy."
-    },
-    "Jobs": {
-      "result": "PASS",
-      "notes": "Desk page loads; prior research job Safe-pay tx 0xe1ae3ea7…eda2 Passed retained."
-    },
-    "Chat": {
-      "result": "PASS",
-      "notes": "Flow chat responds (deterministic fallback + GPT routes observed in history)."
-    },
-    "x402": {
-      "result": "PASS",
-      "notes": "History shows settled payment 0x759a14ca… research brief."
-    },
-    "LayerZero": {
-      "result": "PASS",
-      "notes": "Existing OFT receipt 0x9f83e24c… verified in UI history; no new bridge forced."
-    },
-    "Reload/Recovery": {
-      "result": "PASS",
-      "notes": "History persists across nav; Safe state loads after revisit."
-    },
-    "Console/Network": {
-      "result": "PASS",
-      "notes": "No production-breaking console errors on landing; known font preload warn ignored."
-    }
+  "postDeploy": {
+    "fassetsApi": "COMPLETED / SUCCESSFUL with performed flareTx 0x5466fbc6…9a14",
+    "fassetsUi": "COMPLETED card with XRPL + Flare explorer links",
+    "health": true,
+    "ready": true
   },
-  "honesty": "Pre-deploy Chrome pass. FAssets UI COMPLETED requires deploying ABI/chunked-scan fix. Architecture frozen after verification."
+  "flows": {
+    "Landing": { "result": "PASS", "notes": "Hero, nav, CTAs, Flare rails. Console: Reown font preload warn only." },
+    "Wallet": { "result": "PASS", "notes": "Connected 0x3bE5…c794 on Coston2 in Safe/Flow." },
+    "Safe": { "result": "PASS", "notes": "Balance/caps/SIMULATED TEE badge/explorer vault link." },
+    "Flow": { "result": "PASS", "notes": "History + FTSO-aged Safe quotes + OFT/x402 receipts." },
+    "FTSO": { "result": "PASS", "notes": "Live age on swap path; ftso-guard evidence retained." },
+    "FCC": { "result": "PASS", "notes": "Prod evaluate ALLOW+DENY. Status 2 SIMULATED. Stable proxy not configured (honest)." },
+    "FDC": { "result": "PASS", "notes": "Prior AddressValidity on-chain verify evidence retained." },
+    "FAssets": { "result": "PASS", "notes": "requestId 44497208 COMPLETED on-chain + post-deploy API/UI with explorers." },
+    "Jobs": { "result": "PASS", "notes": "Desk loads; prior Safe-pay job 0xe1ae3ea7…eda2 Passed." },
+    "Chat": { "result": "PASS", "notes": "Flow chat + model routing observed." },
+    "x402": { "result": "PASS", "notes": "Settled receipt 0x759a14ca… in history." },
+    "LayerZero": { "result": "PASS", "notes": "OFT receipt 0x9f83e24c… in history; no forced new bridge." },
+    "Reload/Recovery": { "result": "PASS", "notes": "History persists; Safe state reloads." },
+    "Console/Network": { "result": "PASS", "notes": "No production-breaking console errors." }
+  },
+  "honesty": "Architecture frozen. Smart Accounts remain STUB. FCC EXT_PROXY not pinned on Render; named tunnel still required for permanent instruction→result poll."
 }
