@@ -1,0 +1,38 @@
+{
+    "ok":  true,
+    "track":  {
+                  "ok":  true,
+                  "requestId":  "44497208",
+                  "assetManager":  "0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA",
+                  "onChainStatus":  "SUCCESSFUL",
+                  "lifecycle":  "COMPLETED",
+                  "request":  {
+                                  "agentVault":  "0x5b89514d1F060AdbEA8B7294AFf81ed8dbAa7fC5",
+                                  "redeemer":  "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+                                  "paymentAddress":  "rSHYuiEvsYsKR8uUHhBTuGP5zjRcGt4nm",
+                                  "paymentAddressValid":  true,
+                                  "valueUBA":  "5000000",
+                                  "feeUBA":  "25000",
+                                  "firstUnderlyingBlock":  "19777725",
+                                  "lastUnderlyingBlock":  "19778261",
+                                  "lastUnderlyingTimestamp":  "1786321835",
+                                  "paymentReference":  "0x4642505266410002000000000000000000000000000000000000000002a6f938",
+                                  "executor":  "0x0000000000000000000000000000000000000000",
+                                  "executorFeeNatWei":  "0",
+                                  "timestamp":  "1786321054"
+                              },
+                  "performed":  {
+                                    "flareTxHash":  "0x5466fbc65babe862e93242ec58ea4379a2dafe772e326479c76a0781b52e9a14",
+                                    "blockNumber":  33840061,
+                                    "xrplTransactionHash":  "0x2c0889111f1b352afb17e1da28f548fbd492541113229aba6b4a25b8e1a1e11a",
+                                    "redemptionAmountUBA":  "5000000",
+                                    "explorerXrplHint":  null
+                                },
+                  "defaulted":  null,
+                  "honesty":  "COMPLETED requires RedemptionPerformed with non-zero XRPL transactionHash (or redemptionRequestInfo SUCCESSFUL). ACTIVE without that evidence remains PENDING. Never treat prepare or REQUESTED as COMPLETE.",
+                  "docs":  [
+                               "https://dev.flare.network/fassets/redemption",
+                               "https://dev.flare.network/fassets/developer-guides/fassets-redeem"
+                           ]
+              }
+}
