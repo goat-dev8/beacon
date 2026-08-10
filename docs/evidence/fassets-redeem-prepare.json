@@ -1,0 +1,167 @@
+{
+  "capturedAt": "2026-08-10T00:17:11.647Z",
+  "network": "coston2",
+  "chainId": 114,
+  "desk": {
+    "controller": "0x1C772F700308aF4c13897cc7b9c41EFfB82c50C0",
+    "managers": [
+      {
+        "assetManager": "0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA",
+        "fAsset": "0x0b6A3645c240605887a5532109323A3E12273dc7",
+        "symbol": "FTestXRP",
+        "lotSizeUnderlying": 10,
+        "minimumRedeemUnderlying": 5,
+        "agentCount": 4,
+        "availableAgentCount": 4,
+        "actions": {
+          "mint": "docs_handoff",
+          "redeem": "prepare",
+          "bridge": "oft",
+          "yield": "vault_rails"
+        }
+      }
+    ],
+    "honesty": "Coston2 currently exposes one FAsset manager (Testnet XRP / FXRP) via AssetManagerController.getAssetManagers(). FBTC/FDOGE are listed as not deployed on this network. Mint is a documented XRPL/Xaman handoff — never presented as a one-click wallet mint. Redeem prepare is REAL; COMPLETED requires RedemptionPerformed XRPL evidence.",
+    "lifecycleHonesty": "PREPARED = calldata only. PENDING = on-chain ACTIVE redemption awaiting agent XRPL pay. COMPLETED only with RedemptionPerformed + non-zero XRPL transactionHash. DEFAULTED from on-chain status / RedemptionDefault. Never invent COMPLETE."
+  },
+  "prepares": {
+    "redeemAmount": {
+      "ok": true,
+      "kind": "redeem_amount",
+      "assetManager": "0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA",
+      "fAsset": "0x0b6A3645c240605887a5532109323A3E12273dc7",
+      "symbol": "FTestXRP",
+      "lots": 0,
+      "amountUBA": "5000000",
+      "amountDisplay": "5.0",
+      "minimumRedeemAmountUBA": "5000000",
+      "underlyingAddress": "rSHYuiEvsYsKR8uUHhBTuGP5zjRcGt4nm",
+      "destinationTag": null,
+      "lifecycleNext": "PENDING_after_wallet_submit",
+      "approveDataLen": 138,
+      "redeemDataLen": 394,
+      "approveDataPrefix": "0x095ea7b3",
+      "redeemDataPrefix": "0x01e261f6",
+      "honesty": "Amount-based redeem prepare via AssetManager.redeemAmount. May be partially fulfilled (RedemptionAmountIncomplete). COMPLETED only after RedemptionPerformed with XRPL evidence.",
+      "docs": [
+        "https://dev.flare.network/fassets/developer-guides/fassets-redeem-amount",
+        "https://dev.flare.network/fassets/reference/IAssetManager#redeemamount"
+      ],
+      "tag": "amount_based_redeem_prepare"
+    },
+    "redeemLots": {
+      "ok": true,
+      "kind": "redeem_lots",
+      "assetManager": "0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA",
+      "fAsset": "0x0b6A3645c240605887a5532109323A3E12273dc7",
+      "symbol": "FTestXRP",
+      "lots": 1,
+      "amountUBA": "10000000",
+      "amountDisplay": "10.0",
+      "minimumRedeemAmountUBA": "5000000",
+      "underlyingAddress": "rSHYuiEvsYsKR8uUHhBTuGP5zjRcGt4nm",
+      "destinationTag": null,
+      "lifecycleNext": "PENDING_after_wallet_submit",
+      "approveDataLen": 138,
+      "redeemDataLen": 394,
+      "approveDataPrefix": "0x095ea7b3",
+      "redeemDataPrefix": "0x99646d1c",
+      "honesty": "Lots-based redeem prepare via AssetManager.redeem. After wallet submit expect PENDING (ACTIVE) until agent XRPL payment is proven. COMPLETED only with RedemptionPerformed + XRPL tx hash — never claim complete from prepare alone.",
+      "docs": [
+        "https://dev.flare.network/fassets/developer-guides/fassets-redeem",
+        "https://dev.flare.network/fassets/reference/IAssetManager#redeem"
+      ],
+      "tag": "lots_based_redeem_prepare"
+    },
+    "redeemWithTag": {
+      "ok": true,
+      "kind": "redeem_with_tag",
+      "assetManager": "0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA",
+      "fAsset": "0x0b6A3645c240605887a5532109323A3E12273dc7",
+      "symbol": "FTestXRP",
+      "lots": 0,
+      "amountUBA": "5000000",
+      "amountDisplay": "5.0",
+      "minimumRedeemAmountUBA": "5000000",
+      "underlyingAddress": "rSHYuiEvsYsKR8uUHhBTuGP5zjRcGt4nm",
+      "destinationTag": 1,
+      "lifecycleNext": "PENDING_after_wallet_submit",
+      "approveDataLen": 138,
+      "redeemDataLen": 458,
+      "approveDataPrefix": "0x095ea7b3",
+      "redeemDataPrefix": "0xc95cecbf",
+      "honesty": "Tag-based redeem prepare via AssetManager.redeemWithTag. Destination tag is included for XRPL payment routing. COMPLETED only with RedemptionPerformed + XRPL tx hash.",
+      "docs": [
+        "https://dev.flare.network/fassets/developer-guides/fassets-redeem-amount",
+        "https://dev.flare.network/fassets/reference/IAssetManager#redeemwithtag"
+      ],
+      "tag": "tag_based_redeem_prepare"
+    }
+  },
+  "queue": {
+    "ticketCount": 5,
+    "sample": [
+      {
+        "redemptionTicketId": "3951",
+        "agentVault": "0x5b89514d1F060AdbEA8B7294AFf81ed8dbAa7fC5",
+        "ticketValueUBA": "2130000000",
+        "ticketValueDisplay": "2130.0"
+      },
+      {
+        "redemptionTicketId": "3952",
+        "agentVault": "0xd5dEFe2c62D48788BB3889534FBFe7Aea0602D64",
+        "ticketValueUBA": "2150000000",
+        "ticketValueDisplay": "2150.0"
+      },
+      {
+        "redemptionTicketId": "3953",
+        "agentVault": "0x165c62b4531D28E34c68a8b2aCBF4D0421e4E028",
+        "ticketValueUBA": "2460000000",
+        "ticketValueDisplay": "2460.0"
+      }
+    ],
+    "next": "3956"
+  },
+  "trackUnknownRequestId1": {
+    "requestId": "1",
+    "lifecycle": "NOT_FOUND",
+    "onChainStatus": "EMPTY",
+    "hasPerformed": false,
+    "honesty": "COMPLETED requires RedemptionPerformed with non-zero XRPL transactionHash. ACTIVE without that evidence remains PENDING. Never treat prepare or REQUESTED as COMPLETE."
+  },
+  "realClosedLoop": {
+    "status": "REAL",
+    "prepare": "REAL",
+    "requestSubmit": "BLOCKED_UNTIL_FUNDED_FXRP_WALLET_SIGNS",
+    "completed": "BLOCKED_UNTIL_REDEMPTION_PERFORMED_WITH_XRPL_HASH"
+  },
+  "blockers": [
+    {
+      "id": "insufficient_controllable_fxrp_for_safe_redeem",
+      "detail": "Deployer sample FXRP balance is below minimumRedeemAmountUBA (5). Swap desk FXRP (~9.7) is protocol inventory for Safe MockUSDT0→FXRP swaps — must not burn for demo redemption."
+    },
+    {
+      "id": "completed_requires_agent_xrpl_payment",
+      "detail": "Even after RedemptionRequested, COMPLETED is only legal when RedemptionPerformed includes non-zero XRPL transactionHash. Agent payment is async and outside Beacon control."
+    },
+    {
+      "id": "automated_mint_docs_handoff",
+      "detail": "Automated mint remains NOT_AVAILABLE (XRPL/Xaman agent reservation)."
+    },
+    {
+      "id": "swap_then_redeem_composite",
+      "detail": "Safe MockUSDT0→FXRP SwapDesk prepare is REAL separately; composing auto swap→burn→redeem is not wired as one tx and would consume desk inventory. Prepare paths remain separate."
+    }
+  ],
+  "txHashes": [],
+  "docs": [
+    "https://dev.flare.network/fassets/overview",
+    "https://dev.flare.network/fassets/redemption",
+    "https://dev.flare.network/fassets/developer-guides/fassets-settings-node",
+    "https://dev.flare.network/fassets/developer-guides/fassets-redeem",
+    "https://dev.flare.network/fassets/developer-guides/fassets-redeem-amount",
+    "https://dev.flare.network/fassets/developer-guides/fassets-list-agents",
+    "https://dev.flare.network/fassets/developer-guides/fassets-minting",
+    "https://dev.flare.network/fassets/reference"
+  ]
+}

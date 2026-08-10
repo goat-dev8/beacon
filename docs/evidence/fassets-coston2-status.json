@@ -1,0 +1,119 @@
+{
+  "capturedAt": "2026-08-10T00:14:04.843Z",
+  "network": "coston2",
+  "chainId": 114,
+  "rpcHost": "coston2-api.flare.network",
+  "registryResolved": {
+    "AssetManagerFXRP": "0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA",
+    "fAsset": "0x0b6A3645c240605887a5532109323A3E12273dc7"
+  },
+  "expectedCrossCheck": {
+    "EXPECTED_ASSET_MANAGER_FXRP": "0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA",
+    "EXPECTED_FXRP_TOKEN": "0x0b6A3645c240605887a5532109323A3E12273dc7",
+    "assetManagerMatch": true,
+    "fxrpMatch": true
+  },
+  "settings": {
+    "symbol": "FTestXRP",
+    "name": "FXRP",
+    "decimals": 6,
+    "lotSizeUBA": "10000000",
+    "lotSizeDisplay": "10.0",
+    "minimumRedeemAmountUBA": "5000000",
+    "minimumRedeemDisplay": "5.0"
+  },
+  "agents": {
+    "total": 4,
+    "sample": [
+      "0x55c815260cBE6c45Fe5bFe5FF32E3C7D746f14dC",
+      "0xd5dEFe2c62D48788BB3889534FBFe7Aea0602D64",
+      "0x5b89514d1F060AdbEA8B7294AFf81ed8dbAa7fC5"
+    ],
+    "available": {
+      "count": 4,
+      "sample": [
+        "0x55c815260cBE6c45Fe5bFe5FF32E3C7D746f14dC",
+        "0xd5dEFe2c62D48788BB3889534FBFe7Aea0602D64",
+        "0x5b89514d1F060AdbEA8B7294AFf81ed8dbAa7fC5"
+      ]
+    }
+  },
+  "redemptionQueue": {
+    "tickets": [
+      {
+        "id": "3951",
+        "agent": "0x5b89514d1F060AdbEA8B7294AFf81ed8dbAa7fC5",
+        "valueUBA": "2130000000"
+      },
+      {
+        "id": "3952",
+        "agent": "0xd5dEFe2c62D48788BB3889534FBFe7Aea0602D64",
+        "valueUBA": "2150000000"
+      },
+      {
+        "id": "3953",
+        "agent": "0x165c62b4531D28E34c68a8b2aCBF4D0421e4E028",
+        "valueUBA": "2460000000"
+      },
+      {
+        "id": "3954",
+        "agent": "0x55c815260cBE6c45Fe5bFe5FF32E3C7D746f14dC",
+        "valueUBA": "1600000000"
+      },
+      {
+        "id": "3955",
+        "agent": "0xd5dEFe2c62D48788BB3889534FBFe7Aea0602D64",
+        "valueUBA": "10000000"
+      }
+    ],
+    "next": "3956"
+  },
+  "fxrpBalancesSample": {
+    "0xbdfcee82bd42fefa58ee850b3709636a8b6b0034": "0.1",
+    "0xc7c6c06dd59173dbaf8382627d6a483ca53aaf33": "0.0",
+    "0x36c17ca6aa2b61b13f7c4b5a59629320a8b4df29": "9.713086"
+  },
+  "selectorProbe": {
+    "redeemAmount": "selector_present_reverted_as_expected",
+    "redeemWithTag": "selector_present_reverted_as_expected"
+  },
+  "xrplConfigured": true,
+  "honesty": {
+    "preparePath": "REAL — redeem / redeemAmount / redeemWithTag calldata can be prepared from live lotSize + minimumRedeemAmountUBA",
+    "requestSubmission": "Requires funded FXRP wallet + user/agent signature — not auto-completed by this probe",
+    "completedRequires": "RedemptionPerformed with XRPL transactionHash (or verified XRPL payment) — never invent COMPLETE",
+    "mint": "docs_handoff / NOT_AVAILABLE for automated mint"
+  },
+  "docs": [
+    "https://dev.flare.network/fassets/overview",
+    "https://dev.flare.network/fassets/redemption",
+    "https://dev.flare.network/fassets/developer-guides/fassets-redeem",
+    "https://dev.flare.network/fassets/developer-guides/fassets-redeem-amount",
+    "https://dev.flare.network/fassets/developer-guides/fassets-list-agents"
+  ],
+  "blockers": [
+    {
+      "id": "insufficient_controllable_fxrp_for_safe_redeem",
+      "detail": "Deployer sample FXRP balance is below minimumRedeemAmountUBA (5). Swap desk FXRP (~9.7) is protocol inventory for Safe MockUSDT0→FXRP swaps — must not burn for demo redemption."
+    },
+    {
+      "id": "completed_requires_agent_xrpl_payment",
+      "detail": "Even after RedemptionRequested, COMPLETED is only legal when RedemptionPerformed includes non-zero XRPL transactionHash. Agent payment is async and outside Beacon control."
+    },
+    {
+      "id": "automated_mint_docs_handoff",
+      "detail": "Automated mint remains NOT_AVAILABLE (XRPL/Xaman agent reservation)."
+    },
+    {
+      "id": "swap_then_redeem_composite",
+      "detail": "Safe MockUSDT0→FXRP SwapDesk prepare is REAL separately; composing auto swap→burn→redeem is not wired as one tx and would consume desk inventory. Prepare paths remain separate."
+    }
+  ],
+  "realClosedLoop": {
+    "status": "REAL",
+    "prepare": "REAL",
+    "requestSubmit": "BLOCKED_UNTIL_FUNDED_FXRP_WALLET_SIGNS",
+    "completed": "BLOCKED_UNTIL_REDEMPTION_PERFORMED_WITH_XRPL_HASH"
+  },
+  "prepareEvidence": "docs/evidence/fassets-redeem-prepare.json"
+}

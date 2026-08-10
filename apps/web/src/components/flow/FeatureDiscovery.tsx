@@ -95,7 +95,7 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
   {
     id: "fassets",
     title: "FAssets",
-    blurb: "Mint, redeem, and track FAssets status with documented Flare steps.",
+    blurb: "FXRP status, redeem prepare, honest PENDING→COMPLETED tracking.",
     prompt: "Redeem FAssets",
     icon: Boxes,
   },

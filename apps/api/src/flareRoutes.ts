@@ -865,7 +865,7 @@ export function registerFlareNativeRoutes(
           id: "fassets",
           status: "REAL",
           role: "lifecycle_status_redeem",
-          note: "Status + redeem prepare REAL; automated mint remains docs handoff / NOT_AVAILABLE.",
+          note: "Status + redeem prepare (lots/amount/tag) + track PENDING/COMPLETED/DEFAULTED REAL; COMPLETED only with XRPL evidence; mint docs_handoff.",
         },
         {
           id: "smart_accounts",

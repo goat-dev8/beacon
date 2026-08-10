@@ -17,7 +17,7 @@ import { discoverSparkDexPools, prepareSparkDexSwap } from "./sparkDex.js";
 import { prepareBeaconSafeSwap, resolveSwapDeskAddress } from "./safeSwap.js";
 import { prepareBeaconAgentBridge } from "./agentBridge.js";
 import { readAgentVaultStatus, resolveVaultForWallet } from "./vaultClient.js";
-import { readFassetsDesk } from "./fassetsStatus.js";
+import { readFassetsDesk, prepareFassetsRedeemAmount, prepareFassetsRedeemLots, trackFassetsRedemption } from "./fassetsStatus.js";
 import { readYieldVaultDesk } from "./yieldVaults.js";
 import { buildMarketIntelligence } from "./marketIntel.js";
 import { readPortfolioDesk } from "./portfolioDesk.js";
@@ -226,11 +226,14 @@ export type AgentCard =
       title: string;
       flarePrimitive: string;
       honesty: string;
+      lifecycleHonesty?: string;
       managers: Array<{
         symbol: string;
         status: string;
         lotSize: number;
+        minRedeem?: number | null;
         agentCount: number;
+        availableAgents?: number;
         fAsset: string;
         mint: string;
         redeem: string;
@@ -241,6 +244,29 @@ export type AgentCard =
       xrpUsd: number;
       lotValueUsd: number | null;
       docs: string[];
+    }
+  | {
+      type: "fassets_redeem_prep";
+      title: string;
+      lifecycle: "PREPARED";
+      kind: string;
+      symbol: string;
+      amountDisplay: string;
+      underlyingAddress: string;
+      destinationTag?: number | null;
+      approveTo: string;
+      redeemTo: string;
+      honesty: string;
+      docs: string[];
+    }
+  | {
+      type: "fassets_redeem_status";
+      title: string;
+      requestId: string;
+      lifecycle: string;
+      onChainStatus: string;
+      xrplTransactionHash?: string | null;
+      honesty: string;
     }
   | {
       type: "portfolio_desk";
@@ -406,7 +432,7 @@ const AGENT_SYSTEM: Record<BeaconAgentId, string> = {
   signals: "You are Beacon Signals. Explain live FTSO feeds and bias. Never invent prices.",
   intel: "You are Beacon Market Intelligence. FTSO + liquidity reasoning. Never build betting markets.",
   portfolio: "You are Beacon Portfolio. Value Coston2 balances with FTSO. Never invent holdings.",
-  fassets: "You are Beacon FAssets. Show live Coston2 managers only. Never invent FBTC/FDOGE mint on Coston2.",
+  fassets: "You are Beacon FAssets. Show live Coston2 managers only. Never invent FBTC/FDOGE mint on Coston2. Redeem prepare is PREPARED only; COMPLETED requires RedemptionPerformed XRPL evidence.",
   swap: "You are Beacon Swap. SparkDEX pairs are discovered on Flare Mainnet. Coston2 has no SparkDEX router bytecode.",
   liquidity: "You are Beacon Liquidity. Report discovered SparkDEX pools with liquidity > 0 only.",
   bridge: "You are Beacon Bridge. LayerZero FXRP OFT peers from on-chain discovery. Never invent fills.",
@@ -1535,6 +1561,79 @@ export async function runBeaconAgentChat(opts: {
 
     if (intent === "fassets" || intent === "yield" || intent === "xrpfi") {
       const desk = await readFassetsDesk(env);
+      const msg = opts.message ?? "";
+      const xrplMatch = msg.match(/\br[1-9A-HJ-NP-Za-km-z]{24,34}\b/);
+      const requestIdMatch = msg.match(/\b(?:request(?:Id)?|track)\s*[#:=]?\s*(\d{3,})\b/i);
+      const amountUbaMatch = msg.match(/\b(\d+)\s*(?:uba|UBA)\b/);
+      const amountDisplayMatch = msg.match(/\bredeem(?:Amount)?\s+(\d+(?:\.\d+)?)\s*(?:fxrp|FXRP|ftestxrp)?/i);
+      const lotsMatch = msg.match(/\b(\d+)\s*lots?\b/i);
+      const wantsPrepare = /prepare|redeem/i.test(msg) && Boolean(xrplMatch);
+      const wantsTrack = Boolean(requestIdMatch);
+
+      if (wantsTrack && requestIdMatch) {
+        const track = await trackFassetsRedemption({
+          requestId: requestIdMatch[1]!,
+          env,
+        });
+        if (track.ok) {
+          cards.push({
+            type: "fassets_redeem_status",
+            title: "FAssets redeem status",
+            requestId: track.requestId,
+            lifecycle: track.lifecycle,
+            onChainStatus: track.onChainStatus,
+            xrplTransactionHash: track.performed?.xrplTransactionHash ?? null,
+            honesty: track.honesty,
+          });
+        }
+      } else if (wantsPrepare && xrplMatch) {
+        const underlyingAddress = xrplMatch[0]!;
+        let prep;
+        if (amountUbaMatch) {
+          prep = await prepareFassetsRedeemAmount(
+            { amountUBA: amountUbaMatch[1]!, underlyingAddress },
+            env,
+          );
+        } else if (lotsMatch) {
+          prep = await prepareFassetsRedeemLots(
+            { lots: Number(lotsMatch[1]), underlyingAddress },
+            env,
+          );
+        } else if (amountDisplayMatch) {
+          const display = amountDisplayMatch[1]!;
+          const mgr = desk.managers[0];
+          const uba =
+            mgr != null
+              ? BigInt(Math.floor(parseFloat(display) * 10 ** mgr.decimals)).toString()
+              : null;
+          prep = uba
+            ? await prepareFassetsRedeemAmount({ amountUBA: uba, underlyingAddress }, env)
+            : { ok: false as const, error: "No FXRP manager" };
+        } else {
+          // Default to minimum redeem amount when only address is supplied with redeem intent
+          const min = desk.managers[0]?.minimumRedeemAmountUBA;
+          prep = min
+            ? await prepareFassetsRedeemAmount({ amountUBA: min, underlyingAddress }, env)
+            : await prepareFassetsRedeemLots({ lots: 1, underlyingAddress }, env);
+        }
+        if (prep.ok) {
+          cards.push({
+            type: "fassets_redeem_prep",
+            title: "FAssets redeem prepare",
+            lifecycle: "PREPARED",
+            kind: prep.kind,
+            symbol: prep.symbol,
+            amountDisplay: prep.amountDisplay,
+            underlyingAddress: prep.underlyingAddress,
+            destinationTag: prep.destinationTag,
+            approveTo: prep.approveTo,
+            redeemTo: prep.redeemTo,
+            honesty: prep.honesty,
+            docs: prep.docs,
+          });
+        }
+      }
+
       cards.push({
         type: "fassets_desk",
         title: intent === "yield" ? "Yield · FAssets + yield rails" : intent === "xrpfi" ? "XRPFi · FXRP rails" : "FAssets desk · Coston2",
@@ -1543,11 +1642,14 @@ export async function runBeaconAgentChat(opts: {
           intent === "yield"
             ? `${desk.honesty} Beacon does not invent APY. Yield rails below are on-chain status only.`
             : desk.honesty,
+        lifecycleHonesty: desk.lifecycleHonesty,
         managers: desk.managers.map((m) => ({
           symbol: m.symbol,
           status: m.status,
           lotSize: m.lotSizeUnderlying,
+          minRedeem: m.minimumRedeemUnderlying,
           agentCount: m.agentCount,
+          availableAgents: m.availableAgentCount,
           fAsset: m.fAsset,
           mint: m.actions.mint,
           redeem: m.actions.redeem,

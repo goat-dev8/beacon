@@ -46,9 +46,11 @@ FCC on live Coston2 is **simulated TEE** (`SIMULATED_TEE=true`, `FCC_MODE=simula
 
 **FDC (REAL + on-chain VERIFIED):** AddressValidity on Coston2 — FdcHub tx `0x2c62375359beeb5491c648260d79c2ec69a71fc2260bcb21027b7ad86be04516`, round `1420937` finalized, DA proof `isValid: true`, `FdcVerification.verifyAddressValidity` **staticCall** `onChainVerified: true` (evidence: `docs/evidence/fdc-address-validity-verify.json`).
 
-**FCC (SIMULATED + TEE PRODUCTION status):** TEE `0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed` on FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE` is **status 2 = PRODUCTION** (evidence: `docs/evidence/fcc-tee-production.json`). InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46`. `EXT_PROXY_URL` may be an ephemeral trycloudflare tunnel — instruction→result can stay **PARTIAL** on poll 404. `canMoveFunds: false`. Value-protection: `POST /v1/fcc/policy/evaluate` (ALLOW/DENY). Smart Accounts = **STUB**.
+**FCC (SIMULATED + TEE PRODUCTION status):** TEE `0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed` on FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE` is **status 2 = PRODUCTION** (evidence: `docs/evidence/fcc-tee-production.json`). InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46`. Re-verified ALLOW tx `0xc40fb4d8…de702` / DENY tx `0x637b2e3f…e2d2b`. `EXT_PROXY_URL` may be an ephemeral trycloudflare tunnel — prefer named/reserved tunnel + `rRap` on rotate. `canMoveFunds: false`. Value-protection: `POST /v1/fcc/policy/evaluate` (ALLOW/DENY).
 
-See `docs/FLARE_FINAL_AUDIT.md`.
+**FAssets (PARTIAL → PENDING request):** Live AssetManagerFXRP status/queue + redeem prepare (lots/amount/tag). Real Coston2 `redeemAmount` REQUESTED: tx `0x2a2edb61…66440`, requestId `44497208`, lifecycle **PENDING** until `RedemptionPerformed` XRPL evidence (`docs/evidence/fassets-redemption-request.json`). Mint = docs handoff. **COMPLETED never claimed without XRPL proof.** Smart Accounts = **STUB**.
+
+See `docs/FLARE_FINAL_AUDIT.md` and `docs/FLARE_FINAL_IMPLEMENTATION_PLAN.md`.
 
 ### Runtime shape
 

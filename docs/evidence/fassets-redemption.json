@@ -1,0 +1,56 @@
+{
+  "capturedAt": "2026-08-10T00:15:17.146Z",
+  "network": "coston2",
+  "chainId": 114,
+  "prepareLots": {
+    "ok": true,
+    "kind": "redeem_lots",
+    "assetManager": "0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA",
+    "fAsset": "0x0b6A3645c240605887a5532109323A3E12273dc7",
+    "amountUBA": "10000000",
+    "amountDisplay": "10.0",
+    "lifecycleNext": "PENDING_after_wallet_submit",
+    "honesty": "Lots-based redeem prepare via AssetManager.redeem. After wallet submit expect PENDING (ACTIVE) until agent XRPL payment is proven. COMPLETED only with RedemptionPerformed + XRPL tx hash — never claim complete from prepare alone."
+  },
+  "prepareAmount": {
+    "ok": false,
+    "error": "amountUBA 1000000 below minimumRedeemAmountUBA 5000000"
+  },
+  "queue": {
+    "ok": true,
+    "assetManager": "0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA",
+    "ticketCount": 5,
+    "next": "3956",
+    "sample": [
+      {
+        "redemptionTicketId": "3951",
+        "agentVault": "0x5b89514d1F060AdbEA8B7294AFf81ed8dbAa7fC5",
+        "ticketValueUBA": "2130000000",
+        "ticketValueDisplay": "2130.0"
+      },
+      {
+        "redemptionTicketId": "3952",
+        "agentVault": "0xd5dEFe2c62D48788BB3889534FBFe7Aea0602D64",
+        "ticketValueUBA": "2150000000",
+        "ticketValueDisplay": "2150.0"
+      },
+      {
+        "redemptionTicketId": "3953",
+        "agentVault": "0x165c62b4531D28E34c68a8b2aCBF4D0421e4E028",
+        "ticketValueUBA": "2460000000",
+        "ticketValueDisplay": "2460.0"
+      }
+    ],
+    "honesty": "Live FIFO redemption queue from AssetManager.redemptionQueue. Ticket presence ≠ a user redemption COMPLETE."
+  },
+  "trackSample": {
+    "ok": true,
+    "requestId": "6797056",
+    "lifecycle": "NOT_FOUND",
+    "onChainStatus": "EMPTY",
+    "hasPerformed": false,
+    "performed": null,
+    "honesty": "COMPLETED requires RedemptionPerformed with non-zero XRPL transactionHash. ACTIVE without that evidence remains PENDING. Never treat prepare or REQUESTED as COMPLETE."
+  },
+  "honesty": "REAL prepare + queue + status track. COMPLETED only if RedemptionPerformed XRPL hash present — never invent."
+}

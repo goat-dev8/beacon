@@ -28,6 +28,10 @@ import {
   discoverSparkDexPools,
   readFassetsDesk,
   prepareFassetsRedeemLots,
+  prepareFassetsRedeemAmount,
+  prepareFassetsRedeemWithTag,
+  trackFassetsRedemption,
+  readFassetsRedemptionQueue,
   buildMarketIntelligence,
   readPortfolioDesk,
   readYieldVaultDesk,
@@ -1136,15 +1140,116 @@ app.get("/v1/agents/yield", async (req) => {
 app.post("/v1/agents/fassets/redeem/prepare", async (req) => {
   const body = z
     .object({
-      lots: z.number().int().positive(),
+      lots: z.number().int().positive().optional(),
+      amountUBA: z.string().regex(/^\d+$/).optional(),
+      destinationTag: z.number().int().nonnegative().optional(),
       underlyingAddress: z.string().min(25).max(64),
       executor: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
       assetManager: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+      mode: z.enum(["lots", "amount", "tag", "withTag"]).optional(),
     })
     .parse(req.body ?? {});
-  const prep = await prepareFassetsRedeemLots(body, env);
+
+  const mode =
+    body.mode === "withTag"
+      ? "tag"
+      : (body.mode ??
+        (body.destinationTag !== undefined
+          ? "tag"
+          : body.amountUBA
+            ? "amount"
+            : "lots"));
+
+  if (mode === "tag" && (body.amountUBA == null || body.destinationTag == null)) {
+    return { ok: false, error: "tag/withTag mode requires amountUBA and destinationTag" };
+  }
+  if (mode === "amount" && body.amountUBA == null) {
+    return { ok: false, error: "amount mode requires amountUBA" };
+  }
+  if (mode === "lots" && body.lots == null) {
+    return { ok: false, error: "lots mode requires lots" };
+  }
+
+  const prep =
+    mode === "tag"
+      ? await prepareFassetsRedeemWithTag(
+          {
+            amountUBA: body.amountUBA!,
+            underlyingAddress: body.underlyingAddress,
+            destinationTag: body.destinationTag!,
+            executor: body.executor,
+            assetManager: body.assetManager,
+          },
+          env,
+        )
+      : mode === "amount"
+        ? await prepareFassetsRedeemAmount(
+            {
+              amountUBA: body.amountUBA!,
+              underlyingAddress: body.underlyingAddress,
+              executor: body.executor,
+              assetManager: body.assetManager,
+            },
+            env,
+          )
+        : await prepareFassetsRedeemLots(
+            {
+              lots: body.lots!,
+              underlyingAddress: body.underlyingAddress,
+              executor: body.executor,
+              assetManager: body.assetManager,
+            },
+            env,
+          );
+
   if (!prep.ok) return { ok: false, error: prep.error };
-  return { ok: true, prep };
+  return {
+    ok: true,
+    prep,
+    lifecycle: "PREPARED",
+    honesty:
+      "PREPARED calldata only. After wallet submit track requestId → PENDING until RedemptionPerformed XRPL evidence for COMPLETED.",
+  };
+});
+
+app.get("/v1/agents/fassets/queue", async (req) => {
+  const q = z
+    .object({
+      assetManager: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+      firstTicketId: z.string().regex(/^\d+$/).optional(),
+      pageSize: z.coerce.number().int().positive().max(100).optional(),
+    })
+    .parse(req.query ?? {});
+  const page = await readFassetsRedemptionQueue({ ...q, env });
+  if (!page.ok) return { ok: false, error: page.error };
+  return { ok: true, queue: page };
+});
+
+app.get("/v1/agents/fassets/redemption-queue", async (req) => {
+  const q = z
+    .object({
+      assetManager: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+      firstTicketId: z.string().regex(/^\d+$/).optional(),
+      pageSize: z.coerce.number().int().positive().max(100).optional(),
+    })
+    .parse(req.query ?? {});
+  const page = await readFassetsRedemptionQueue({ ...q, env });
+  if (!page.ok) return { ok: false, error: page.error };
+  return { ok: true, queue: page };
+});
+
+app.get("/v1/agents/fassets/redeem/status", async (req) => {
+  const q = z
+    .object({
+      requestId: z.string().regex(/^\d+$/),
+      assetManager: z.string().regex(/^0x[a-fA-F0-9]{40}$/).optional(),
+      lookbackBlocks: z.coerce.number().int().positive().max(500_000).optional(),
+      sourceTxHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/).optional(),
+    })
+    .parse(req.query ?? {});
+  const track = await trackFassetsRedemption({ ...q, env });
+  if (!track.ok) return { ok: false, error: track.error };
+  return { ok: true, track };
 });
 
 app.post("/v1/agents/yield/prepare", async (req) => {

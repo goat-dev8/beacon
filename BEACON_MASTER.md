@@ -2,7 +2,7 @@
 
 **Single source of truth for Beacon (Flare AI OS).**  
 **Network:** Flare Testnet Coston2 (chain ID **114**)  
-**Last aligned with:** `history.md` (2026-08-10 FCC TEE PRODUCTION + FDC on-chain VERIFIED), `docs/FLARE_FINAL_AUDIT.md`, `docs/FLARE_*.md`  
+**Last aligned with:** `history.md` (2026-08-10 FAssets redeemAmount PENDING + FCC ALLOW/DENY re-verify), `docs/FLARE_FINAL_IMPLEMENTATION_PLAN.md`, `docs/FLARE_FINAL_AUDIT.md`  
 **Rule:** Do not invent facts. Mark unknowns as TODO. No secrets in this file.
 
 ---
@@ -331,7 +331,7 @@ Local desk (dev): `http://localhost:5173` -> API `http://127.0.0.1:3001` (when r
 | Rail | Beacon usage | Honesty |
 |------|--------------|---------|
 | **FTSO** | Safe SwapDesk pricing (MockUSDT0->FXRP) | Compliant |
-| **FAssets / FXRP** | Flow FAssets desk + Safe FXRP swaps | Compliant (Flow / Safe desk) |
+| **FAssets / FXRP** | Flow status + redeem prepare/track (COMPLETED gated on XRPL evidence); Safe FXRP swaps | Compliant (honest lifecycle) |
 | **LayerZero OFT** | Flow bridge intents / agent bridge | Compliant (Flow) |
 | **x402** | Flow micropays via Facilitator + EIP-3009 | Compliant |
 | **FDC** | Flow attestation paths + on-chain AddressValidity VERIFIED (staticCall) | Not claimed on Jobs desk |

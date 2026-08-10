@@ -327,13 +327,16 @@ export function ActionCard({
       symbol: string;
       status: string;
       lotSize: number;
+      minRedeem?: number | null;
       agentCount: number;
+      availableAgents?: number;
       mint: string;
       redeem: string;
       bridge: string;
       mintHandoffSummary?: string;
     }>) ?? [];
     const unavailable = (card.unavailable as Array<{ symbol: string; note: string }>) ?? [];
+    const lifecycle = String(card.lifecycleHonesty ?? "");
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -353,8 +356,11 @@ export function ActionCard({
                 {m.symbol} · <span className="text-signal">{m.status}</span>
               </p>
               <p className="font-mono text-[10px] text-[var(--p-muted)]">
-                lot {Number(m.lotSize).toFixed(4)} · agents {m.agentCount} · mint {m.mint} · redeem {m.redeem} · bridge{" "}
-                {m.bridge}
+                lot {Number(m.lotSize).toFixed(4)}
+                {m.minRedeem != null ? ` · min redeem ${Number(m.minRedeem).toFixed(4)}` : ""}
+                {" · "}agents {m.agentCount}
+                {m.availableAgents != null ? ` (${m.availableAgents} available)` : ""}
+                {" · "}mint {m.mint} · redeem {m.redeem} · bridge {m.bridge}
               </p>
               {m.mint === "docs_handoff" || m.mintHandoffSummary ? (
                 <p className="mt-1 text-xs text-amber-200/90">
@@ -374,13 +380,25 @@ export function ActionCard({
             ))}
           </ul>
         )}
-        <p className="mt-3 text-xs text-[var(--p-muted)]">{String(card.honesty)}</p>
+        {lifecycle ? (
+          <p className="mt-3 text-xs text-amber-100/90">{lifecycle}</p>
+        ) : null}
+        <p className="mt-2 text-xs text-[var(--p-muted)]">{String(card.honesty)}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" onClick={() => onQuickReply("@bridge")} className="rounded-full border border-[var(--p-border)] px-3 py-1 text-xs">
             Bridge FXRP
           </button>
           <button type="button" onClick={() => onQuickReply("@swap")} className="rounded-full border border-[var(--p-border)] px-3 py-1 text-xs">
             SparkDEX
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              onQuickReply("Prepare redeemAmount 5 FXRP to rSHYuiEvsYsKR8uUHhBTuGP5zjRcGt4nm")
+            }
+            className="rounded-full border border-[var(--p-border)] px-3 py-1 text-xs"
+          >
+            Prepare redeem (demo addr)
           </button>
           <a
             href="https://dev.flare.network/fassets/developer-guides/fassets-minting"
@@ -391,6 +409,77 @@ export function ActionCard({
             Mint docs (handoff)
           </a>
         </div>
+      </div>
+    );
+  }
+
+  if (card.type === "fassets_redeem_prep") {
+    const lifecycle = String(card.lifecycle ?? "PREPARED");
+    return (
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-muted)]">
+            {card.title ?? "FAssets redeem prepare"}
+          </p>
+          <span className="rounded-full border border-amber-400/50 px-2 py-0.5 font-mono text-[10px] text-amber-200">
+            {lifecycle}
+          </span>
+        </div>
+        <p className="mt-2 text-sm">
+          {String(card.kind)} · {String(card.amountDisplay)} {String(card.symbol)} →{" "}
+          <span className="font-mono text-xs">{String(card.underlyingAddress)}</span>
+        </p>
+        {card.destinationTag != null ? (
+          <p className="mt-1 font-mono text-[10px] text-[var(--p-muted)]">
+            destinationTag {String(card.destinationTag)}
+          </p>
+        ) : null}
+        <p className="mt-2 font-mono text-[10px] text-[var(--p-muted)] break-all">
+          approve → {String(card.approveTo)} · redeem → {String(card.redeemTo)}
+        </p>
+        <p className="mt-3 text-xs text-amber-100/90">
+          {String(
+            card.honesty ??
+              "PREPARED only — wallet must submit. COMPLETED requires RedemptionPerformed with XRPL tx hash.",
+          )}
+        </p>
+      </div>
+    );
+  }
+
+  if (card.type === "fassets_redeem_status") {
+    const lifecycle = String(card.lifecycle ?? "NOT_FOUND");
+    const tone =
+      lifecycle === "COMPLETED"
+        ? "text-signal border-signal/40"
+        : lifecycle === "DEFAULTED"
+          ? "text-amber-200 border-amber-400/50"
+          : lifecycle === "PENDING"
+            ? "text-sky-200 border-sky-400/40"
+            : "text-[var(--p-muted)] border-[var(--p-border)]";
+    return (
+      <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-muted)]">
+            {card.title ?? "FAssets redeem status"}
+          </p>
+          <span className={`rounded-full border px-2 py-0.5 font-mono text-[10px] ${tone}`}>
+            {lifecycle}
+          </span>
+        </div>
+        <p className="mt-2 font-mono text-xs text-[var(--p-muted)]">
+          requestId {String(card.requestId)} · on-chain {String(card.onChainStatus)}
+        </p>
+        {card.xrplTransactionHash ? (
+          <p className="mt-2 break-all font-mono text-[10px] text-signal">
+            XRPL evidence: {String(card.xrplTransactionHash)}
+          </p>
+        ) : (
+          <p className="mt-2 text-xs text-amber-100/90">
+            No XRPL payment evidence yet — not COMPLETED.
+          </p>
+        )}
+        <p className="mt-3 text-xs text-[var(--p-muted)]">{String(card.honesty)}</p>
       </div>
     );
   }

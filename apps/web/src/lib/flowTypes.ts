@@ -69,6 +69,8 @@ export const DISCOVERY_CARD_TYPES = new Set([
   "ftso_signals",
   "portfolio_desk",
   "fassets_desk",
+  "fassets_redeem_prep",
+  "fassets_redeem_status",
   "yield_vaults",
   "market_intel",
   "bridge_intent",
@@ -88,6 +90,8 @@ export const LIVE_CARD_TYPES = new Set([
   "media_result",
   "authorization_receipt",
   "insufficient",
+  "fassets_redeem_prep",
+  "fassets_redeem_status",
 ]);
 
 /**

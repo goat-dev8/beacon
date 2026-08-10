@@ -4,6 +4,40 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-10 - FAssets REAL redeemAmount PENDING + FCC re-verify + Chrome E2E
+
+### Plan
+- Wrote `docs/FLARE_FINAL_IMPLEMENTATION_PLAN.md` (gap matrix + DoD per integration).
+
+### FCC (re-verified)
+- ALLOW SAY_HELLO: tx `0xc40fb4d8a4524d979ced98ebcd35e6385b4e4f30ee2e570520238a536a1de702`, instruction `0xef340dbe…fea4`, status `1`, TEE+proxy signatures. Evidence updated: `docs/evidence/fcc-instruction-result.json`.
+- DENY empty-name: tx `0x637b2e3f2ac3fee800e54b2af131010a04a7b144e9e69a7b6c11298bda6e2d2b`, action status `0`. Evidence: `docs/evidence/fcc-deny-path.json`.
+- TEE still **status 2 PRODUCTION** with `SIMULATED_TEE=true`. `EXT_PROXY` remains **ephemeral trycloudflare** — not permanent architecture (Telegram: prefer named/reserved tunnel + `rRap` on rotate).
+
+### FAssets — maximum real path (PENDING, not COMPLETE)
+- Live queue/settings probe: `docs/evidence/fassets-coston2-status.json`.
+- Prepare lots/amount/tag + queue + track APIs: `/v1/agents/fassets/redeem/prepare`, `/redemption-queue`, `/redeem/status?sourceTxHash=`.
+- **Real on-chain redeemAmount:** approve `0x5e0a5fb5…63ce2` → redeem `0x2a2edb61551dbf2bda2460d465d79363fe309eeb4ea84abc2421599f85e66440` → `RedemptionRequested` requestId `44497208` → lifecycle **PENDING** (XRPL pay not yet proven). Evidence: `docs/evidence/fassets-redemption-request.json`.
+- Honesty: **COMPLETED not claimed** — requires `RedemptionPerformed` with non-zero XRPL tx hash. Mint remains docs handoff.
+
+### FTSO
+- Live guard evidence: `docs/evidence/ftso-guard.json` (`status=REAL`).
+
+### Chrome E2E (production)
+- Landing / Flow / Safe (SIMULATED TEE badge) / FAssets desk honesty.
+- Agent Jobs research: Safe pay lock `0xe1ae3ea7162e0d644b69e40ef7c2b51adb89aa6b0b33461a508c165e2992eda2` → RESULT Passed.
+- Prior Flow history shows real OFT + Safe swap explorer links.
+
+### Tests
+- vitest **100/100**; typecheck green.
+
+### Remaining limitations
+- FCC Render API: no live EXT_PROXY (local tunnel demo only).
+- FAssets COMPLETE blocked on agent XRPL payment + FDC proof presentation.
+- Smart Accounts remain **STUB**.
+
+---
+
 ## 2026-08-10 - FCC TEE PRODUCTION + FDC ON-CHAIN VERIFY (HONEST)
 
 ### FCC — TEE machine PRODUCTION (SIMULATED_TEE, not hardware)

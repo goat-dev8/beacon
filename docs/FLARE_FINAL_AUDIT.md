@@ -205,48 +205,22 @@ FCC uses confidential compute enclaves to execute policy. The lifecycle:
 
 ## 4. FAssets
 
-### Classification: **PARTIAL**
+| Capability | Status | Notes |
+| --- | --- | --- |
+| Status/Desk Read | REAL | `AssetManagerFXRP` via registry, `readFassetsDesk()` incl. min redeem + available agents |
+| Redeem Prepare | REAL | `redeem` / `redeemAmount` / `redeemWithTag` calldata (`prepareFassetsRedeem*`) |
+| Redemption Queue | REAL | `readFassetsRedemptionQueue()` |
+| Lifecycle Track | REAL | `trackFassetsRedemption()` → PENDING / COMPLETED / DEFAULTED / NOT_FOUND |
+| COMPLETED | GATED | Only when `RedemptionPerformed` includes non-zero XRPL `transactionHash` |
+| Automated Mint | NOT_AVAILABLE | docs handoff (XRPL/Xaman) |
 
-| Aspect | Status | Evidence |
-|--------|--------|----------|
-| Status/Desk Read | REAL | `AssetManagerFXRP` via registry, `readFassetsDesk()` |
-| Redeem Prepare | REAL | `prepareFassetsRedeemLots()` generates approve + redeem calldata |
-| Mint | UNAVAILABLE | Requires XRPL agent reservation + Xaman payment — docs handoff |
-| OFT Bridge | REAL | Via LayerZero adapter (see LayerZero section) |
+Evidence: `docs/evidence/fassets-coston2-status.json`, `docs/evidence/fassets-redeem-prepare.json`.
 
-### Official Mechanism
+Do **not** mark redemption COMPLETE without XRPL payment evidence.
 
-FAssets (FXRP, FBTC, FDOGE) are wrapped representations of external assets:
-- **Mint:** Reserve agent → pay underlying → claim FAsset
-- **Redeem:** Burn FAsset → receive underlying to specified address
+### Classification: **PARTIAL** (max real prepare + honest lifecycle; COMPLETE gated)
 
-### Beacon Implementation
-
-```typescript
-// packages/flare/src/adapters/fassets.ts
-class FAssetsAdapter {
-  async getStatus(): Promise<FAssetsAdapterResult>
-  async prepareRedeem(params): Promise<RedeemPrepResult>
-  getMintHandoff(symbol): { status: "NOT_AVAILABLE", docs: [...] }
-}
-```
-
-### Gaps
-
-| Gap | Impact | Resolution |
-|-----|--------|------------|
-| Automated mint | Cannot complete XRPL+agent flow | Documented handoff to DevHub |
-| Agent reservation | Requires external Xaman flow | Out of scope for Beacon |
-
-### Test Required
-
-- [ ] `GET /v1/fassets/status` returns real AssetManager data
-- [ ] `POST /v1/fassets/redeem/prepare` returns valid calldata
-
-### On-Chain Evidence Required
-
-- AssetManagerFXRP address: `0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA`
-- FXRP token address: `0x0b6A3645c240605887a5532109323A3E12273dc7`
+On-chain: AssetManagerFXRP `0xc1Ca88b937d0b528842F95d5731ffB586f4fbDFA` · FXRP `0x0b6A3645c240605887a5532109323A3E12273dc7` (registry-resolved).
 
 ---
 
