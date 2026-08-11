@@ -253,6 +253,10 @@ export async function registerMcpRoutes(app: FastifyInstance, deps: Deps): Promi
       detail: `Created ${grant.clientLabel} grant`,
     });
 
+    const cursorConfig = buildCursorMcpConfig({
+      apiBase: publicApiBase(env),
+      accessToken: access.token,
+    });
     const setupPrompt = buildSetupPrompt({
       apiBase: publicApiBase(env),
       webBase: publicWebBase(env),
@@ -262,6 +266,12 @@ export async function registerMcpRoutes(app: FastifyInstance, deps: Deps): Promi
       maxSpendPerTxUsdt0: grant.maxSpendPerTxUsdt0,
       dailyLimitUsdt0: grant.dailyLimitUsdt0,
       expiresAt: grant.expiresAt,
+      clientKind: grant.clientKind,
+      accessToken: access.token,
+      accessTokenExpiresAt: access.expiresAt,
+      refreshToken: refresh,
+      mcpEndpoint: `${publicApiBase(env)}/mcp`,
+      cursorConfig,
     });
 
     return {
@@ -271,10 +281,7 @@ export async function registerMcpRoutes(app: FastifyInstance, deps: Deps): Promi
       accessTokenExpiresAt: access.expiresAt,
       refreshToken: refresh,
       mcpEndpoint: `${publicApiBase(env)}/mcp`,
-      cursorConfig: buildCursorMcpConfig({
-        apiBase: publicApiBase(env),
-        accessToken: access.token,
-      }),
+      cursorConfig,
       setupPrompt,
       warning:
         "Copy tokens now. Access tokens expire in 1 hour; use refresh_token to renew. Never paste refresh tokens into public chats.",

@@ -11,6 +11,10 @@
 ### Tool sweep
 `scripts/mcp-tools-all.mjs` against production: initialize, 16 tools, resources, overspend gate, real swap, revoke 401.
 
+### Setup UX (follow-up)
+- Cursor mcp.json snippet wraps inside the card (no horizontal overflow).
+- Copy setup prompt includes endpoint, access/refresh tokens, mcp.json, client setup steps, and verification checklist.
+
 ---
 
 ## 2026-08-11 - Beacon MCP (Connect Agents) production rail

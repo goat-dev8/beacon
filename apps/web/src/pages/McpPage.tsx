@@ -477,7 +477,7 @@ export function McpPage() {
         </section>
 
         {issued && (
-          <section className="space-y-4 rounded-[var(--p-radius)] border border-[var(--p-accent)]/35 bg-[var(--p-accent-soft)]/40 p-5">
+          <section className="min-w-0 space-y-4 overflow-hidden rounded-[var(--p-radius)] border border-[var(--p-accent)]/35 bg-[var(--p-accent-soft)]/40 p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="font-display text-lg font-semibold">Connected — finish setup</h2>
@@ -501,53 +501,61 @@ export function McpPage() {
               </div>
             </div>
 
-            <div className="grid gap-3">
-              <div>
+            <div className="grid min-w-0 gap-3">
+              <div className="min-w-0">
                 <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--p-faint)]">
                   MCP endpoint
                 </p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <code className="break-all rounded-[var(--p-radius-sm)] bg-[var(--p-bg)] px-2 py-1 font-mono text-xs">
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+                  <code className="min-w-0 max-w-full break-all rounded-[var(--p-radius-sm)] bg-[var(--p-bg)] px-2 py-1 font-mono text-xs">
                     {issued.mcpEndpoint}
                   </code>
                   <CopyButton text={issued.mcpEndpoint} />
                 </div>
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--p-faint)]">
                   Access token (1 hour)
                 </p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <code className="max-w-full truncate rounded-[var(--p-radius-sm)] bg-[var(--p-bg)] px-2 py-1 font-mono text-xs">
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
+                  <code className="min-w-0 max-w-[min(100%,18rem)] truncate rounded-[var(--p-radius-sm)] bg-[var(--p-bg)] px-2 py-1 font-mono text-xs">
                     {issued.accessToken.slice(0, 28)}…
                   </code>
                   <CopyButton text={issued.accessToken} label="Copy token" />
                 </div>
               </div>
-              {clientKind === "cursor" && (
-                <div>
+
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-[var(--p-faint)]">
-                    Cursor mcp.json snippet
+                    {clientKind === "cursor" ? "Cursor mcp.json" : "MCP client config"}
                   </p>
-                  <pre className="mt-1 max-h-40 overflow-auto rounded-[var(--p-radius-sm)] bg-[var(--p-bg)] p-3 font-mono text-[11px] leading-relaxed">
+                  <CopyButton text={issued.cursorConfig} label="Copy config" />
+                </div>
+                <div className="mt-2 min-w-0 overflow-hidden rounded-[var(--p-radius-sm)] border border-[var(--p-border)] bg-[var(--p-bg)]">
+                  <pre className="max-h-56 overflow-x-auto overflow-y-auto p-3 font-mono text-[11px] leading-relaxed text-[var(--p-fg)] [overflow-wrap:anywhere] whitespace-pre-wrap break-all">
                     {issued.cursorConfig}
                   </pre>
-                  <div className="mt-2">
-                    <CopyButton text={issued.cursorConfig} label="Copy Cursor config" />
-                  </div>
                 </div>
-              )}
-              {(clientKind === "claude" || clientKind === "generic") && (
-                <div className="text-sm leading-relaxed text-[var(--p-muted)]">
-                  <p className="font-medium text-[var(--p-fg)]">Setup</p>
-                  <ol className="mt-1 list-decimal space-y-1 pl-4">
-                    <li>Add a remote MCP server pointing at the endpoint above.</li>
-                    <li>Send Authorization: Bearer &lt;access token&gt; on each request.</li>
-                    <li>Paste the setup prompt into the agent chat (no secrets in that prompt).</li>
-                    <li>When the access token expires, refresh with your refresh token via the token endpoint.</li>
-                  </ol>
-                </div>
-              )}
+                <p className="mt-2 text-xs leading-relaxed text-[var(--p-muted)]">
+                  {clientKind === "cursor"
+                    ? "Paste into Cursor Settings → MCP (or ~/.cursor/mcp.json), then reload MCP."
+                    : "Use this URL + Authorization Bearer header in any MCP-compatible client."}
+                </p>
+              </div>
+
+              <div className="min-w-0 rounded-[var(--p-radius-sm)] border border-[var(--p-border)] bg-[var(--p-surface)]/60 p-3 text-sm leading-relaxed text-[var(--p-muted)]">
+                <p className="font-medium text-[var(--p-fg)]">How to finish</p>
+                <ol className="mt-1 list-decimal space-y-1 pl-4">
+                  <li>Copy the config (or full setup prompt) into your agent client.</li>
+                  <li>
+                    Paste <span className="text-[var(--p-fg)]">Copy setup prompt</span> into the
+                    agent chat — it includes endpoint, tokens, mcp.json, and verification steps.
+                  </li>
+                  <li>Click Test connection here to confirm Beacon responds.</li>
+                  <li>When the access token expires (~1h), renew with the refresh token.</li>
+                </ol>
+              </div>
             </div>
 
             {testResult && (
