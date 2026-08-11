@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bot,
   Check,
   ChevronDown,
   Copy,
+  KeyRound,
   Loader2,
   Plug,
   Shield,
@@ -13,7 +14,11 @@ import {
 import { api, type McpGrantPublic, type McpScope } from "@/lib/api";
 import { shortAddress } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
-import { ensureSafeAgentSession } from "@/lib/safeSession";
+import {
+  ensureSafeAgentSession,
+  readSafeAgentSession,
+  type SafeAgentSession,
+} from "@/lib/safeSession";
 import { cn } from "@/lib/utils";
 
 const CLIENTS = [
@@ -114,6 +119,13 @@ export function McpPage() {
   const [note, setNote] = useState<string | null>(null);
   const [activityGrantId, setActivityGrantId] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
+  /** Cached session only — never auto-prompt MetaMask on page load. */
+  const [agentSession, setAgentSession] = useState<SafeAgentSession | null>(null);
+
+  useEffect(() => {
+    setAgentSession(readSafeAgentSession(wallet));
+    setActivityGrantId(null);
+  }, [wallet]);
 
   const vaultQuery = useQuery({
     queryKey: ["agent-vault-status", wallet ?? "none"],
@@ -121,13 +133,12 @@ export function McpPage() {
     enabled: Boolean(wallet),
   });
 
+  // List grants only when a session already exists in storage — no signature spam.
   const grantsQuery = useQuery({
-    queryKey: ["mcp-grants", wallet],
-    queryFn: async () => {
-      const session = await ensureSafeAgentSession(wallet!);
-      return api.listMcpGrants(wallet!, session.token);
-    },
-    enabled: Boolean(wallet),
+    queryKey: ["mcp-grants", wallet, agentSession?.issuedAt ?? "locked"],
+    queryFn: () => api.listMcpGrants(wallet!, agentSession!.token),
+    enabled: Boolean(wallet && agentSession),
+    retry: false,
   });
 
   const healthQuery = useQuery({
@@ -137,12 +148,10 @@ export function McpPage() {
   });
 
   const activityQuery = useQuery({
-    queryKey: ["mcp-activity", wallet, activityGrantId],
-    queryFn: async () => {
-      const session = await ensureSafeAgentSession(wallet!);
-      return api.mcpGrantActivity(activityGrantId!, wallet!, session.token);
-    },
-    enabled: Boolean(wallet && activityGrantId),
+    queryKey: ["mcp-activity", wallet, activityGrantId, agentSession?.issuedAt ?? "locked"],
+    queryFn: () => api.mcpGrantActivity(activityGrantId!, wallet!, agentSession!.token),
+    enabled: Boolean(wallet && activityGrantId && agentSession),
+    retry: false,
   });
 
   const safeAddress = useMemo(() => {
@@ -150,10 +159,27 @@ export function McpPage() {
     return st && st.configured ? st.address : null;
   }, [vaultQuery.data]);
 
+  const unlockSession = useMutation({
+    mutationFn: async () => {
+      if (!wallet) throw new Error("Connect your wallet first.");
+      return ensureSafeAgentSession(wallet);
+    },
+    onSuccess: (session) => {
+      setAgentSession(session);
+      setNote("Agent session unlocked for this browser tab.");
+      void qc.invalidateQueries({ queryKey: ["mcp-grants", wallet] });
+    },
+    onError: (err) => {
+      setNote(err instanceof Error ? err.message : String(err));
+    },
+  });
+
   const createGrant = useMutation({
     mutationFn: async () => {
       if (!wallet) throw new Error("Connect your wallet first.");
-      const session = await ensureSafeAgentSession(wallet);
+      // Prefer cached session; only one MetaMask prompt when missing.
+      const session = agentSession ?? (await ensureSafeAgentSession(wallet));
+      setAgentSession(session);
       return api.createMcpGrant(
         {
           wallet,
@@ -187,8 +213,10 @@ export function McpPage() {
 
   const revokeGrant = useMutation({
     mutationFn: async (grantId: string) => {
-      const session = await ensureSafeAgentSession(wallet!);
-      return api.revokeMcpGrant(grantId, wallet!, session.token);
+      if (!wallet) throw new Error("Connect your wallet first.");
+      const session = agentSession ?? (await ensureSafeAgentSession(wallet));
+      setAgentSession(session);
+      return api.revokeMcpGrant(grantId, wallet, session.token);
     },
     onSuccess: () => {
       setNote("Agent disconnected. Old tokens no longer work.");
@@ -441,7 +469,7 @@ export function McpPage() {
                   {step >= 1 ? "Confirm & connect" : "Connect Agent"}
                 </button>
                 <span className="text-xs text-[var(--p-faint)]">
-                  Requires one wallet unlock signature (no funds moved).
+                  One signature only when you click — this page never auto-prompts MetaMask.
                 </span>
               </div>
             </div>
@@ -531,12 +559,41 @@ export function McpPage() {
         )}
 
         <section>
-          <h2 className="font-display text-xl font-semibold tracking-tight">Connected agents</h2>
-          <p className="mt-1 text-sm text-[var(--p-muted)]">
-            Each connection is yours alone — never shared across wallets.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl font-semibold tracking-tight">Connected agents</h2>
+              <p className="mt-1 text-sm text-[var(--p-muted)]">
+                Each connection is yours alone — never shared across wallets.
+              </p>
+            </div>
+            {wallet && !agentSession && (
+              <button
+                type="button"
+                disabled={unlockSession.isPending}
+                onClick={() => unlockSession.mutate()}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--p-border-strong)] bg-[var(--p-surface-2)] px-3 py-1.5 text-xs font-medium"
+              >
+                {unlockSession.isPending ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <KeyRound className="size-3.5" />
+                )}
+                Unlock to view
+              </button>
+            )}
+            {wallet && agentSession && (
+              <span className="rounded-full border border-[var(--p-accent)]/35 bg-[var(--p-accent-soft)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--p-accent-text)]">
+                Session unlocked
+              </span>
+            )}
+          </div>
           <div className="mt-4 space-y-3">
-            {(grantsQuery.data?.grants ?? []).length === 0 && (
+            {!agentSession && wallet && (
+              <p className="text-sm text-[var(--p-faint)]">
+                Unlock once to list agents. Opening this page never asks for a signature by itself.
+              </p>
+            )}
+            {agentSession && (grantsQuery.data?.grants ?? []).length === 0 && (
               <p className="text-sm text-[var(--p-faint)]">No agents connected yet.</p>
             )}
             {(grantsQuery.data?.grants ?? []).map((g) => (
@@ -568,7 +625,15 @@ export function McpPage() {
                   <button
                     type="button"
                     className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs"
-                    onClick={() => setActivityGrantId(g.id)}
+                    onClick={() => {
+                      if (!agentSession) {
+                        unlockSession.mutate(undefined, {
+                          onSuccess: () => setActivityGrantId(g.id),
+                        });
+                        return;
+                      }
+                      setActivityGrantId(g.id);
+                    }}
                   >
                     Activity
                   </button>

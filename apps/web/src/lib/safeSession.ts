@@ -45,6 +45,9 @@ export function clearSafeAgentSession(wallet: string | null): void {
 /**
  * One wallet signature per browser tab/session. After this, the Beacon executor
  * submits Jobs, Safe swaps, and bridges while the vault contract enforces caps.
+ *
+ * Callers must only invoke this from an explicit user action (button click).
+ * Never call from page-load queries — that spam MetaMask signature popups.
  */
 export async function ensureSafeAgentSession(wallet: string): Promise<SafeAgentSession> {
   const current = readSafeAgentSession(wallet);
@@ -55,27 +58,33 @@ export async function ensureSafeAgentSession(wallet: string): Promise<SafeAgentS
   if (pending) return pending;
 
   const next = (async () => {
-    const challenge = await api.createSafeSessionChallenge(wallet);
-    const signature = await signPersonalMessage(challenge.message);
-    const issued = await api.verifySafeSession({
-      wallet,
-      message: challenge.message,
-      signature,
-    });
-    const session: SafeAgentSession = {
-      token: issued.token,
-      wallet: issued.wallet,
-      issuedAt: issued.issuedAt,
-      expiresAt: issued.expiresAt,
-    };
-    sessionStorage.setItem(storageKey(wallet), JSON.stringify(session));
-    return session;
+    try {
+      const challenge = await api.createSafeSessionChallenge(wallet);
+      const signature = await signPersonalMessage(challenge.message);
+      const issued = await api.verifySafeSession({
+        wallet,
+        message: challenge.message,
+        signature,
+      });
+      const session: SafeAgentSession = {
+        token: issued.token,
+        wallet: issued.wallet,
+        issuedAt: issued.issuedAt,
+        expiresAt: issued.expiresAt,
+      };
+      sessionStorage.setItem(storageKey(wallet), JSON.stringify(session));
+      return session;
+    } catch (err) {
+      // Drop failed attempt so a later explicit click can try once — no auto-retry loop.
+      inFlight.delete(key);
+      throw err;
+    }
   })();
 
   inFlight.set(key, next);
   try {
     return await next;
   } finally {
-    inFlight.delete(key);
+    if (inFlight.get(key) === next) inFlight.delete(key);
   }
 }

@@ -834,7 +834,7 @@ async function executeMcpTool(opts: {
     const destination =
       typeof args.destination === "string" && args.destination.trim()
         ? args.destination.trim()
-        : "base-sepolia";
+        : "Sepolia";
     await assertPolicyAllows(redis, {
       wallet,
       agentId: "bridge",

@@ -115,7 +115,7 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
           type: "string",
           minLength: 2,
           maxLength: 40,
-          description: "Live LayerZero peer chain key (e.g. base-sepolia).",
+          description: "Live LayerZero peer chain name (e.g. Sepolia, Base Sepolia).",
         },
         note: { type: "string", maxLength: 200 },
       },
