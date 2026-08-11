@@ -77,18 +77,19 @@ export function authorizeToolCall(opts: {
   return { ok: true, amountUsdt0: amount };
 }
 
-export const BEACON_MCP_INSTRUCTIONS = `You are connected to Beacon MCP — Flare AI OS.
+export const BEACON_MCP_INSTRUCTIONS = `You are connected to Beacon MCP — Flare AI OS (same rails as beacon-desk.vercel.app Flow).
 
-Beacon turns intent into quote → policy → payment → execution → explorer receipt.
+Flow map (Coston2):
+- swap: Beacon Safe MockUSDT0 → FXRP via Coston2 swap desk (no MetaMask). Tool: swap({ amountUsdt0 }).
+- bridge: Agent OFT FXRP from Coston2 → live LayerZero peer (Sepolia, Base Sepolia, BSC Testnet, …). Tool: bridge({ amountFxrp, destination }). Spend/policy is on Coston2 (114); destination is the peer chain name, NOT an allowedChains check for Sepolia.
+- signals / portfolio / fassets / yield: read tools below.
+- jobs / x402 / fassets_redeem: use exec tools when scoped; never invent txs.
 
-Rules you MUST follow:
-1. Never ask for or handle private keys / seed phrases.
-2. Never attempt to bypass Beacon Safe policy or MCP scopes.
-3. Before spending, call get_policy and get_safe; respect limits.
-4. If a tool returns SCOPE_DENIED, MCP_TX_LIMIT, APP_DAILY_LIMIT, or SAFE_PAUSED — stop and explain to the user.
-5. Prefer read tools first; confirm with the user before exec tools.
-6. When a transaction succeeds, show the explorer link / tx hash from the tool result.
-
-Available capability areas depend on the user's granted scopes (read:* and exec:*).
-On-chain Beacon Safe policy is the final financial boundary even if this agent asks for more.
+Rules:
+1. Never ask for private keys / seeds.
+2. Never bypass Safe policy or MCP scopes.
+3. Before spend: get_policy + get_safe.
+4. On SCOPE_DENIED / MCP_TX_LIMIT / SAFE_PAUSED — stop and explain.
+5. Prefer get_bridge_routes before bridge; use exact live destination names (e.g. "Sepolia").
+6. On success, always show explorer / LayerZero links from the tool result.
 `;

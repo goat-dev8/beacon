@@ -14,7 +14,15 @@ import {
   executeBeaconAgentBridge,
   readAgentVaultStatus,
   readFassetsDesk,
+  readFtsoFeeds,
+  buildMarketIntelligence,
+  readPortfolioDesk,
+  readYieldVaultDesk,
+  discoverFxrpOftRoutes,
+  prepareFassetsRedeemLots,
+  agentBridgeReadiness,
 } from "@beacon/shared";
+import { SERVICE_CATALOG } from "@beacon/quote";
 import {
   appendAudit,
   buildCursorMcpConfig,
@@ -58,6 +66,10 @@ type Deps = {
   redis: Redis | null;
   requireSafeSession: (req: FastifyRequest, wallet: string) => Promise<void>;
   bearerToken: (req: FastifyRequest) => string | null;
+  createJob?: (opts: {
+    serviceId: string;
+    briefText: string;
+  }) => Promise<{ jobId: string; status: string }>;
 };
 
 function asRedis(redis: Redis): RedisLike {
@@ -602,6 +614,7 @@ export async function registerMcpRoutes(app: FastifyInstance, deps: Deps): Promi
         name,
         args,
         policy,
+        createJob: deps.createJob,
       });
       await appendAudit(asRedis(redis), {
         at: new Date().toISOString(),
@@ -702,15 +715,30 @@ async function executeMcpTool(opts: {
   name: string;
   args: Record<string, unknown>;
   policy: BeaconSecurityPolicy;
+  createJob?: Deps["createJob"];
 }): Promise<{ payload: unknown; summary: string; isError: boolean; txHash?: string }> {
   const { env, redis, grant, name, args } = opts;
   const wallet = grant.wallet;
 
-  if (name === "get_safe" || name === "get_balance" || name === "get_portfolio") {
+  if (name === "get_safe" || name === "get_balance") {
     const status = await readAgentVaultStatus({ wallet, personalOnly: true, env });
     return {
       payload: { ok: true, status },
       summary: status.configured ? `Safe ${status.address}` : "Safe not created",
+      isError: false,
+    };
+  }
+
+  if (name === "get_portfolio") {
+    const [status, desk] = await Promise.all([
+      readAgentVaultStatus({ wallet, personalOnly: true, env }),
+      readPortfolioDesk(wallet, env).catch((e) => ({
+        error: e instanceof Error ? e.message : String(e),
+      })),
+    ]);
+    return {
+      payload: { ok: true, safe: status, desk },
+      summary: "portfolio",
       isError: false,
     };
   }
@@ -729,6 +757,15 @@ async function executeMcpTool(opts: {
         appPolicy: opts.policy,
         spentTodayUsdt0,
         tools: toolsForGrant(grant).map((t) => t.name),
+        flowMap: {
+          swap: "Safe MockUSDT0→FXRP on Coston2",
+          bridge: "Agent OFT FXRP Coston2→peer (use get_bridge_routes)",
+          signals: "get_signals",
+          yield: "get_yield",
+          fassets: "get_fassets / fassets_redeem",
+          jobs: "create_job",
+          x402: "x402_pay",
+        },
       },
       summary: "policy snapshot",
       isError: false,
@@ -747,7 +784,7 @@ async function executeMcpTool(opts: {
       payload: {
         ok: true,
         jobId,
-        note: "Open Beacon Jobs for full detail; MCP acknowledges job id for this wallet.",
+        note: "Open Beacon Jobs (/flow/desk) for full detail when job exists.",
         wallet,
       },
       summary: `job ${jobId}`,
@@ -768,15 +805,61 @@ async function executeMcpTool(opts: {
   }
 
   if (name === "get_signals") {
-    return {
-      payload: {
-        ok: true,
-        signals: [],
-        note: "Signal packs run in Flow chat; empty when no cached pack.",
-      },
-      summary: "signals",
-      isError: false,
-    };
+    try {
+      const [ftso, intel] = await Promise.all([
+        readFtsoFeeds(env),
+        buildMarketIntelligence({ env }).catch(() => null),
+      ]);
+      return {
+        payload: { ok: true, ftso, intel },
+        summary: "signals",
+        isError: false,
+      };
+    } catch (e) {
+      return {
+        payload: { ok: false, error: e instanceof Error ? e.message : String(e) },
+        summary: "signals error",
+        isError: true,
+      };
+    }
+  }
+
+  if (name === "get_yield") {
+    try {
+      const desk = await readYieldVaultDesk({ env });
+      return { payload: { ok: true, desk }, summary: "yield", isError: false };
+    } catch (e) {
+      return {
+        payload: { ok: false, error: e instanceof Error ? e.message : String(e) },
+        summary: "yield error",
+        isError: true,
+      };
+    }
+  }
+
+  if (name === "get_bridge_routes") {
+    try {
+      const [discovered, ready] = await Promise.all([
+        discoverFxrpOftRoutes(env),
+        agentBridgeReadiness(env),
+      ]);
+      return {
+        payload: {
+          ok: true,
+          routes: discovered.routes,
+          readiness: ready,
+          tip: 'Use destination names exactly, e.g. "Sepolia" or "Base Sepolia".',
+        },
+        summary: "bridge routes",
+        isError: false,
+      };
+    } catch (e) {
+      return {
+        payload: { ok: false, error: e instanceof Error ? e.message : String(e) },
+        summary: "routes error",
+        isError: true,
+      };
+    }
   }
 
   if (name === "get_fassets") {
@@ -826,6 +909,8 @@ async function executeMcpTool(opts: {
     return {
       payload: {
         ok: true,
+        rail: "safe_swap_coston2",
+        pair: "MockUSDT0→FXRP",
         result,
         explorer: result.explorerSpend,
         explorerFulfill: result.explorerFulfill,
@@ -837,7 +922,20 @@ async function executeMcpTool(opts: {
   }
 
   if (name === "bridge") {
-    const amountUsdt0 = Number(args.amountUsdt0);
+    const amountFxrp = Number(
+      typeof args.amountFxrp === "number" ? args.amountFxrp : args.amountUsdt0,
+    );
+    if (!(amountFxrp > 0)) {
+      return {
+        payload: {
+          ok: false,
+          code: "INVALID_AMOUNT",
+          message: "bridge requires amountFxrp (or amountUsdt0 alias).",
+        },
+        summary: "INVALID_AMOUNT",
+        isError: true,
+      };
+    }
     const destination =
       typeof args.destination === "string" && args.destination.trim()
         ? args.destination.trim()
@@ -845,10 +943,10 @@ async function executeMcpTool(opts: {
     await assertPolicyAllows(redis, {
       wallet,
       agentId: "bridge",
-      amountUsdt0,
+      amountUsdt0: amountFxrp,
     });
     const bridgeParams = {
-      amountFxrpUnits: String(amountUsdt0),
+      amountFxrpUnits: String(amountFxrp),
       recipient: wallet,
       destination,
       preferSafeFunding: true,
@@ -858,9 +956,13 @@ async function executeMcpTool(opts: {
       return { payload: prep, summary: prep.error ?? "bridge prep failed", isError: true };
     }
     const result = await executeBeaconAgentBridge(bridgeParams, env);
-    if (result.ok) await recordSpendUsdt0(redis, wallet, amountUsdt0);
+    if (result.ok) await recordSpendUsdt0(redis, wallet, amountFxrp);
     return {
-      payload: result,
+      payload: {
+        ...result,
+        rail: "agent_oft_coston2",
+        note: "Destination delivery is tracked on LayerZero Scan; Coston2 is the source chain for policy.",
+      },
       summary: result.ok ? "bridge ok" : result.error ?? "bridge failed",
       isError: !result.ok,
       txHash: result.ok ? result.sendHash : undefined,
@@ -868,14 +970,41 @@ async function executeMcpTool(opts: {
   }
 
   if (name === "create_job") {
+    const service = String(args.service ?? "");
+    const brief = String(args.brief ?? "");
+    const allowed = new Set(SERVICE_CATALOG.map((s) => s.id as string));
+    if (!allowed.has(service)) {
+      return {
+        payload: {
+          ok: false,
+          code: "UNKNOWN_SERVICE",
+          message: `Unknown service. Use one of: ${[...allowed].join(", ")}`,
+        },
+        summary: "UNKNOWN_SERVICE",
+        isError: true,
+      };
+    }
+    if (!opts.createJob) {
+      return {
+        payload: {
+          ok: true,
+          service,
+          brief: brief.slice(0, 200),
+          next: "Open Beacon Jobs (/flow/desk) to quote + approve from Safe.",
+        },
+        summary: "job intent",
+        isError: false,
+      };
+    }
+    const created = await opts.createJob({ serviceId: service, briefText: brief });
     return {
       payload: {
         ok: true,
-        service: String(args.service ?? ""),
-        brief: String(args.brief ?? "").slice(0, 200),
-        next: "Open Beacon Jobs (/flow/desk) to quote + approve from Safe.",
+        ...created,
+        desk: "https://beacon-desk.vercel.app/flow/desk",
+        next: "Quote and approve from Safe on Jobs desk (or continue via get_job_status).",
       },
-      summary: "job intent",
+      summary: `job ${created.jobId}`,
       isError: false,
     };
   }
@@ -887,12 +1016,16 @@ async function executeMcpTool(opts: {
       agentId: "pay",
       amountUsdt0,
     });
+    const resource = String(args.resource ?? "research");
     return {
       payload: {
         ok: true,
         amountUsdt0,
-        resource: args.resource ?? "flow",
-        note: "x402 settlement uses EIP-3009 from the owner wallet in Flow.",
+        resource,
+        honesty:
+          "x402 settlement needs owner EIP-3009 in Flow (or paid resource with X-Payment). MCP returns the intent + resource hint; it does not hold keys.",
+        flow: "https://beacon-desk.vercel.app/flow",
+        tip: "In Flow, use x402 buttons / paid resources for settle + receipt.",
       },
       summary: "x402 intent",
       isError: false,
@@ -900,15 +1033,46 @@ async function executeMcpTool(opts: {
   }
 
   if (name === "fassets_redeem") {
-    return {
-      payload: {
-        ok: true,
-        lots: args.lots ?? null,
-        note: "Use Beacon FAssets UI. MCP does not invent redemption txs.",
-      },
-      summary: "fassets redeem prep",
-      isError: false,
-    };
+    try {
+      const desk = await readFassetsDesk(env);
+      const lots = typeof args.lots === "number" ? args.lots : 1;
+      const underlying =
+        typeof args.underlyingAddress === "string" ? args.underlyingAddress : "";
+      if (!underlying) {
+        return {
+          payload: {
+            ok: true,
+            desk,
+            lots,
+            next: "Provide XRPL classic underlyingAddress (r…) to prepare redeem calldata.",
+            honesty:
+              "Mint is docs handoff. Redeem prepare is REAL; COMPLETED needs RedemptionPerformed evidence.",
+          },
+          summary: "fassets redeem needs XRPL address",
+          isError: false,
+        };
+      }
+      const prep = await prepareFassetsRedeemLots(
+        { lots: Math.max(1, Math.floor(lots)), underlyingAddress: underlying },
+        env,
+      );
+      return {
+        payload: {
+          ok: true,
+          prep,
+          honesty:
+            "PREPARED calldata only until wallet completes on-chain redeem. Never invent COMPLETED.",
+        },
+        summary: prep && "ok" in prep && prep.ok === false ? "prep failed" : "fassets redeem prep",
+        isError: Boolean(prep && "ok" in prep && prep.ok === false),
+      };
+    } catch (e) {
+      return {
+        payload: { ok: false, error: e instanceof Error ? e.message : String(e) },
+        summary: "fassets redeem error",
+        isError: true,
+      };
+    }
   }
 
   return {

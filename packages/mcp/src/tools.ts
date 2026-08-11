@@ -30,7 +30,7 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
   },
   {
     name: "get_portfolio",
-    description: "Summarize Safe + wallet-facing portfolio fields Beacon can read.",
+    description: "Portfolio desk: Safe + wallet balances / exposure Beacon can read on Coston2.",
     scope: "read:portfolio",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
@@ -68,14 +68,27 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
   },
   {
     name: "get_signals",
-    description: "Read Beacon Flow signal/research snapshot if available.",
+    description: "FTSO / market signals Beacon uses before trades (Flow Signals rail).",
     scope: "read:signals",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
     name: "get_fassets",
-    description: "Read FAssets / FXRP status Beacon can report on Coston2.",
+    description: "FAssets / FXRP desk status on Coston2 (mint is docs handoff; redeem prepare is real).",
     scope: "read:fassets",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "get_yield",
+    description: "Yield / vault desk paths Beacon surfaces on Coston2 (Flow Yield rail).",
+    scope: "read:portfolio",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "get_bridge_routes",
+    description:
+      "List live LayerZero OFT peer destinations for FXRP from Coston2 (e.g. Sepolia, Base Sepolia).",
+    scope: "read:portfolio",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
   {
@@ -87,7 +100,7 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
   {
     name: "swap",
     description:
-      "Execute a Beacon Safe swap within MCP + app + on-chain Safe limits. Amount is USDT0.",
+      "Beacon Safe swap on Coston2: spend MockUSDT0 from Safe → FXRP via swap desk (no MetaMask). Same as Flow Swap. amountUsdt0 is MockUSDT0 in.",
     scope: "exec:swap",
     inputSchema: {
       type: "object",
@@ -101,31 +114,37 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
   },
   {
     name: "bridge",
-    description: "Execute a Beacon Safe bridge action within limits (Coston2 agent bridge).",
+    description:
+      "Beacon Agent OFT bridge (Flow Bridge): send FXRP from Coston2 to a live LayerZero peer. Destination is the peer chain name (e.g. Sepolia). Policy spend is evaluated on Coston2; Sepolia does NOT need to be in allowedChains. May auto top-up FXRP from Safe MockUSDT0.",
     scope: "exec:bridge",
     inputSchema: {
       type: "object",
       properties: {
+        amountFxrp: {
+          type: "number",
+          exclusiveMinimum: 0,
+          description: "FXRP amount to bridge (Coston2 → destination).",
+        },
         amountUsdt0: {
           type: "number",
           exclusiveMinimum: 0,
-          description: "Spend sized in USDT0 (Safe funds FXRP for the OFT send).",
+          description: "Optional alias; treated as FXRP amount if amountFxrp omitted.",
         },
         destination: {
           type: "string",
           minLength: 2,
           maxLength: 40,
-          description: "Live LayerZero peer chain name (e.g. Sepolia, Base Sepolia).",
+          description: 'Live peer name from get_bridge_routes (default "Sepolia").',
         },
         note: { type: "string", maxLength: 200 },
       },
-      required: ["amountUsdt0"],
       additionalProperties: false,
     },
   },
   {
     name: "create_job",
-    description: "Create an Agent Job brief (quote path). Approval still requires Beacon policy.",
+    description:
+      "Create an Agent Job on Beacon Jobs desk (quote path). Same services as /flow/desk.",
     scope: "exec:job",
     inputSchema: {
       type: "object",
@@ -151,13 +170,17 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
   {
     name: "x402_pay",
     description:
-      "Prepare an x402 micropayment intent for Flow. Does not expose keys; user/session rails settle.",
+      "Fetch x402 payment requirements for a Flow paid resource (returns 402 fields). Settlement still needs owner EIP-3009 in Flow when required.",
     scope: "exec:x402",
     inputSchema: {
       type: "object",
       properties: {
         amountUsdt0: { type: "number", exclusiveMinimum: 0 },
-        resource: { type: "string", maxLength: 200 },
+        resource: {
+          type: "string",
+          maxLength: 200,
+          description: "Resource id/path e.g. research, image-logo, ftso-pack",
+        },
       },
       required: ["amountUsdt0"],
       additionalProperties: false,
@@ -165,12 +188,17 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
   },
   {
     name: "fassets_redeem",
-    description: "Prepare FAssets redeem info when Beacon supports it; never fabricates txs.",
+    description:
+      "Prepare FAssets FXRP redeem calldata/lots on Coston2 (Flow FAssets rail). Does not invent COMPLETED without on-chain evidence.",
     scope: "exec:fassets_redeem",
     inputSchema: {
       type: "object",
       properties: {
         lots: { type: "number", exclusiveMinimum: 0 },
+        underlyingAddress: {
+          type: "string",
+          description: "XRPL classic address (r…) required to prepare redeem calldata.",
+        },
       },
       additionalProperties: false,
     },
@@ -179,6 +207,16 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
 
 export function toolsForGrant(grant: McpGrant): McpToolDef[] {
   return MCP_TOOL_DEFS.filter((t) => hasScope(grant.scopes, t.scope));
+}
+
+export function spendAmountFromArgs(args: Record<string, unknown>): number {
+  if (typeof args.amountUsdt0 === "number" && Number.isFinite(args.amountUsdt0)) {
+    return args.amountUsdt0;
+  }
+  if (typeof args.amountFxrp === "number" && Number.isFinite(args.amountFxrp)) {
+    return args.amountFxrp;
+  }
+  return 0;
 }
 
 export function gateTool(
@@ -195,12 +233,7 @@ export function gateTool(
       message: `Unknown tool: ${toolName}`,
     };
   }
-  const amount =
-    typeof args.amountUsdt0 === "number"
-      ? args.amountUsdt0
-      : def.scope.startsWith("exec:")
-        ? 0
-        : 0;
+  const amount = spendAmountFromArgs(args);
   const authz = authorizeToolCall({
     grant,
     neededScope: def.scope,

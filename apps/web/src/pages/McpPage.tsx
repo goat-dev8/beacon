@@ -50,9 +50,9 @@ const SCOPE_OPTIONS: { id: McpScope; label: string; group: "read" | "exec" }[] =
   { id: "read:signals", label: "View signals", group: "read" },
   { id: "exec:swap", label: "Swap within limits", group: "exec" },
   { id: "exec:bridge", label: "Bridge within limits", group: "exec" },
-  { id: "exec:job", label: "Start Jobs (intent)", group: "exec" },
-  { id: "exec:x402", label: "x402 pay (intent)", group: "exec" },
-  { id: "exec:fassets_redeem", label: "FAssets redeem (prep)", group: "exec" },
+  { id: "exec:job", label: "Start Jobs", group: "exec" },
+  { id: "exec:x402", label: "x402 pay", group: "exec" },
+  { id: "exec:fassets_redeem", label: "FAssets redeem", group: "exec" },
 ];
 
 const DEFAULT_SCOPES: McpScope[] = [
@@ -61,9 +61,14 @@ const DEFAULT_SCOPES: McpScope[] = [
   "read:portfolio",
   "read:activity",
   "read:jobs",
+  "read:signals",
   "read:fassets",
   "read:executions",
   "exec:swap",
+  "exec:bridge",
+  "exec:job",
+  "exec:x402",
+  "exec:fassets_redeem",
 ];
 
 type IssuedSecrets = {

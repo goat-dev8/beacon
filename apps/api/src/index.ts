@@ -2083,6 +2083,19 @@ await registerMcpRoutes(app, {
   redis,
   requireSafeSession,
   bearerToken,
+  createJob: async ({ serviceId, briefText }) => {
+    const body = createJobSchema.parse({ serviceId, briefText });
+    const userId = await ensureGuestUser();
+    const jobId = newId();
+    await pool.query(
+      `INSERT INTO jobs (id, user_id, service_id, status, brief_text)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [jobId, userId, body.serviceId, JobStatus.DRAFT, body.briefText],
+    );
+    const quoting = transition(JobStatus.DRAFT, "create_job");
+    await updateJobStatus(jobId, quoting);
+    return { jobId, status: quoting };
+  },
 });
 
 const port = Number(process.env.PORT || env.API_PORT || 3001);

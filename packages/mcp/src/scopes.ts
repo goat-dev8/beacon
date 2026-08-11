@@ -45,9 +45,14 @@ export const DEFAULT_CONNECT_SCOPES: McpScope[] = [
   "read:portfolio",
   "read:activity",
   "read:jobs",
+  "read:signals",
   "read:fassets",
   "read:executions",
   "exec:swap",
+  "exec:bridge",
+  "exec:job",
+  "exec:x402",
+  "exec:fassets_redeem",
 ];
 
 export function isMcpScope(value: string): value is McpScope {

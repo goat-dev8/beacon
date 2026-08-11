@@ -2,7 +2,7 @@
 
 **Single source of truth for Beacon (Flare AI OS).**  
 **Network:** Flare Testnet Coston2 (chain ID **114**)  
-**Last aligned with:** `history.md` (2026-08-11 Beacon MCP Connect Agents), `docs/FLARE_FINAL_IMPLEMENTATION_PLAN.md`, `docs/FLARE_FINAL_AUDIT.md`  
+**Last aligned with:** `history.md` (2026-08-12 MCP Flow-parity tools + bridge), `docs/FLARE_FINAL_IMPLEMENTATION_PLAN.md`, `docs/FLARE_FINAL_AUDIT.md`  
 **Rule:** Do not invent facts. Mark unknowns as TODO. No secrets in this file.
 
 ---
@@ -84,6 +84,22 @@ External AI Agent
 **Boundary:** MCP caps are ceilings. On-chain Safe policy + emergency pause remain the financial boundary. Emergency revoke on Safe also revokes all MCP grants for that wallet.
 
 **Package:** `packages/mcp`. **Routes:** `apps/api/src/mcpRoutes.ts`. **UI:** `apps/web/src/pages/McpPage.tsx`.
+
+**Default Connect scopes (Flow parity):** all read scopes + `exec:swap`, `exec:bridge`, `exec:job`, `exec:x402`, `exec:fassets_redeem`.
+
+**Tools (match Flow rails):**
+| Flow tile | MCP tools |
+|-----------|-----------|
+| Swap | `swap` (Safe MockUSDT0→FXRP Coston2) |
+| Bridge | `get_bridge_routes`, `bridge` (Agent OFT; destination e.g. Sepolia) |
+| Signals | `get_signals` (FTSO + market intel) |
+| Portfolio | `get_portfolio`, `get_balance`, `get_safe` |
+| Yield | `get_yield` |
+| FAssets | `get_fassets`, `fassets_redeem` (prepare; needs XRPL `r…`) |
+| x402 | `x402_pay` (intent + Flow settle honesty) |
+| Jobs | `create_job`, `get_job` / `get_job_status` |
+
+Bridge spend/policy is evaluated on **Coston2 (114)**. Destination peer names are LayerZero routes — Sepolia does **not** need to be in `allowedChains`.
 
 ---
 
