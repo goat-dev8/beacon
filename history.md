@@ -1,4 +1,18 @@
-## 2026-08-12 - Fix MCP Connect Agents MetaMask signature spam
+## 2026-08-12 - MCP Flow-parity: bridge + full default scopes
+
+### Problem
+Cursor MCP grant was swap-only; agent refused bridge and misread Sepolia as needing `allowedChains`.
+
+### Fix
+- Default Connect scopes = all Flow-relevant read + exec (swap, bridge, job, x402, fassets_redeem).
+- Real tools: `get_bridge_routes`, `get_signals`, `get_yield`, improved `get_portfolio`, `bridge({ amountFxrp, destination })`, `create_job` inserts Jobs row, `fassets_redeem` prepare with XRPL address.
+- Instructions: swap = Safe MockUSDT0→FXRP; bridge destination is LZ peer name; policy on Coston2 114.
+- BEACON_MASTER MCP tool↔Flow map updated.
+
+### Demo note
+Reconnect agent on /mcp (revoke old grant) so new scopes apply, then: `get_bridge_routes` → `bridge 0.5 FXRP to Sepolia`.
+
+---
 
 ### Cause
 `/flow/mcp` grants query called `ensureSafeAgentSession` on page load → MetaMask signature loop (retries).
