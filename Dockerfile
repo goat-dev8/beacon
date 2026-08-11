@@ -14,6 +14,7 @@ COPY packages/pipeline/package.json packages/pipeline/
 COPY packages/receipts/package.json packages/receipts/
 COPY packages/fdc/package.json packages/fdc/
 COPY packages/smart-accounts/package.json packages/smart-accounts/
+COPY packages/mcp/package.json packages/mcp/
 COPY services/orchestrator/package.json services/orchestrator/
 COPY services/settler/package.json services/settler/
 COPY apps/api/package.json apps/api/

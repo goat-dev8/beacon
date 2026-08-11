@@ -1,5 +1,5 @@
 import { NavLink, Outlet, Link, useLocation } from "react-router-dom";
-import { Briefcase, ExternalLink, Moon, Shield, Sparkles, Sun } from "lucide-react";
+import { Briefcase, Bot, ExternalLink, Moon, Shield, Sparkles, Sun } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ProductThemeProvider, useProductTheme } from "@/lib/productTheme";
 import { ProductWalletProvider } from "@/lib/productWallet";
@@ -14,6 +14,7 @@ const NAV = [
   { to: "/flow", end: true, label: "Flow", icon: Sparkles },
   { to: "/flow/desk", end: false, label: "Jobs", icon: Briefcase },
   { to: "/flow/security", end: false, label: "Safe", icon: Shield },
+  { to: "/flow/mcp", end: false, label: "Agents", icon: Bot },
 ];
 
 function RailLink({
@@ -74,7 +75,9 @@ function ShellChrome() {
     ? "desk"
     : location.pathname.startsWith("/flow/security")
       ? "security"
-      : "flow";
+      : location.pathname.startsWith("/flow/mcp") || location.pathname === "/mcp"
+        ? "mcp"
+        : "flow";
 
   return (
     <div className="product-shell flex h-dvh max-h-dvh overflow-hidden" data-theme={theme}>

@@ -443,10 +443,92 @@ export const api = {
       body: JSON.stringify({ wallet, policy }),
     }),
   revokeSecurity: (wallet: string, sessionToken: string) =>
-    request<{ ok: boolean; message: string }>("/v1/security/revoke", {
+    request<{ ok: boolean; message: string; mcpGrantsRevoked?: number }>("/v1/security/revoke", {
       method: "POST",
       headers: { Authorization: `Bearer ${sessionToken}` },
       body: JSON.stringify({ wallet }),
+    }),
+  mcpHealth: () =>
+    request<{
+      ok: boolean;
+      service: string;
+      redis: boolean;
+      endpoint: string;
+      connectPage: string;
+    }>("/v1/mcp/health"),
+  listMcpGrants: (wallet: string, sessionToken: string) =>
+    request<{ ok: boolean; grants: McpGrantPublic[] }>(
+      `/v1/mcp/grants?wallet=${encodeURIComponent(wallet)}`,
+      {
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      },
+    ),
+  createMcpGrant: (
+    body: {
+      wallet: string;
+      clientKind: "claude" | "cursor" | "generic";
+      clientLabel?: string;
+      scopes?: McpScope[];
+      maxSpendPerTxUsdt0?: number;
+      dailyLimitUsdt0?: number;
+      ttlHours?: number;
+    },
+    sessionToken: string,
+  ) =>
+    request<{
+      ok: boolean;
+      grant: McpGrantPublic;
+      accessToken: string;
+      accessTokenExpiresAt: number;
+      refreshToken: string;
+      mcpEndpoint: string;
+      cursorConfig: string;
+      setupPrompt: string;
+      warning: string;
+    }>("/v1/mcp/grants", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${sessionToken}` },
+      body: JSON.stringify(body),
+    }),
+  revokeMcpGrant: (grantId: string, wallet: string, sessionToken: string) =>
+    request<{ ok: boolean; grant: McpGrantPublic | null }>(`/v1/mcp/grants/${grantId}/revoke`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${sessionToken}` },
+      body: JSON.stringify({ wallet }),
+    }),
+  mcpGrantActivity: (grantId: string, wallet: string, sessionToken: string) =>
+    request<{
+      ok: boolean;
+      events: Array<{
+        at: string;
+        grantId: string;
+        wallet: string;
+        tool: string;
+        ok: boolean;
+        detail: string;
+        amountUsdt0?: number;
+        txHash?: string;
+      }>;
+    }>(`/v1/mcp/grants/${grantId}/activity?wallet=${encodeURIComponent(wallet)}`, {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    }),
+  testMcpConnection: (accessToken: string) =>
+    request<{
+      ok: boolean;
+      message: string;
+      safe: string | null;
+      wallet: string;
+      permissions: string[];
+      perTransactionLimit: number;
+      dailyLimit: number;
+      appDailyRemaining: number;
+      emergencyPause: boolean;
+      availableActions: string[];
+      expiresAt: string;
+    }>("/v1/mcp/test", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify({}),
     }),
   getVaultStatus: (opts?: { address?: string; wallet?: string } | string) => {
     // Back-compat: getVaultStatus(addressString)
@@ -611,6 +693,36 @@ export type SecurityPolicy = {
   maxVideoSeconds: number;
   emergencyPause: boolean;
   sessionExpiryHours: number;
+};
+
+export type McpScope =
+  | "read:safe"
+  | "read:policy"
+  | "read:portfolio"
+  | "read:activity"
+  | "read:jobs"
+  | "read:signals"
+  | "read:fassets"
+  | "read:executions"
+  | "exec:swap"
+  | "exec:bridge"
+  | "exec:job"
+  | "exec:x402"
+  | "exec:fassets_redeem";
+
+export type McpGrantPublic = {
+  id: string;
+  wallet: string;
+  safeAddress: string | null;
+  clientKind: "claude" | "cursor" | "generic";
+  clientLabel: string;
+  scopes: McpScope[];
+  maxSpendPerTxUsdt0: number;
+  dailyLimitUsdt0: number;
+  createdAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  active: boolean;
 };
 
 /** Live job event stream — production SSE from the API. */

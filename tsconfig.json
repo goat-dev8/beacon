@@ -10,6 +10,7 @@
     { "path": "packages/fdc" },
     { "path": "packages/smart-accounts" },
     { "path": "packages/flare" },
+    { "path": "packages/mcp" },
     { "path": "services/orchestrator" },
     { "path": "services/settler" },
     { "path": "apps/api" }

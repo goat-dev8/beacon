@@ -2,7 +2,7 @@
 
 **Single source of truth for Beacon (Flare AI OS).**  
 **Network:** Flare Testnet Coston2 (chain ID **114**)  
-**Last aligned with:** `history.md` (2026-08-10 FAssets COMPLETED `44497208` + FCC ALLOW/DENY + Chrome E2E hardening), `docs/FLARE_FINAL_IMPLEMENTATION_PLAN.md`, `docs/FLARE_FINAL_AUDIT.md`  
+**Last aligned with:** `history.md` (2026-08-11 Beacon MCP Connect Agents), `docs/FLARE_FINAL_IMPLEMENTATION_PLAN.md`, `docs/FLARE_FINAL_AUDIT.md`  
 **Rule:** Do not invent facts. Mark unknowns as TODO. No secrets in this file.
 
 ---
@@ -44,6 +44,8 @@ Landing (/)
 | `/flow` | Flow (chat OS) |
 | `/flow/desk` | Agent Jobs (nav label: **Jobs**) |
 | `/flow/security` | Safe |
+| `/flow/mcp` | Connect Agents (Beacon MCP) |
+| `/mcp` | Redirect -> `/flow/mcp` |
 | `/app` | Redirect -> `/flow/desk` |
 | `/desk-legacy` | Legacy AppPage |
 | `*` | Redirect -> `/` |
@@ -57,8 +59,31 @@ Landing (/)
 | **Flow** | `/flow` | Chat OS: swap, bridge, research, signals, portfolio, risk, yield, FAssets, x402 micropays |
 | **Agent Jobs** | `/flow/desk` | Paid AI generation with escrow + receipt (formerly Bound Work; nav: **Jobs**) |
 | **Safe** | `/flow/security` | Create personal Safe, fund once, set policy, pause/resume; MockUSDT0 balance for that wallet’s agent spends + jobs |
+| **Connect Agents** | `/flow/mcp` (`/mcp`) | Authorize Claude / Cursor / generic MCP clients to use Beacon tools without ever receiving private keys |
 
-Nav rail (`ProductShell`): Flow -> Jobs -> Safe.
+Nav rail (`ProductShell`): Flow -> Jobs -> Safe -> Agents.
+
+---
+
+## 3b. Beacon MCP (external agents)
+
+**Purpose:** Let Claude, Cursor, or any MCP-compatible client call Beacon on behalf of a user — without custody of keys.
+
+```
+External AI Agent
+  -> POST /mcp (Bearer MCP access token)
+  -> grant resolve (Redis, per wallet)
+  -> scope + spend gate (@beacon/mcp)
+  -> app policy (assertPolicyAllows)
+  -> Beacon Safe / existing execution rails
+  -> structured result + explorer proof + audit
+```
+
+**Auth:** Wallet Safe-session unlock on Connect Agents → create grant (scopes, per-tx/daily MCP caps, TTL) → short-lived access token (1h HMAC) + refresh token. OAuth discovery + PKCE code exchange available for clients that support it.
+
+**Boundary:** MCP caps are ceilings. On-chain Safe policy + emergency pause remain the financial boundary. Emergency revoke on Safe also revokes all MCP grants for that wallet.
+
+**Package:** `packages/mcp`. **Routes:** `apps/api/src/mcpRoutes.ts`. **UI:** `apps/web/src/pages/McpPage.tsx`.
 
 ---
 
@@ -67,13 +92,14 @@ Nav rail (`ProductShell`): Flow -> Jobs -> Safe.
 ```
                          apps/web (Vercel)
                     Landing -> /start -> ProductShell
-                    Flow -> Jobs -> Safe
+                    Flow -> Jobs -> Safe -> Agents (MCP)
                                    |
                                  HTTPS
                                    |
                          apps/api (Render)
                     Fastify -> jobs -> vault -> agents
                     flow -> x402 settle -> security
+                    mcp (/mcp) -> grants -> Safe rails
                     (+ embedded workers when enabled)
                                    |
               Postgres + Upstash Redis + Coston2 RPC

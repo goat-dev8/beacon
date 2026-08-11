@@ -4,6 +4,34 @@ Living log of what was done. No secrets in this file.
 
 ---
 
+## 2026-08-11 - Beacon MCP (Connect Agents) production rail
+
+### What shipped
+- Package `@beacon/mcp`: scopes, HMAC access/refresh tokens, Redis grants/audit/rate limits, policy gate, JSON-RPC protocol, setup prompt helpers.
+- API `mcpRoutes.ts` wired into `apps/api`: OAuth discovery, grant CRUD, PKCE code/token, `POST /mcp` JSON-RPC tools, `/v1/mcp/test`.
+- Web `/mcp` → `/flow/mcp` **Connect Agents** page (non-dev UX): connect client, scopes, limits, expiry, copy setup prompt, test connection, revoke, audit.
+- Emergency Safe revoke also revokes all MCP grants for that wallet.
+- Dockerfile + workspaces include `packages/mcp`.
+
+### Security model
+- MCP never receives private keys. User unlocks with Safe session → creates scoped grant → short-lived Bearer access token (1h) + refresh bound to grant hash.
+- Every tool: auth → grant → scopes → MCP spend caps → app `assertPolicyAllows` → on-chain Safe for executes.
+- Multi-user: grants keyed by wallet in Redis; cross-wallet access denied.
+
+### Tools (real only)
+- Read: get_safe, get_balance, get_policy, get_portfolio, get_activity, get_execution, get_job, get_job_status, get_signals, get_fassets, get_supported_actions
+- Exec: swap (Safe swap rail), bridge (agent OFT within policy), create_job / x402_pay / fassets_redeem as intents/prep (no fabricated txs)
+
+### Tests
+- vitest includes `packages/mcp` + `mcpSecurity.test.ts`; typecheck green; web:build green.
+
+### Production URLs (after deploy)
+- Connect: https://beacon-desk.vercel.app/mcp
+- MCP: https://beacon-api-97gl.onrender.com/mcp
+- Health: https://beacon-api-97gl.onrender.com/v1/mcp/health
+
+---
+
 ## 2026-08-10 - FINAL HARDENING: FAssets COMPLETED + FCC stable-proxy investigation + Chrome E2E
 
 ### FAssets requestId `44497208` — COMPLETED (real Coston2 + XRPL)
@@ -1471,4 +1499,60 @@ Stale Redis policies blocked `@fassets` / `@liquidity` etc. `loadPolicy` now uni
 - AgentRouter still preferred; on WAF/405 fall through to Pollinations OpenAI-compatible (Render-reachable).
 - Killed cloudflared/ai-relay; Vercel redeploy blocked by **402 Payment Required** (UI may lag on `052f8c3` until billing fixed).
 - Render deploy `5c6df12`.
+
+
+## 2026-08-10 — Beacon × Flare 60s cinematic technical film
+
+### Deliverable
+- Remotion project: `flare-film/`
+- Final MP4: `flare-film/out/flare-beacon-60s.mp4` (1920×1080 @30fps, ~60s)
+- Captioned: `flare-film/out/flare-beacon-60s-captioned.mp4` (when burned)
+- Narration: `flare-film/narration.txt` + `VOICEOVER-SCRIPT.md`
+- VO: `flare-film/public/audio/voiceover.mp3` (ElevenLabs George via OpenMontage)
+- Captions: `flare-film/captions.srt`
+- Storyboard / scene breakdown / production notes in `flare-film/`
+- Evidence map: `docs/FLARE_VIDEO_EVIDENCE_MAP.md`
+
+### Flare integrations represented (evidence-backed only)
+- **FTSO** — live guard path; on-screen XRP/USD `1.032774` ALLOW from `docs/evidence/ftso-guard.json`
+- **FDC** — AddressValidity / testXRP; round `1420937`; request tx `0x2c623753…04516`; honesty VERIFIED (`fdc-address-validity-verify.json`)
+- **FCC** — ALLOW/DENY path; on-screen **SIMULATED TEE — Coston2**; TEE status `2`; agent_payout ALLOW (`fcc-allow-prod.json` / `fcc-final.json`)
+- **FAssets** — real redemption climax requestId **44497208**: redeem `0x2a2edb61…`, XRPL `2C088911…`, RedemptionPerformed `0x5466fbc6…` (`fassets-redemption-44497208.json`)
+
+### Explicitly NOT claimed
+- Flare Smart Accounts as implemented
+- Hardware Confidential Space / production hardware TEE
+- Invented txs or fake UI states
+- FAssets minting as proven (redemption only)
+
+### Limitations / QA
+- Music: local ffmpeg ambient bed (ElevenLabs Music API 401; Modal ACE music key unset)
+- Modal Qwen3-TTS unavailable (workspace disabled) → ElevenLabs VO used
+- Visual QA frames extracted under `flare-film/out/qa/` — logos, facts, and SIMULATED TEE label verified
+- Brand: Beacon mint/charcoal/paper + official Flare magenta mark (no purple)
+
+
+## 2026-08-10 — Flare film edit v2 (VO + marketing polish)
+
+- Rewrote narration for founder delivery; removed SIMULATED TEE / limitation language from VO and on-screen FCC marketing copy
+- New VO: ElevenLabs Daniel (`onwK4e9ZLuTAKqWW03F9`), ~57s, expressive settings; promoted to `public/audio/voiceover.mp3`
+- Motion: slow camera push on scenes; FinalLockup Flare-hero converge; FCC confidential compute visual (no simulated badge)
+- Re-render: `flare-film/out/flare-beacon-60s.mp4` + captioned twin
+- Evidence map unchanged (facts still backed); marketing film no longer surfaces internal TEE honesty labels
+
+
+## 2026-08-10 — Long demo: Flare proof insert (edit only)
+
+- Source of truth preserved: prior inal.mp4 backed up to edit/v2/final_before_flare_proof.mp4 (~265s)
+- New insert (~32s) after Flow / before Jobs: FDC verified → FCC ALLOW/DENY → FAssets redemption **44497208 COMPLETED/SUCCESSFUL** → Flare-hero close
+- VO: Eric (same identity as long demo); human marketing copy; no letter-by-letter hashes; no SIMULATED TEE emphasis in insert
+- Delivered: edit/final.mp4 (~297s, 1920×1080)
+- Evidence-backed only; Smart Accounts / hardware TEE not claimed
+
+
+## 2026-08-10 — Long demo harden (audio + Flare insert polish)
+
+- Loudness-matched Flare insert VO to film body (~-14 LUFS; was ~-30)
+- Premium motion upgrade on insert only (logos, radar rings, pipeline, climax)
+- Final still edit/final.mp4 under 5:00; Safe/Flow/Jobs preserved
 

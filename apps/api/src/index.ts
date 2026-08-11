@@ -113,6 +113,7 @@ import {
   verifyChallengeAndIssueSession,
   verifySafeSessionToken,
 } from "./safeSession.js";
+import { registerMcpRoutes, revokeMcpGrantsForWallet } from "./mcpRoutes.js";
 
 const env = loadEnv();
 assertFlareRequired(env);
@@ -2063,6 +2064,7 @@ app.post("/v1/security/revoke", async (req) => {
   const revokedAt = Math.floor(Date.now() / 1000);
   const sessionKey = `safe-session-revoked-after:${body.wallet.toLowerCase()}`;
   revokedSafeSessions.set(sessionKey, revokedAt);
+  const mcpRevoked = await revokeMcpGrantsForWallet(redis, body.wallet);
   if (redis) {
     await Promise.all([
       redis.set(policyKey(body.wallet), paused),
@@ -2072,7 +2074,15 @@ app.post("/v1/security/revoke", async (req) => {
   return {
     ok: true,
     message: "Emergency pause on. Clear allowances for SparkDEX router in your wallet if you approved spending.",
+    mcpGrantsRevoked: mcpRevoked,
   };
+});
+
+await registerMcpRoutes(app, {
+  env,
+  redis,
+  requireSafeSession,
+  bearerToken,
 });
 
 const port = Number(process.env.PORT || env.API_PORT || 3001);

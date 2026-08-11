@@ -12,6 +12,7 @@
     { "path": "../../packages/acceptance" },
     { "path": "../../packages/receipts" },
     { "path": "../../packages/x402" },
-    { "path": "../../packages/smart-accounts" }
+    { "path": "../../packages/smart-accounts" },
+    { "path": "../../packages/mcp" }
   ]
 }

@@ -21,6 +21,9 @@ const FlowPage = lazy(() =>
 const SecurityPage = lazy(() =>
   import("@/pages/SecurityPage").then((m) => ({ default: m.SecurityPage })),
 );
+const McpPage = lazy(() =>
+  import("@/pages/McpPage").then((m) => ({ default: m.McpPage })),
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -89,7 +92,16 @@ export default function App() {
                 </Suspense>
               }
             />
+            <Route
+              path="mcp"
+              element={
+                <Suspense fallback={<RouteFallback />}>
+                  <McpPage />
+                </Suspense>
+              }
+            />
           </Route>
+          <Route path="/mcp" element={<Navigate to="/flow/mcp" replace />} />
           {/* Keep bare AppPage available only via redirect */}
           <Route
             path="/desk-legacy"

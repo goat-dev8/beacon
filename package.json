@@ -18,6 +18,7 @@
     "packages/fdc",
     "packages/smart-accounts",
     "packages/flare",
+    "packages/mcp",
     "services/orchestrator",
     "services/settler",
     "apps/api",

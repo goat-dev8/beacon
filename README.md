@@ -29,6 +29,7 @@ Three product surfaces (see `ARCHITECTURE_AUDIT.md`):
 | **Flow** | Chat OS: swap, bridge, research, signals, portfolio, risk, yield, FAssets, x402 micropays |
 | **Agent Jobs** | `/flow/desk`: paid AI generation with escrow + receipt |
 | **Safe** | `/flow/security`: create personal Safe, fund once, set policy; **per-wallet** balance for agent spends and jobs |
+| **Connect Agents** | `/mcp` → `/flow/mcp`: authorize Claude / Cursor / MCP clients; no private keys leave the wallet |
 
 ### Payment paths (Agent Jobs)
 
@@ -306,14 +307,15 @@ Notes:
 ## Verify deployments / explorer links
 
 1. **API health:** `GET https://beacon-api-97gl.onrender.com/health` (and FCC status endpoints when enabled; see `docs/HONESTY.md`).
-2. **Desk:** open https://beacon-desk.vercel.app (Flow, Jobs / Agent Jobs, Safe).
-3. **On-chain:** open contract or tx on  
+2. **Desk:** open https://beacon-desk.vercel.app (Flow, Jobs / Agent Jobs, Safe, Connect Agents `/mcp`).
+3. **MCP health:** `GET https://beacon-api-97gl.onrender.com/v1/mcp/health` and `POST /mcp` with a user Bearer grant (never share refresh tokens in public chats).
+4. **On-chain:** open contract or tx on  
    https://coston2-explorer.flare.network  
    or  
    https://coston2.testnet.flarescan.com  
    Confirm bytecode at `BEACON_ESCROW` / `BEACON_AGENT_VAULT_ADDRESS` matches env.
-4. **x402 smoke:** unpaid agent resource returns HTTP **402** with Coston2 / MockUSDT0 / facilitator fields (see history).
-5. **Env alignment:** root `BEACON_ESCROW` == `VITE_BEACON_ESCROW` == live prepaid escrow.
+5. **x402 smoke:** unpaid agent resource returns HTTP **402** with Coston2 / MockUSDT0 / facilitator fields (see history).
+6. **Env alignment:** root `BEACON_ESCROW` == `VITE_BEACON_ESCROW` == live prepaid escrow.
 
 Example explorer bases:
 
