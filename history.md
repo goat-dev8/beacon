@@ -25,10 +25,16 @@ Living log of what was done. No secrets in this file.
 ### Tests
 - vitest includes `packages/mcp` + `mcpSecurity.test.ts`; typecheck green; web:build green.
 
-### Production URLs (after deploy)
-- Connect: https://beacon-desk.vercel.app/mcp
-- MCP: https://beacon-api-97gl.onrender.com/mcp
-- Health: https://beacon-api-97gl.onrender.com/v1/mcp/health
+### Production verify (2026-08-11)
+- Pushed `9bc2898` → GitHub `main`; Render `beacon-api` live; Vercel `beacon-desk` READY.
+- Smoke: `/v1/mcp/health` 200 (redis true), OAuth discovery, unauth/malformed Bearer → 401, `/ready` 200.
+- Chrome: https://beacon-desk.vercel.app/flow/mcp — MCP LIVE, Agents nav, wallet Safe linked (MetaMask popup not CDP-clickable for Connect unlock).
+- Real E2E (deployer wallet Safe bootstrap): overspend 100 → `MCP_TX_LIMIT`; swap 1 USDT0 → spend `0xc911dc17…19db` on Coston2; revoke → 401. Evidence: `docs/evidence/mcp-prod-e2e.json`.
+
+### Remaining limitations
+- Chrome Connect Agent still needs MetaMask extension confirmation (CDP cannot click notification UI).
+- Intent tools (`create_job`, `x402_pay`, `fassets_redeem`) prepare/acknowledge only — no fabricated txs.
+- Forge contract tests not re-run here (forge CLI unavailable on this host).
 
 ---
 
