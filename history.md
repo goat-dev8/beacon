@@ -1,6 +1,15 @@
-# Beacon Engineering History (memory)
+## 2026-08-12 - Fix MCP Connect Agents MetaMask signature spam
 
-Living log of what was done. No secrets in this file.
+### Cause
+`/flow/mcp` grants query called `ensureSafeAgentSession` on page load → MetaMask signature loop (retries).
+
+### Fix
+- Grants/activity fetch only when a cached Safe session already exists.
+- Signature only on explicit **Unlock** / **Connect Agent** / **Revoke**.
+- Copy clarifies page never auto-prompts.
+
+### Tool sweep
+`scripts/mcp-tools-all.mjs` against production: initialize, 16 tools, resources, overspend gate, real swap, revoke 401.
 
 ---
 
