@@ -4,7 +4,7 @@ import { loadEnv, type BeaconEnv } from "./env.js";
 export const FLARE_CONTRACT_REGISTRY_DEFAULT =
   "0xaD67FE66660Fb8dFE9d6b1b4240d8650e30F6019";
 
-/** Official Coston2 faucet USDT0 — not Beacon MockUSDT0. SparkDEX execute is Flare Mainnet. */
+/** Official Coston2 faucet USDT0 (Flare Smart Accounts / faucet token). SparkDEX execute is Flare Mainnet. */
 export const COSTON2_USDT0 = "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F";
 /** @deprecated Use SPARKDEX_SWAP_ROUTER from sparkDex.ts — mainnet-only bytecode. */
 export const SPARKDEX_SWAP_ROUTER = "0x8a1E35F5c98C4E85B36B7B253222eE17773b2781";

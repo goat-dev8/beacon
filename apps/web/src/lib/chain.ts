@@ -8,19 +8,18 @@ export const NETWORK = {
 
 export const CONTRACTS = {
   token: (import.meta.env.VITE_X402_TOKEN_ADDRESS ??
-    "0x6fd8a72a972040f3153894BBd0d829a58f1Fe86c") as `0x${string}`,
+    "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F") as `0x${string}`,
   escrow: (import.meta.env.VITE_BEACON_ESCROW ??
-    "0xE68c22621314977f00c85D89e4f5b10573C51C7E") as `0x${string}`,
+    "0x59F9E2471BE3747b00fD53E0Cea828227345399C") as `0x${string}`,
   facilitator: (import.meta.env.VITE_X402_FACILITATOR_ADDRESS ??
-    "0x1f409a809cE6e8A4467C1fD40943aC40169f4779") as `0x${string}`,
+    "0x1506f2177769EcB8Fa4903160c896E68f5d15747") as `0x${string}`,
   jobRegistry: (import.meta.env.VITE_BEACON_JOB_REGISTRY ??
     "0x100a3E24909DE25B9CAe75Ba665Be6F893b98889") as `0x${string}`,
   payee: (import.meta.env.VITE_X402_PAYEE_ADDRESS ??
     "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034") as `0x${string}`,
-  /** Personal Safe factory — wallet → BeaconAgentVault. */
+  /** Personal Safe factory — wallet → BeaconAgentVault (official Coston2 USDT0). */
   safeFactory: (import.meta.env.VITE_BEACON_SAFE_FACTORY_ADDRESS ||
-    "0x9e88ADFB4dA7530675acC520cC9a0a818543c4F2") as `0x${string}`,
-  /** Legacy shared vault (pre-personal Safes). Prefer factory lookup. */
-  agentVault: (import.meta.env.VITE_BEACON_AGENT_VAULT_ADDRESS ||
-    "0xc7C6C06Dd59173dBAf8382627d6A483Ca53AAF33") as `0x${string}`,
+    "0x8250e3946fFAD7C3306E7286Cf82131E79038106") as `0x${string}`,
+  /** Legacy shared vault (pre-personal Safes). Unused when the factory is configured. */
+  agentVault: (import.meta.env.VITE_BEACON_AGENT_VAULT_ADDRESS || "") as `0x${string}`,
 } as const;

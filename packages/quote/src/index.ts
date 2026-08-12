@@ -25,7 +25,7 @@ export interface QuoteInput {
   wordCount?: number;
 }
 
-/** Micro-pricing breakdown in MockUSDT0 (6 decimals as number for display). */
+/** Micro-pricing breakdown in USDT0 (6 decimals as number for display). */
 export interface CostBreakdown {
   model: string;
   inputTokens: number;
@@ -75,7 +75,7 @@ export interface QuoteDto {
 }
 
 const PLATFORM_FEE_RATE = 0.15;
-const NETWORK_FEE_USDT0 = 0.001; // Coston2 gas cushion in MockUSDT0 terms (display)
+const NETWORK_FEE_USDT0 = 0.001; // Coston2 gas cushion in USDT0 terms (display)
 const MIN_PRICE_USDT0 = 0.005;
 const MAX_PRICE_USDT0 = 0.08;
 

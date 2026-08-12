@@ -49,7 +49,7 @@ const STEPS = [
   {
     id: "x402",
     title: "x402 payments",
-    body: "HTTP-native pay with MockUSDT0 EIP-3009. Jobs prefer Safe prepaid escrow; wallet auth is fallback.",
+    body: "HTTP-native pay with Coston2 USDT0 (approve + facilitator pull). Jobs prefer Safe prepaid escrow; wallet auth is fallback.",
     diagram: 3,
   },
   {

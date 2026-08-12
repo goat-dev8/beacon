@@ -124,9 +124,10 @@ function baseEnvVars() {
     { key: "NODE_ENV", value: "production" },
     { key: "CHAIN_ID", value: "114" },
     { key: "NETWORK_NAME", value: "coston2" },
-    { key: "SIMULATED_TEE", value: "true" },
+    // Never force simulated TEE on an existing hardware FCC service.
+    { key: "SIMULATED_TEE", value: env.SIMULATED_TEE || "false" },
     { key: "LOCAL_MODE", value: "false" },
-    { key: "FCC_MODE", value: env.FCC_MODE || "simulated" },
+    { key: "FCC_MODE", value: env.FCC_MODE || "verified" },
     { key: "ENABLE_API", value: "true" },
     { key: "ENABLE_FCC", value: "true" },
     { key: "ENABLE_PIPELINE", value: "true" },

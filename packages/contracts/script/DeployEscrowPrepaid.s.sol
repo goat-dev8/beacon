@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 import {Script, console2} from "forge-std/Script.sol";
 import {BeaconEscrow} from "../src/BeaconEscrow.sol";
 
-/// @notice Redeploy BeaconEscrow with lockPrepaid (Safe-funded Bound Work) against existing MockUSDT0.
+/// @notice Redeploy BeaconEscrow (lockFrom + lockPrepaid) against X402_TOKEN_ADDRESS.
 contract DeployEscrowPrepaid is Script {
     function run() external {
         uint256 deployerKey = vm.envUint("DEPLOYMENT_PRIVATE_KEY");

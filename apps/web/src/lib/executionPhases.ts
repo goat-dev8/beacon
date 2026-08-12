@@ -196,7 +196,7 @@ function buildSteps(
     ];
   }
   if (cardType === "x402_quote") {
-    return [{ label: "EIP-3009 pay", status: exec?.payBusy ? "pending" : "idle" }];
+    return [{ label: "USDT0 pay", status: exec?.payBusy ? "pending" : "idle" }];
   }
   if (cardType === "media_result") {
     return [{ label: "Delivered", status: "confirmed" }];

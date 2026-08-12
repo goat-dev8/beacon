@@ -28,7 +28,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { BeaconMark } from "@/components/diagrams/BeaconDiagrams";
 import {
   approveJobOnChain,
-  mintMockUsdt0,
+  openCoston2Faucet,
   shortAddress,
 } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
@@ -179,9 +179,11 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
   });
 
   const mint = useMutation({
-    mutationFn: () => mintMockUsdt0(),
+    mutationFn: async () => {
+      openCoston2Faucet();
+    },
     onSuccess: () => setError(null),
-    onError: (err) => setError(err instanceof Error ? err.message : "Mint failed."),
+    onError: (err) => setError(err instanceof Error ? err.message : "Could not open faucet."),
   });
 
   async function onConnect() {
@@ -568,7 +570,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               <h1 className="font-display text-3xl font-extrabold tracking-tight">Your quote</h1>
               <div className="mt-8 overflow-hidden rounded-2xl border border-line bg-surface p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
                 <p className="font-mono text-xs uppercase tracking-widest text-ink-faint">
-                  Micro price · MockUSDT0
+                  Micro price · USDT0
                 </p>
                 <p className="mt-2 font-display text-4xl font-extrabold text-ink">{quote.priceDisplay}</p>
                 <p className="mt-2 text-sm text-ink-muted">ETA {formatEta(quote.etaSeconds)}</p>
@@ -619,14 +621,14 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                   <ol className="mt-2 space-y-1.5 text-xs text-ink-muted">
                     <li>1. Unlock Beacon Agent once per browser session</li>
                     <li>2. Agent executor pays from your Safe (no per-job wallet prompt)</li>
-                    <li>3. BeaconEscrow locks MockUSDT0 on Coston2</li>
+                    <li>3. BeaconEscrow locks Coston2 USDT0</li>
                     <li>4. Agent generates · acceptance gates run</li>
                     <li>5. Escrow release on pass · refund to Safe/wallet on fail</li>
                   </ol>
                   <p className="mt-2 text-[11px] leading-relaxed text-ink-faint">
                     Safe path: your session proves who requested the job; the on-chain Safe policy
-                    authorizes vault.execute(transfer→escrow), then lockPrepaid. EIP-3009 is only
-                    required for Safe funding or wallet fallback.
+                    authorizes vault.execute(transfer→escrow), then lockPrepaid. Wallet fallback
+                    uses ERC-20 approve + lockFrom.
                   </p>
                 </div>
               </div>
@@ -646,7 +648,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               {account && (
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button variant="ghost" size="sm" onClick={() => mint.mutate()} disabled={mint.isPending}>
-                    {mint.isPending ? "Minting…" : "Mint test USD₮0"}
+                    {mint.isPending ? "Opening faucet…" : "Get Coston2 USDT0"}
                   </Button>
                   <a
                     href={NETWORK.faucet}
@@ -696,10 +698,10 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                   ? agentSession
                     ? "Agent session active: the executor locks from your Safe within policy — no MetaMask for this job."
                     : "One wallet signature unlocks this browser session; then the executor handles jobs without per-job prompts."
-                  : "Fund Beacon Safe (and set policy) for zero MetaMask job locks, or pay once with wallet EIP-3009."}
+                  : "Fund Beacon Safe (and set policy) for zero MetaMask job locks, or pay once with wallet USDT0."}
               </p>
               <p className="mt-1 font-mono text-[11px] text-ink-faint">
-                Wallet fallback: EIP-3009 → BeaconEscrow.lockWithAuthorization. Safe path:
+                Wallet fallback: ERC-20 approve → BeaconEscrow.lockFrom. Safe path:
                 vault.execute(transfer) → escrow.lockPrepaid.
               </p>
             </motion.div>
@@ -886,8 +888,8 @@ function FlareRails({
         <div>
           <p className="font-mono text-[11px] uppercase tracking-widest text-signal-deep">
             {payMode === "wallet"
-              ? "EIP-3009 · MockUSDT0 escrow · Coston2"
-              : "Beacon Safe · MockUSDT0 escrow · Coston2"}
+              ? "ERC-20 lockFrom · Coston2 USDT0 escrow"
+              : "Beacon Safe · Coston2 USDT0 escrow"}
           </p>
           <p className="mt-1 text-xs text-ink-muted">
             {payMode === "wallet"

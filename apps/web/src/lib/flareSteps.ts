@@ -8,7 +8,7 @@ export interface FlareStep {
   statusKey: JobStatus | "LOCK";
 }
 
-/** Wallet EIP-3009 path (fallback). */
+/** Wallet ERC-20 lockFrom path (fallback). */
 export const FLARE_STEPS_WALLET: FlareStep[] = [
   {
     id: "wallet",
@@ -18,13 +18,13 @@ export const FLARE_STEPS_WALLET: FlareStep[] = [
   },
   {
     id: "auth",
-    label: "EIP-3009 authorization",
-    detail: "TransferWithAuthorization typed data signed in MetaMask",
+    label: "USDT0 approve",
+    detail: "Approve BeaconEscrow to pull Coston2 faucet USDT0",
     statusKey: "AUTHORIZED",
   },
   {
     id: "lock",
-    label: "BeaconEscrow.lockWithAuthorization",
+    label: "BeaconEscrow.lockFrom",
     detail: "Funds locked on Coston2 until quality passes",
     statusKey: "AUTHORIZED",
   },
@@ -59,13 +59,13 @@ export const FLARE_STEPS_SAFE: FlareStep[] = [
   {
     id: "safe",
     label: "Beacon Safe funded",
-    detail: "Prepaid MockUSDT0 pool · policy caps on Coston2",
+    detail: "Prepaid Coston2 USDT0 pool · policy caps on Coston2",
     statusKey: "LOCK",
   },
   {
     id: "spend",
     label: "Safe vault.execute(transfer)",
-    detail: "Executor moves MockUSDT0 Safe → BeaconEscrow (no MetaMask)",
+    detail: "Executor moves USDT0 Safe → BeaconEscrow (no MetaMask)",
     statusKey: "AUTHORIZED",
   },
   {

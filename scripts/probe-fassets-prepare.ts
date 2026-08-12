@@ -116,7 +116,7 @@ async function main() {
       {
         id: "insufficient_controllable_fxrp_for_safe_redeem",
         detail:
-          "Deployer sample FXRP balance is below minimumRedeemAmountUBA (5). Swap desk FXRP (~9.7) is protocol inventory for Safe MockUSDT0→FXRP swaps — must not burn for demo redemption.",
+          "Deployer sample FXRP balance is below minimumRedeemAmountUBA (5). Swap desk FXRP is protocol inventory for Safe USDT0→FXRP swaps — must not burn for demo redemption.",
       },
       {
         id: "completed_requires_agent_xrpl_payment",
@@ -130,7 +130,7 @@ async function main() {
       {
         id: "swap_then_redeem_composite",
         detail:
-          "Safe MockUSDT0→FXRP SwapDesk prepare is REAL separately; composing auto swap→burn→redeem is not wired as one tx and would consume desk inventory. Prepare paths remain separate.",
+          "Safe USDT0→FXRP SwapDesk prepare is REAL separately; composing auto swap→burn→redeem is not wired as one tx and would consume desk inventory. Prepare paths remain separate.",
       },
     ],
     txHashes: [],

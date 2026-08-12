@@ -24,7 +24,7 @@ const RAILS = [
     id: "x402",
     title: "x402",
     why: "Agents pay for work with HTTP-native settlement.",
-    how: "MockUSDT0 EIP-3009 via facilitator. Idempotent nonces. Explorer receipt.",
+    how: "Coston2 USDT0 via facilitator ERC-20 pull. Idempotent nonces. Explorer receipt.",
   },
   {
     id: "fassets",

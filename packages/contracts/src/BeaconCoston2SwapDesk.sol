@@ -6,13 +6,13 @@ interface IERC20SwapToken {
     function transfer(address to, uint256 amount) external returns (bool);
 }
 
-/// @title BeaconCoston2SwapDesk — Coston2 Safe-funded MockUSDT0→FXRP desk
+/// @title BeaconCoston2SwapDesk — Coston2 Safe-funded USDT0→FXRP desk
 /// @notice SparkDEX SwapRouter has empty bytecode on Coston2. This desk lets the
-///         Beacon Safe executor spend pooled MockUSDT0 for FXRP without MetaMask
+///         Beacon Safe executor spend pooled faucet USDT0 for FXRP without MetaMask
 ///         or Mainnet chain switches. Rate is owner-set (API syncs from FTSO).
 /// @dev Flow: vault.execute(tokenIn, transfer(desk, amountIn)) then
-///      desk.fulfill(recipient, amountIn, minOut). MockUSDT0 on Coston2 has no
-///      transferFrom — pull patterns are impossible.
+///      desk.fulfill(recipient, amountIn, minOut). Inventory is real FXRP
+///      transferred onto the desk — never invented accounting.
 contract BeaconCoston2SwapDesk {
     IERC20SwapToken public immutable tokenIn;
     IERC20SwapToken public immutable tokenOut;

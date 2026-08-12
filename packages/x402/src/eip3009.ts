@@ -11,7 +11,7 @@ export interface TransferAuthorization {
 
 /**
  * Historical Flare-guide label for mainnet-style USDT0.
- * CRITICAL: MockUSDT0 on Coston2 uses `name = "USD0"` — never assume this constant
+ * CRITICAL: fixture MockUSDT0 uses `name = "USD0"` — never assume this constant
  * matches the verifying contract. Always resolve via {@link resolveEip3009Domain}.
  */
 export const EIP3009_DOMAIN_NAME_HINT = "USD₮0";
@@ -19,8 +19,14 @@ export const EIP3009_DOMAIN_NAME_HINT = "USD₮0";
 export const EIP3009_DOMAIN_NAME = EIP3009_DOMAIN_NAME_HINT;
 export const EIP3009_DOMAIN_VERSION = "1";
 
-/** Coston2 Beacon MockUSDT0 — testnet/demo EIP-3009 asset until production USDT0 supports EIP-3009. */
-export const MOCK_USDT0_DEMO_LABEL = "MockUSDT0 (Coston2 testnet/demo — not SparkDEX USDT0)";
+/** Official Coston2 faucet USDT0 (6 decimals). Not mainnet USD₮0. */
+export const COSTON2_USDT0_ADDRESS = "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F";
+export const COSTON2_USDT0_LABEL =
+  "Coston2 USDT0 (official faucet testnet token — not mainnet USD₮0)";
+
+/** HISTORICAL: fixture-only MockUSDT0. Not the live Beacon rail. */
+export const MOCK_USDT0_DEMO_LABEL =
+  "HISTORICAL fixture MockUSDT0 — live Beacon uses official Coston2 faucet USDT0";
 
 export const TRANSFER_WITH_AUTHORIZATION_TYPES: Record<string, TypedDataField[]> = {
   TransferWithAuthorization: [
@@ -61,7 +67,7 @@ export function buildEip3009Domain(
   const name = opts?.name?.trim();
   if (!name) {
     throw new Error(
-      "EIP-712 domain name required — resolve via token.name() (MockUSDT0 may be \"USD0\", not \"USD₮0\").",
+      "EIP-712 domain name required — resolve via token.name() (fixture MockUSDT0 may be \"USD0\", not \"USD₮0\").",
     );
   }
   return {
@@ -155,6 +161,7 @@ export function formatUsdtAmount(value: bigint): string {
 export const FACILITATOR_ABI = [
   "function verifyPayment(address token, address payer, address payee, uint256 amount, uint256 validAfter, uint256 validBefore, bytes32 nonce, bytes signature) view returns (bool)",
   "function settlePayment(address token, address payer, address payee, uint256 amount, uint256 validAfter, uint256 validBefore, bytes32 nonce, bytes signature) returns (bool)",
+  "function settleTransferFrom(address token, address payer, address payee, uint256 amount) returns (bool)",
 ] as const;
 
 export const TOKEN_ABI = [
@@ -165,6 +172,7 @@ export const TOKEN_ABI = [
   "function authorizationState(address authorizer, bytes32 nonce) view returns (bool)",
   "function balanceOf(address account) view returns (uint256)",
   "function decimals() view returns (uint8)",
+  "function allowance(address owner, address spender) view returns (uint256)",
 ] as const;
 
 export interface FacilitatorClientConfig {
@@ -231,6 +239,27 @@ export class FacilitatorClient {
     const receipt = await tx.wait();
     return { success: receipt?.status === 1, txHash: receipt?.hash };
   }
+
+  async readAllowance(owner: string): Promise<bigint> {
+    return this.token.allowance(owner, this.config.facilitatorAddress) as Promise<bigint>;
+  }
+
+  async readBalance(owner: string): Promise<bigint> {
+    return this.token.balanceOf(owner) as Promise<bigint>;
+  }
+
+  /** ERC-20 pull settle — payer must have approved this facilitator. */
+  async settleTransferFrom(
+    signer: Wallet,
+    payer: string,
+    payee: string,
+    amount: bigint,
+  ): Promise<{ success: boolean; txHash?: string }> {
+    const connected = this.contract.connect(signer) as Contract;
+    const tx = await connected.settleTransferFrom(this.config.tokenAddress, payer, payee, amount);
+    const receipt = await tx.wait();
+    return { success: receipt?.status === 1, txHash: receipt?.hash };
+  }
 }
 
 export function randomAuthNonce(): `0x${string}` {
@@ -265,9 +294,11 @@ export type X402PaymentFields = {
   to: string;
   token?: string;
   value: string;
-  validAfter: string;
-  validBefore: string;
+  validAfter?: string;
+  validBefore?: string;
   nonce: string;
+  mode?: string;
+  signature?: string;
 };
 
 export function assertX402PaymentFields(
@@ -285,7 +316,7 @@ export function assertX402PaymentFields(
     throw new Error(`Payment payee mismatch — expected ${expect.payeeAddress}.`);
   }
   if (payment.token && !addressesEqual(payment.token, expect.tokenAddress)) {
-    throw new Error(`Payment token mismatch — expected ${expect.tokenAddress} (MockUSDT0 demo on Coston2).`);
+      throw new Error(`Payment token mismatch — expected ${expect.tokenAddress} (Coston2 faucet USDT0).`);
   }
 
   let value: bigint;
@@ -293,8 +324,8 @@ export function assertX402PaymentFields(
   let validBefore: bigint;
   try {
     value = BigInt(payment.value);
-    validAfter = BigInt(payment.validAfter);
-    validBefore = BigInt(payment.validBefore);
+    validAfter = BigInt(payment.validAfter || "0");
+    validBefore = BigInt(payment.validBefore || String(nowSec + (expect.maxValiditySeconds ?? 600)));
   } catch {
     throw new Error("Payment value/validity fields must be integer strings.");
   }
@@ -305,19 +336,22 @@ export function assertX402PaymentFields(
     );
   }
 
-  const skew = expect.clockSkewSeconds ?? 120;
-  const maxWindow = expect.maxValiditySeconds ?? 600;
-  if (validBefore <= validAfter) {
-    throw new Error("Payment validBefore must be after validAfter.");
-  }
-  if (validBefore - validAfter > BigInt(maxWindow + skew)) {
-    throw new Error(`Payment validity window exceeds ${maxWindow}s.`);
-  }
-  if (nowSec < Number(validAfter) - skew) {
-    throw new Error("Payment authorization is not yet valid.");
-  }
-  if (nowSec >= Number(validBefore)) {
-    throw new Error("Payment authorization expired.");
+  const isErc20Pull = payment.mode === "erc20-pull";
+  if (!isErc20Pull) {
+    const skew = expect.clockSkewSeconds ?? 120;
+    const maxWindow = expect.maxValiditySeconds ?? 600;
+    if (validBefore <= validAfter) {
+      throw new Error("Payment validBefore must be after validAfter.");
+    }
+    if (validBefore - validAfter > BigInt(maxWindow + skew)) {
+      throw new Error(`Payment validity window exceeds ${maxWindow}s.`);
+    }
+    if (nowSec < Number(validAfter) - skew) {
+      throw new Error("Payment authorization is not yet valid.");
+    }
+    if (nowSec >= Number(validBefore)) {
+      throw new Error("Payment authorization expired.");
+    }
   }
 
   const nonce = payment.nonce as `0x${string}`;

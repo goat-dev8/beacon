@@ -79,6 +79,31 @@ contract BeaconEscrowTest is Test {
         assertEq(escrow.lockedTotal(), 0);
     }
 
+    function testLockFromPullsAllowance() public {
+        bytes32 jobId = keccak256("job-lock-from");
+        uint256 amount = 400_000;
+        vm.prank(payer);
+        token.approve(address(escrow), amount);
+
+        escrow.lockFrom(jobId, payer, amount);
+
+        assertEq(token.balanceOf(address(escrow)), amount);
+        assertEq(token.balanceOf(payer), 2_000_000 - amount);
+        (address lockedPayer, uint256 lockedAmt,,) = escrow.locks(jobId);
+        assertEq(lockedPayer, payer);
+        assertEq(lockedAmt, amount);
+
+        vm.prank(owner);
+        escrow.refund(jobId);
+        assertEq(token.balanceOf(payer), 2_000_000);
+    }
+
+    function testLockFromRevertsWithoutAllowance() public {
+        bytes32 jobId = keccak256("job-lock-from-fail");
+        vm.expectRevert("insufficient allowance");
+        escrow.lockFrom(jobId, payer, 1);
+    }
+
     function testLockPrepaidRequiresOwnerAndFreeBalance() public {
         address vault = address(0xBEEF);
         bytes32 jobId = keccak256("job-prepaid-fail");

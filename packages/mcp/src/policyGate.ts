@@ -80,7 +80,7 @@ export function authorizeToolCall(opts: {
 export const BEACON_MCP_INSTRUCTIONS = `You are connected to Beacon MCP — Flare AI OS (same rails as beacon-desk.vercel.app Flow).
 
 Flow map (Coston2):
-- swap: Beacon Safe MockUSDT0 → FXRP via Coston2 swap desk (no MetaMask). Tool: swap({ amountUsdt0 }).
+- swap: Beacon Safe USDT0 → FXRP via Coston2 swap desk (no MetaMask). Tool: swap({ amountUsdt0 }).
 - bridge: Agent OFT FXRP from Coston2 → live LayerZero peer (Sepolia, Base Sepolia, BSC Testnet, …). Tool: bridge({ amountFxrp, destination }). Spend/policy is on Coston2 (114); destination is the peer chain name, NOT an allowedChains check for Sepolia.
 - signals / portfolio / fassets / yield: read tools below.
 - jobs / x402 / fassets_redeem: use exec tools when scoped; never invent txs.

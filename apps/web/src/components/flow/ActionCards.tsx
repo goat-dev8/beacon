@@ -613,7 +613,7 @@ export function ActionCard({
             switch to Mainnet for Flow swaps.
           </p>
           <p className="mt-2 text-xs text-[var(--p-muted)]">
-            Fund Beacon Safe for MockUSDT0→FXRP agent execution, or use another Coston2 rail.
+            Fund Beacon Safe for USDT0→FXRP agent execution, or use another Coston2 rail.
           </p>
           <a
             href="/flow/security"
@@ -861,7 +861,7 @@ export function ActionCard({
         {isAgent ? (
           <p className="px-4 pt-3 text-xs text-signal">
             Agent executor signs OFT on Coston2 — no MetaMask.
-            {card.fromSafe ? " Safe MockUSDT0 tops up FXRP first." : ""}
+            {card.fromSafe ? " Safe USDT0 tops up FXRP first." : ""}
           </p>
         ) : null}
         {card.honesty ? <p className="px-4 pt-2 text-xs text-amber-200/90">{String(card.honesty)}</p> : null}
@@ -1308,19 +1308,19 @@ export function ActionCard({
             <span className="text-[var(--p-muted)]">ETA · </span>~{String(card.etaSeconds ?? 30)}s
           </div>
           <div className="font-mono text-[11px] text-[var(--p-muted)]">
-            MockUSDT0 · EIP-3009 · chain {String(card.chainId)} · {String(card.resource)}
+            USDT0 · ERC-20 pull · chain {String(card.chainId)} · {String(card.resource)}
           </div>
         </dl>
         {isSettled && (
           <p className="mt-3 text-xs leading-relaxed text-[var(--p-muted)]">
-            Settled means the last payment delivered. Pay again anytime. Each run signs a fresh EIP-3009 nonce
-            and unlocks a new resource (not a one-time lock).
+            Settled means the last payment delivered. Pay again anytime. Each run approves a fresh
+            USDT0 amount and unlocks a new resource (not a one-time lock).
           </p>
         )}
         </div>
         <div className="flex flex-wrap gap-2 border-t border-[var(--p-border)] px-4 py-3">
           <button type="button" onClick={onMint} className="rounded-full border border-[var(--p-border)] px-4 py-2 text-sm text-[var(--p-muted)] hover:border-signal/40">
-            Mint test USDT0
+            Get Coston2 USDT0
           </button>
           <button
             type="button"
@@ -1355,7 +1355,7 @@ export function ActionCard({
             }}
             className="rounded-full bg-signal px-5 py-2 text-sm font-medium text-ink disabled:opacity-40"
           >
-            {busy ? "Signing…" : isSettled ? "Pay again" : "Pay & run"}
+            {busy ? "Approving…" : isSettled ? "Pay again" : "Pay & run"}
           </button>
         </div>
         {error && <p className="px-4 pb-3 text-xs text-[var(--p-danger)]">{error}</p>}

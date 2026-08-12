@@ -3,10 +3,10 @@
  * Uses live Coston2 contracts + Supabase + Redis. No frontend.
  */
 import "dotenv/config";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import pg from "pg";
 import { Redis } from "@upstash/redis";
-import { JsonRpcProvider, Wallet, Contract, TypedDataEncoder, getBytes, Signature } from "ethers";
+import { JsonRpcProvider, Wallet, Contract } from "ethers";
 import { runPipeline } from "@beacon/pipeline";
 import { runAcceptance } from "@beacon/acceptance";
 import { JobStatus, transition, newId } from "@beacon/shared";
@@ -21,16 +21,13 @@ const TOKEN = process.env.X402_TOKEN_ADDRESS!;
 const ESCROW = process.env.BEACON_ESCROW!;
 const PK = process.env.DEPLOYER_PRIVATE_KEY!;
 
-const MOCK_ABI = [
-  "function mint(address to, uint256 amount)",
+const TOKEN_ABI = [
   "function balanceOf(address) view returns (uint256)",
-  "function name() view returns (string)",
-  "function version() view returns (string)",
-  "function transferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce,bytes signature) returns (bool)",
+  "function approve(address spender, uint256 amount) returns (bool)",
 ];
 
 const ESCROW_ABI = [
-  "function lockWithAuthorization(bytes32 jobId,address payer,uint256 amount,uint256 validAfter,uint256 validBefore,bytes32 nonce,bytes signature)",
+  "function lockFrom(bytes32 jobId, address payer, uint256 amount)",
   "function releaseToPayee(bytes32 jobId)",
   "function refund(bytes32 jobId)",
   "function locks(bytes32) view returns (address payer,uint256 amount,bool released,bool refunded)",
@@ -53,13 +50,16 @@ async function main() {
 
   const provider = new JsonRpcProvider(RPC);
   const wallet = new Wallet(PK, provider);
-  const token = new Contract(TOKEN, MOCK_ABI, wallet);
+  const token = new Contract(TOKEN, TOKEN_ABI, wallet);
   const escrow = new Contract(ESCROW, ESCROW_ABI, wallet);
 
-  // Mint test tokens to payer
-  const mintTx = await token.mint(wallet.address, 100_000_000); // 100 USDT0
-  await mintTx.wait();
-  console.log("minted MockUSDT0 to", wallet.address, "bal", (await token.balanceOf(wallet.address)).toString());
+  const bal = await token.balanceOf(wallet.address);
+  console.log("faucet USDT0 balance", wallet.address, bal.toString());
+  if (bal === 0n) {
+    throw new Error(
+      "No Coston2 USDT0. Claim from https://faucet.flare.network/coston2 — this script does not mint.",
+    );
+  }
 
   // Create user + job
   const userId = newId();
@@ -102,51 +102,21 @@ async function main() {
   await pool.query(`UPDATE jobs SET status=$2 WHERE id=$1`, [jobId, JobStatus.QUOTED]);
   console.log("quoted", quote.priceDisplay, "offer", offer.offerId);
 
-  // On-chain lock via EIP-3009 into escrow
+  // On-chain lock via ERC-20 approve + lockFrom (faucet USDT0 has no EIP-3009)
   const amount = BigInt(offer.priceUsdt0);
   const jobHash = jobIdToBytes32(jobId);
-  const validAfter = BigInt(Math.floor(Date.now() / 1000) - 60);
-  const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600);
-  const nonce = ("0x" + randomBytes(32).toString("hex")) as `0x${string}`;
-
-  const domain = {
-    name: await token.name(),
-    version: await token.version(),
-    chainId: 114,
-    verifyingContract: TOKEN,
-  };
-  const types = {
-    TransferWithAuthorization: [
-      { name: "from", type: "address" },
-      { name: "to", type: "address" },
-      { name: "value", type: "uint256" },
-      { name: "validAfter", type: "uint256" },
-      { name: "validBefore", type: "uint256" },
-      { name: "nonce", type: "bytes32" },
-    ],
-  };
-  const message = {
-    from: wallet.address,
-    to: ESCROW,
-    value: amount,
-    validAfter,
-    validBefore,
-    nonce,
-  };
-  const signature = await wallet.signTypedData(domain, types, message);
-
-  const lockTx = await escrow.lockWithAuthorization(
-    jobHash,
-    wallet.address,
-    amount,
-    validAfter,
-    validBefore,
-    nonce,
-    signature,
-  );
+  if (bal < amount) {
+    throw new Error(
+      `Need ${amount} raw USDT0, have ${bal}. Claim from https://faucet.flare.network/coston2`,
+    );
+  }
+  const approveTx = await token.approve(ESCROW, amount);
+  await approveTx.wait();
+  const lockTx = await escrow.lockFrom(jobHash, wallet.address, amount);
   const lockReceipt = await lockTx.wait();
   console.log("escrow locked", lockReceipt?.hash);
 
+  const validBefore = Math.floor(Date.now() / 1000) + 3600;
   await pool.query(
     `INSERT INTO authorizations (offer_id, user_id, eip3009_payload, valid_before, status)
      VALUES ($1,$2,$3::jsonb,to_timestamp($4),'active')`,
@@ -154,16 +124,14 @@ async function main() {
       offer.offerId,
       userId,
       JSON.stringify({
+        mode: "erc20-pull",
         payer: wallet.address,
         payee: ESCROW,
         amount: amount.toString(),
-        validAfter: validAfter.toString(),
-        validBefore: validBefore.toString(),
-        nonce,
-        signature,
+        lockTxHash: lockReceipt?.hash,
         jobHash,
       }),
-      Number(validBefore),
+      validBefore,
     ],
   );
   await pool.query(`UPDATE jobs SET status=$2 WHERE id=$1`, [jobId, JobStatus.AUTHORIZED]);

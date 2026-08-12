@@ -18,7 +18,7 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
   },
   {
     name: "get_balance",
-    description: "Get MockUSDT0 balance available in the Beacon Safe prepaid pool.",
+    description: "Get Coston2 USDT0 balance available in the Beacon Safe prepaid pool.",
     scope: "read:portfolio",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
@@ -100,7 +100,7 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
   {
     name: "swap",
     description:
-      "Beacon Safe swap on Coston2: spend MockUSDT0 from Safe → FXRP via swap desk (no MetaMask). Same as Flow Swap. amountUsdt0 is MockUSDT0 in.",
+      "Beacon Safe swap on Coston2: spend USDT0 from Safe → FXRP via swap desk (no MetaMask). Same as Flow Swap. amountUsdt0 is Coston2 faucet USDT0 in.",
     scope: "exec:swap",
     inputSchema: {
       type: "object",
@@ -115,7 +115,7 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
   {
     name: "bridge",
     description:
-      "Beacon Agent OFT bridge (Flow Bridge): send FXRP from Coston2 to a live LayerZero peer. Destination is the peer chain name (e.g. Sepolia). Policy spend is evaluated on Coston2; Sepolia does NOT need to be in allowedChains. May auto top-up FXRP from Safe MockUSDT0.",
+      "Beacon Agent OFT bridge (Flow Bridge): send FXRP from Coston2 to a live LayerZero peer. Destination is the peer chain name (e.g. Sepolia). Policy spend is evaluated on Coston2; Sepolia does NOT need to be in allowedChains. May auto top-up FXRP from Safe USDT0.",
     scope: "exec:bridge",
     inputSchema: {
       type: "object",
@@ -170,7 +170,7 @@ export const MCP_TOOL_DEFS: McpToolDef[] = [
   {
     name: "x402_pay",
     description:
-      "Fetch x402 payment requirements for a Flow paid resource (returns 402 fields). Settlement still needs owner EIP-3009 in Flow when required.",
+      "Fetch x402 payment requirements for a Flow paid resource (returns 402 fields). Settlement still needs owner USDT0 approve in Flow when required.",
     scope: "exec:x402",
     inputSchema: {
       type: "object",

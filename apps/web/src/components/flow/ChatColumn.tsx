@@ -6,7 +6,6 @@ import type { ChatMsg, ConvState, PaidResendMeta } from "@/lib/flowTypes";
 
 type Balances = {
   usdt0: { formatted: string };
-  mockUsdt0?: { formatted: string } | null;
   fxrp: { formatted: string };
 } | null;
 

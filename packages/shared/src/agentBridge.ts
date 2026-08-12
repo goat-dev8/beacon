@@ -1,11 +1,11 @@
 /**
  * Beacon Agent OFT bridge — executor signs FXRP approve + LayerZero send on Coston2.
  *
- * Why MetaMask showed up before: Beacon Safe holds MockUSDT0 only; OFT needs FXRP +
+ * Why MetaMask showed up before: Beacon Safe holds USDT0; OFT needs FXRP +
  * native C2FLR msg.value. Safe cannot pay LZ fees. This path uses the allowlisted
  * executor EOA (same key as Safe spend) when it holds FXRP + C2FLR — no MetaMask.
  *
- * Optional hop: spend MockUSDT0 from Safe → desk FXRP to executor → then OFT send.
+ * Optional hop: spend USDT0 from Safe → desk FXRP to executor → then OFT send.
  */
 
 import { Contract, JsonRpcProvider, Wallet, formatEther, formatUnits, parseUnits } from "ethers";
@@ -70,13 +70,13 @@ export async function prepareBeaconAgentBridge(
     amountFxrpUnits: string;
     recipient: string;
     destination: string;
-    /** If true (default when Safe funded), spend MockUSDT0→FXRP to executor first. */
+    /** If true (default when Safe funded), spend USDT0→FXRP to executor first. */
     preferSafeFunding?: boolean;
   },
   env: BeaconEnv = loadEnv(),
 ): Promise<AgentBridgeQuote> {
   const honesty =
-    "Beacon Agent OFT: executor signs on Coston2 (FXRP + C2FLR fee). Beacon Safe is MockUSDT0-only — LZ msg.value cannot come from the Safe token vault. No MetaMask when executor is funded.";
+    "Beacon Agent OFT: executor signs on Coston2 (FXRP + C2FLR fee). Beacon Safe holds USDT0 — LZ msg.value cannot come from the Safe token vault. No MetaMask when executor is funded.";
 
   const key = executorKey(env);
   const exec = executorAddress(env);
@@ -309,7 +309,7 @@ export async function agentBridgeReadiness(env: BeaconEnv = loadEnv()): Promise<
 }> {
   const exec = executorAddress(env);
   const honesty =
-    "Agent bridge readiness: executor FXRP + C2FLR for OFT; Safe MockUSDT0 can top up FXRP via desk.";
+    "Agent bridge readiness: executor FXRP + C2FLR for OFT; Safe USDT0 can top up FXRP via desk.";
   if (!exec) {
     return { executor: null, fxrp: "0", c2flr: "0", safeConfigured: false, safeBalance: "0", honesty };
   }

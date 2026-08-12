@@ -30,12 +30,12 @@ function localResearchBrief(topic: string, ftsoLine: string): string {
     topic,
     ``,
     `Executive snapshot`,
-    `Beacon delivers this paid brief on Flare Coston2 after an EIP-3009 x402 settle in MockUSDT0. The scope is builder-facing: what is live today, what to verify on explorer / docs, and where micropay fits.`,
+    `Beacon delivers this paid brief on Flare Coston2 after an x402 settle in official faucet USDT0. The scope is builder-facing: what is live today, what to verify on explorer / docs, and where micropay fits.`,
     ftsoLine ? `\nLive FTSO context\n${ftsoLine}` : "",
     ``,
     `Key points`,
     `1. FTSO V2 feeds are the signal layer for pricing and bias. Prefer live reads over static screenshots.`,
-    `2. SparkDEX USDT0→FXRP is the DeFi path. Beacon MockUSDT0 is only for x402 / Bound Work escrow, not SparkDEX liquidity.`,
+    `2. SparkDEX USDT0→FXRP is the DeFi path on Flare Mainnet. Beacon Coston2 USDT0 is the faucet ERC-20 for x402 / Agent Jobs escrow — not SparkDEX liquidity.`,
     `3. LayerZero OFT moves FXRP off Coston2. Quote messaging fees with quoteSend, then approve + send. Destination fill is confirmed on LayerZero Scan, not invented by Beacon.`,
     `4. x402 micropays unlock small resources (signals pack, logo still, research brief). Larger creative jobs should use Bound Work escrow.`,
     `5. Security Center spend limits are server-enforced when Redis is configured. Pause anytime.`,
@@ -43,7 +43,7 @@ function localResearchBrief(topic: string, ftsoLine: string): string {
     `Risks and unknowns`,
     `- Testnet liquidity and OFT peer availability can change. Re-quote before every send.`,
     `- Model narration can fail. Settlement is still on-chain. Re-open the receipt tx if the brief UI glitches.`,
-    `- Never treat MockUSDT0 balances as SparkDEX USDT0.`,
+    `- Never treat Coston2 faucet USDT0 as Flare Mainnet SparkDEX USDT0.`,
     ``,
     `Source checklist (search these, do not invent URLs)`,
     `- Flare Developer Hub · network Coston2 developer tools`,
@@ -103,14 +103,14 @@ export async function generateResearchBrief(opts: {
       [
         {
           role: "system",
-          content: `You are Beacon Research on Flare. The user already paid via x402 (EIP-3009 MockUSDT0 on Coston2).
+          content: `You are Beacon Research on Flare. The user already paid via x402 (Coston2 faucet USDT0).
 Write a REAL research brief they can use. Not a status line. Not "unlocked" marketing copy.
 
 Hard rules:
 - Structure with short plain headings (no markdown # required): Topic, Executive snapshot, Key points (5-8 bullets), Risks, Source checklist, Next step.
 - Source checklist must be search queries / official doc names only. Never invent URLs or paper titles you cannot verify.
 - If live FTSO context is provided, weave 1-2 sentences from it. Do not invent feed values.
-- Stay concrete about Flare primitives: FTSO, FAssets/FXRP, SparkDEX USDT0 vs Beacon MockUSDT0, LayerZero OFT, x402.
+- Stay concrete about Flare primitives: FTSO, FAssets/FXRP, SparkDEX mainnet USDT0 vs Coston2 faucet USDT0, LayerZero OFT, x402.
 - Warm, clear, concise. No AgentRouter, API keys, or internal errors.`,
         },
         {

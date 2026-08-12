@@ -15,6 +15,7 @@ import { runAcceptance } from "@beacon/acceptance";
 import { buildReceipt } from "@beacon/receipts";
 import { JsonRpcProvider, Wallet, Contract } from "ethers";
 import { FacilitatorClient } from "@beacon/x402";
+import { reverseSpendUsdt0 } from "./securityPolicy.js";
 
 interface JobRow {
   id: string;
@@ -367,6 +368,32 @@ async function refuseJob(db: pg.Pool, redis: Redis, jobId: string): Promise<void
         const receipt = await tx.wait();
         refundTx = receipt?.hash ?? tx.hash;
         console.log("[workers] escrow refunded", jobId, refundTx);
+        try {
+          const auth = await db.query(
+            `SELECT a.eip3009_payload
+             FROM authorizations a
+             JOIN offers o ON o.id = a.offer_id
+             WHERE o.job_id = $1
+             ORDER BY a.id DESC
+             LIMIT 1`,
+            [jobId],
+          );
+          const payload = auth.rows[0]?.eip3009_payload as
+            | { ownerWallet?: string; payer?: string }
+            | undefined;
+          const wallet = payload?.ownerWallet || payload?.payer;
+          const priceRaw = row?.price_usdt0;
+          const amountUsdt0 =
+            typeof priceRaw === "bigint" || typeof priceRaw === "number" || /^\d+$/.test(String(priceRaw ?? ""))
+              ? Number(priceRaw) / 1e6
+              : Number(String(priceRaw ?? "0").replace(/[^0-9.]/g, "")) || 0;
+          if (wallet && amountUsdt0 > 0) {
+            await reverseSpendUsdt0(redis, wallet, amountUsdt0);
+            console.log("[workers] reversed Redis spend window", jobId, wallet, amountUsdt0);
+          }
+        } catch (revErr) {
+          console.error("[workers] spend reverse error", jobId, revErr);
+        }
       }
     } catch (err) {
       console.error("[workers] escrow refund error", jobId, err);

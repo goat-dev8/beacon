@@ -3,7 +3,6 @@ import { shortAddress } from "@/lib/wallet";
 
 type Balances = {
   usdt0: { formatted: string };
-  mockUsdt0?: { formatted: string } | null;
   fxrp: { formatted: string };
 } | null;
 
@@ -76,14 +75,6 @@ export function ChatTopBar({
             <span>
               <span className="text-[var(--p-faint)]">USDT0</span> {balances.usdt0.formatted}
             </span>
-            {balances.mockUsdt0 && (
-              <>
-                <span className="text-[var(--p-faint)]">·</span>
-                <span>
-                  <span className="text-[var(--p-faint)]">Mock</span> {balances.mockUsdt0.formatted}
-                </span>
-              </>
-            )}
             <span className="text-[var(--p-faint)]">·</span>
             <span>
               <span className="text-[var(--p-faint)]">FXRP</span> {balances.fxrp.formatted}

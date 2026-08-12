@@ -28,7 +28,7 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
   {
     id: "swap",
     title: "Swap",
-    blurb: "Spend MockUSDT0 from Beacon Safe into FXRP on Coston2 — agent executes, no MetaMask popup.",
+    blurb: "Spend USDT0 from Beacon Safe into FXRP on Coston2 — agent executes, no MetaMask popup.",
     prompt: "Swap 1 USDT0 to FXRP from Beacon Safe",
     icon: ArrowLeftRight,
     accent: true,
@@ -44,7 +44,7 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
   {
     id: "x402",
     title: "x402",
-    blurb: "Pay for agent work with EIP-3009 settle and an on-chain receipt.",
+    blurb: "Pay for agent work with Coston2 USDT0 settle and an on-chain receipt.",
     prompt: "Pay using x402",
     icon: Wallet,
     accent: true,

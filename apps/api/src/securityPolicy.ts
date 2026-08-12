@@ -17,7 +17,7 @@ export type BeaconSecurityPolicy = {
 };
 
 /**
- * Defaults match Beacon Safe factory on-chain caps (10 MockUSDT0 per tx / 50 rolling)
+ * Defaults match Beacon Safe factory on-chain caps (10 USDT0 per tx / 50 rolling)
  * and Flare Coston2 demos that swap 1 USDT0. The old 5 / 0.1 pair blocked first Flow swaps.
  */
 export const DEFAULT_SECURITY_POLICY: BeaconSecurityPolicy = {
@@ -158,6 +158,21 @@ export async function recordSpendUsdt0(
   redisRequiredForSpend(redis);
   const key = spendKey(wallet);
   const next = (await getDailySpendUsdt0(redis, wallet)) + amountUsdt0;
+  await redis.set(key, next, { ex: 60 * 60 * 36 });
+  return next;
+}
+
+/** Reverse a recorded spend after an on-chain job refund (same UTC day window). */
+export async function reverseSpendUsdt0(
+  redis: Redis | null,
+  wallet: string,
+  amountUsdt0: number,
+): Promise<number> {
+  if (amountUsdt0 <= 0) return 0;
+  if (!redis) return 0;
+  const key = spendKey(wallet);
+  const current = await getDailySpendUsdt0(redis, wallet);
+  const next = Math.max(0, current - amountUsdt0);
   await redis.set(key, next, { ex: 60 * 60 * 36 });
   return next;
 }

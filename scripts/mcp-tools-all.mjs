@@ -96,7 +96,13 @@ async function mcp(method, params) {
     },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
-  const body = await res.json();
+  const text = await res.text();
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    body = { parseError: true, raw: text.slice(0, 200) };
+  }
   return { status: res.status, body };
 }
 
@@ -157,6 +163,8 @@ await call("get_activity", { limit: 5 });
 await call("get_supported_actions");
 await call("get_signals");
 await call("get_fassets");
+await call("get_yield");
+await call("get_bridge_routes");
 await call("get_job", { jobId: "job_test_placeholder_xx" });
 await call("get_job_status", { jobId: "job_test_placeholder_xx" });
 await call("get_execution", { executionId: "exec_test" });
@@ -185,13 +193,13 @@ if (swap.parsed?.ok) {
   );
 }
 
-const bridge = await call("bridge", { amountUsdt0: 0.5, destination: "Sepolia" });
+const bridge = await call("bridge", { amountFxrp: 0.5, destination: "Sepolia" });
 console.log(
   "INFO",
   "bridge",
   bridge.parsed?.ok === true
-    ? "ok"
-    : (bridge.parsed?.error || bridge.parsed?.message || "").toString().slice(0, 120),
+    ? `ok ${bridge.parsed?.sendHash || ""}`
+    : (bridge.parsed?.error || bridge.parsed?.message || bridge.parsed?.raw || "").toString().slice(0, 160),
 );
 
 const test = await (

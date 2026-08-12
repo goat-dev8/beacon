@@ -2,10 +2,11 @@
  * Safe-funded Bound Work lock — Beacon Safe → Escrow without MetaMask per job.
  *
  * Protocol honesty:
- * - EIP-3009 is NOT forged. Deposit to Safe still uses EIP-3009 (official Flare gasless pattern).
- * - Flare Smart Accounts (XRPL personal accounts) are a different product — not used here.
+ * - Live Coston2 USDT0 is the official faucet ERC-20 (no EIP-3009).
+ * - Deposit to Safe uses approve + deposit (transferFrom).
  * - This path: vault.execute(token.transfer(escrow)) then escrow.lockPrepaid(jobId, vault, amount).
- * - Refunds return MockUSDT0 to the Safe (payer = vault address).
+ * - Refunds return USDT0 to the Safe (payer = vault address).
+ * - Flare Smart Accounts (XRPL personal accounts) are a different product — not used here.
  */
 
 import { Contract, Interface, JsonRpcProvider, Wallet, parseUnits } from "ethers";
@@ -193,6 +194,6 @@ export async function executeSafeJobLock(
     explorerSpend: `${COSTON2_EXPLORER_VAULT}/tx/${spendTxHash}`,
     explorerLock: `${COSTON2_EXPLORER_VAULT}/tx/${lockTxHash}`,
     honesty:
-      "Safe path: vault.execute(transfer→escrow) + escrow.lockPrepaid. No MetaMask. EIP-3009 only used when funding the Safe.",
+      "Safe path: vault.execute(transfer→escrow) + escrow.lockPrepaid. No MetaMask. Wallet fallback uses ERC-20 lockFrom.",
   };
 }

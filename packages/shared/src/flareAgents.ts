@@ -68,7 +68,7 @@ export const BEACON_AGENTS: AgentDef[] = [
   { id: "yield", name: "Yield", blurb: "On-chain yield rails only — never invents APY.", builtIn: true, x402PriceUsdt0: 0, mention: "@yield", flarePrimitive: "FXRP yield rails" },
   { id: "risk", name: "Risk", blurb: "FTSO bias + policy posture.", builtIn: true, x402PriceUsdt0: 0, mention: "@risk", flarePrimitive: "FTSO" },
   { id: "treasury", name: "Treasury", blurb: "Verified-read policy budget view (same Coston2 desk as Portfolio).", builtIn: true, x402PriceUsdt0: 0, mention: "@treasury", flarePrimitive: "x402 + FTSO" },
-  { id: "pay", name: "Pay x402", blurb: "EIP-3009 micropay.", builtIn: true, x402PriceUsdt0: 0, mention: "@pay", flarePrimitive: "x402" },
+  { id: "pay", name: "Pay x402", blurb: "USDT0 micropay.", builtIn: true, x402PriceUsdt0: 0, mention: "@pay", flarePrimitive: "x402" },
   { id: "trade", name: "Trade", blurb: "Signals → swap.", builtIn: true, x402PriceUsdt0: 0, mention: "@trade", flarePrimitive: "FTSO + SparkDEX" },
   { id: "desk", name: "Bound Work", blurb: "Escrow creative jobs.", builtIn: true, x402PriceUsdt0: 0, mention: "@desk", flarePrimitive: "x402 escrow" },
   { id: "image", name: "Image", blurb: "Creative generation.", builtIn: true, x402PriceUsdt0: 0, mention: "@image", flarePrimitive: "x402" },
@@ -648,7 +648,7 @@ async function narrate(opts: {
 Speak like Claude/ChatGPT: warm, clear, concise. Never invent transaction hashes.
 Never mention AgentRouter, providers keys, APIs, calldata, HTML, or internal errors.
 Never dump addresses unless the user asks. Prefer natural language.
-MockUSDT0 is for Beacon pay/escrow and Beacon Safe spends on Coston2. Prefer Safe desk swaps on Coston2 (no MetaMask). SparkDEX Uniswap V3 execute is Flare Mainnet EOA-only when the user explicitly asks for Mainnet DEX.
+USDT0 is for Beacon pay/escrow and Beacon Safe spends on Coston2. Prefer Safe desk swaps on Coston2 (no MetaMask). SparkDEX Uniswap V3 execute is Flare Mainnet EOA-only when the user explicitly asks for Mainnet DEX.
 Pipeline: Intent → Clarify → Quote → Policy → Pay → Execute → Observe → Receipt → History → Resume.
 Situation for this turn:\n${opts.situation}`,
       },
@@ -710,7 +710,7 @@ export async function fulfillPaidResource(opts: {
       "",
       "Trading notes",
       "1. Prefer live FTSO reads over screenshots for size decisions.",
-      "2. SparkDEX USDT0→FXRP is the DeFi path; MockUSDT0 is for x402 / escrow only.",
+      "2. SparkDEX USDT0→FXRP is the DeFi path; USDT0 is for x402 / escrow only.",
       "3. Cross-check explorer settlement after any paid unlock.",
       "",
       txHint ? `Settlement · ${txHint}` : "Settlement · confirmed via facilitator",
@@ -866,16 +866,16 @@ export async function runBeaconAgentChat(opts: {
         title: "Beacon Safe",
         href: "/flow/security",
         summary:
-          "Deposit USDT0 with one MetaMask EIP-3009 signature. Anyone can fund; withdraw and spend policy stay owner-only.",
+          "Deposit USDT0 with MetaMask approve + deposit. Anyone can fund; withdraw and spend policy stay owner-only.",
       },
     ];
     const narr = await narrate({
       intent: "general",
       userMessage: opts.message,
       situation:
-        "User wants to fund Beacon Safe and/or set spend policy. Guide them to /flow/security. EIP-3009 deposit (no approve). MockUSDT0 on Coston2. Do not start a SparkDEX swap.",
+        "User wants to fund Beacon Safe and/or set spend policy. Guide them to /flow/security. Approve + deposit Coston2 USDT0. Do not start a SparkDEX swap.",
       fallback:
-        "Open **Beacon Safe** to deposit USDT0 with one MetaMask signature (EIP-3009). Anyone can fund the prepaid pool; withdraw and spend policy stay with the Safe owner.",
+        "Open **Beacon Safe** to deposit Coston2 USDT0 (approve + deposit). Anyone can fund the prepaid pool; withdraw and spend policy stay with the Safe owner.",
       env,
     });
     return {
@@ -977,7 +977,7 @@ export async function runBeaconAgentChat(opts: {
         intent: "swap",
         userMessage: opts.message,
         situation: `User asked for SparkDEX pair discovery only. Network=${dep.network}. ${dep.honesty}`,
-        fallback: `SparkDEX liquid pairs are on **Flare Mainnet** only. Coston2 x402 uses **MockUSDT0** (pay/escrow), not SparkDEX. ${dep.honesty}`,
+        fallback: `SparkDEX liquid pairs are on **Flare Mainnet** only. Coston2 x402 uses **USDT0** (pay/escrow), not SparkDEX. ${dep.honesty}`,
         env,
       });
       return {
@@ -1100,8 +1100,8 @@ export async function runBeaconAgentChat(opts: {
       const narr = await narrate({
         intent: "swap",
         userMessage: opts.message,
-        situation: `Ask amount. Beacon Safe balance ${safeBalDisplay} MockUSDT0. Prefer Coston2 Safe path when funded; SparkDEX is Mainnet-only.`,
-        fallback: `Beacon Safe holds **${safeBalDisplay} MockUSDT0**. Say e.g. **swap 1 USDT0 to FXRP** — if Safe is funded, the agent spends on **Coston2** (no MetaMask Mainnet). SparkDEX remains Mainnet-only for EOA pairs.`,
+        situation: `Ask amount. Beacon Safe balance ${safeBalDisplay} USDT0. Prefer Coston2 Safe path when funded; SparkDEX is Mainnet-only.`,
+        fallback: `Beacon Safe holds **${safeBalDisplay} USDT0**. Say e.g. **swap 1 USDT0 to FXRP** — if Safe is funded, the agent spends on **Coston2** (no MetaMask Mainnet). SparkDEX remains Mainnet-only for EOA pairs.`,
         env,
       });
       return {
@@ -1156,8 +1156,8 @@ export async function runBeaconAgentChat(opts: {
           const narr = await narrate({
             intent: "swap",
             userMessage: opts.message,
-            situation: `Safe quote ${amount} MockUSDT0 → ~${safeQuote.estimatedOut} FXRP on Coston2. No MetaMask. Ask confirm.`,
-            fallback: `Beacon Safe quote: **${amount} MockUSDT0 ≈ ${safeQuote.estimatedOut} FXRP** on **Coston2** (FTSO-synced desk).\n\nLive market data protects this execution (FTSO age ${safeQuote.ftsoGuard.feedAge}s).\n\n${safeQuote.honesty}\n\nReply **confirm** — agent spends from Safe (no MetaMask).`,
+            situation: `Safe quote ${amount} USDT0 → ~${safeQuote.estimatedOut} FXRP on Coston2. No MetaMask. Ask confirm.`,
+            fallback: `Beacon Safe quote: **${amount} USDT0 ≈ ${safeQuote.estimatedOut} FXRP** on **Coston2** (FTSO-synced desk).\n\nLive market data protects this execution (FTSO age ${safeQuote.ftsoGuard.feedAge}s).\n\n${safeQuote.honesty}\n\nReply **confirm** — agent spends from Safe (no MetaMask).`,
             env,
           });
           return {
@@ -1229,7 +1229,7 @@ export async function runBeaconAgentChat(opts: {
         const narr = await narrate({
           intent: "swap",
           userMessage: opts.message,
-          situation: `Prepared Safe spend ${finalAmount} MockUSDT0→FXRP on Coston2. No MetaMask.`,
+          situation: `Prepared Safe spend ${finalAmount} USDT0→FXRP on Coston2. No MetaMask.`,
           fallback: `Prepared. Tap **Execute from Beacon Safe** — agent spends on **Coston2** (no MetaMask, no Mainnet).`,
           env,
         });
@@ -1261,7 +1261,7 @@ export async function runBeaconAgentChat(opts: {
           intent: "swap",
           userMessage: opts.message,
           situation: `Safe path failed: ${safeQuote.error}. Stay on Coston2 — do not push Mainnet switch as the primary fix.`,
-          fallback: `${safeQuote.error}\n\nDeposit MockUSDT0 to **Beacon Safe** and set spend caps (or ask desk to sync policy). We stay on **Coston2** — SparkDEX Mainnet is disabled for this Flow.`,
+          fallback: `${safeQuote.error}\n\nDeposit USDT0 to **Beacon Safe** and set spend caps (or ask desk to sync policy). We stay on **Coston2** — SparkDEX Mainnet is disabled for this Flow.`,
           env,
         });
         return {
@@ -1283,7 +1283,7 @@ export async function runBeaconAgentChat(opts: {
         type: "insufficient",
         title: "Stay on Flare Testnet Coston2",
         summary:
-          "Beacon Flow does not switch to Flare Mainnet. Fund Beacon Safe for MockUSDT0→FXRP on Coston2, or use a different Coston2 rail.",
+          "Beacon Flow does not switch to Flare Mainnet. Fund Beacon Safe for USDT0→FXRP on Coston2, or use a different Coston2 rail.",
         faucetHref: "/flow/security",
       });
       const narr = await narrate({
@@ -2036,7 +2036,7 @@ export async function runBeaconAgentChat(opts: {
             fxrpBalance: agentQ.executorFxrpDisplay,
             network: "Flare Testnet Coston2",
             note: agentQ.fromSafe
-              ? `Safe top-up ~${agentQ.safeSpendUsdt0} MockUSDT0→FXRP, then agent OFT. Fee ≈ ${agentQ.nativeFeeDisplay}. No MetaMask.`
+              ? `Safe top-up ~${agentQ.safeSpendUsdt0} USDT0→FXRP, then agent OFT. Fee ≈ ${agentQ.nativeFeeDisplay}. No MetaMask.`
               : `Agent executor OFT send. Fee ≈ ${agentQ.nativeFeeDisplay}. No MetaMask.`,
             mode: "beacon_agent",
             requiresMetaMask: false,
@@ -2148,7 +2148,7 @@ export async function runBeaconAgentChat(opts: {
           sendData: agentPrep.sendData,
           docs: agentPrep.docs,
           warning: agentPrep.fromSafe
-            ? `Safe ~${agentPrep.safeSpendUsdt0} MockUSDT0→FXRP, then agent OFT ${finalAmount} FXRP→${dest}. Fee ≈ ${agentPrep.nativeFeeDisplay}. No MetaMask.`
+            ? `Safe ~${agentPrep.safeSpendUsdt0} USDT0→FXRP, then agent OFT ${finalAmount} FXRP→${dest}. Fee ≈ ${agentPrep.nativeFeeDisplay}. No MetaMask.`
             : `Agent OFT ${finalAmount} FXRP→${dest}. Fee ≈ ${agentPrep.nativeFeeDisplay}. No MetaMask.`,
           layerZeroScanBase: agentPrep.layerZeroScanBase,
           deliveryHint: agentPrep.deliveryHint,
@@ -2351,7 +2351,7 @@ export async function runBeaconAgentChat(opts: {
         intent: "image",
         userMessage: opts.message,
         situation: `Brief ready. Quote ${res.priceUsdt0} USDT0 via x402. Provider ${res.provider}. ETA ~${res.etaSeconds}s. After payment, generate immediately.`,
-        fallback: `Creative brief locked.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} MockUSDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay & run to generate, or Bound Work for a larger escrowed pack.`,
+        fallback: `Creative brief locked.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} USDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay & run to generate, or Bound Work for a larger escrowed pack.`,
         env,
       });
       return {
@@ -2431,7 +2431,7 @@ export async function runBeaconAgentChat(opts: {
         intent: "research",
         userMessage: opts.message,
         situation: `Scope ready. Quote $${res.priceUsdt0} research brief via x402. Deliver after payment.`,
-        fallback: `Scope locked.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} MockUSDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay & run for the brief, larger packs use Bound Work escrow.`,
+        fallback: `Scope locked.\n\n**Provider:** ${res.provider}\n**Price:** $${res.priceUsdt0} USDT0 (x402)\n**Why:** ${res.reason}\n**ETA:** ~${res.etaSeconds}s\n\nPay & run for the brief, larger packs use Bound Work escrow.`,
         env,
       });
       return {
@@ -2527,9 +2527,9 @@ export async function runBeaconAgentChat(opts: {
       intent: "pay",
       userMessage: opts.message,
       situation:
-        "Present the payable Beacon resources with provider, price, reason, ETA. No orphan $0.10 buttons. MockUSDT0 for x402.",
+        "Present the payable Beacon resources with provider, price, reason, ETA. No orphan $0.10 buttons. USDT0 for x402.",
       fallback:
-        "Every payment buys a real resource:\n• FTSO deep pack · $0.25\n• Logo still · $0.50\n• Research brief · $0.75\n\nPick one, EIP-3009 x402 on Coston2 (MockUSDT0).",
+        "Every payment buys a real resource:\n• FTSO deep pack · $0.25\n• Logo still · $0.50\n• Research brief · $0.75\n\nPick one, x402 on Coston2 USDT0 (approve + facilitator pull).",
       env,
     });
     return {

@@ -104,7 +104,7 @@ export async function readPortfolioDesk(
     totalUsd: Number(totalUsd.toFixed(4)),
     ftso: snap.feeds.map((f) => ({ symbol: f.symbol, value: f.value })),
     honesty:
-      "Balances are live Coston2 reads. USD marks use FTSO (FXRP≈XRP, WNat≈FLR). MockUSDT0 is for x402/escrow only.",
+      "Balances are live Coston2 reads. USD marks use FTSO (FXRP≈XRP, WNat≈FLR). USDT0 is official faucet testnet USDT0 for Safe/Jobs/x402.",
     recommended,
   };
 }

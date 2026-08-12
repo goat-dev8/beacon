@@ -1,5 +1,7 @@
 # Research: Faucet USDT0 vs Beacon MockUSDT0 (Coston2)
 
+> **SUPERSEDED 2026-08-12.** Live Beacon Safe / Jobs / Flow / x402 now use official Coston2 faucet USDT0 `0xC1A5B41512496B80903D1f32d6dEa3a73212E71F` (ERC-20 approve + `deposit` / `lockFrom` / `settleTransferFrom`). Fixture MockUSDT0 remains tests-only. This file is kept as the historical decision record — do not treat the “Keep MockUSDT0” verdict as current product policy.
+
 Date: 2026-08-09  
 Scope: Should Beacon Safe / Jobs / x402 switch from MockUSDT0 to faucet “real” USDT0?
 

@@ -25,7 +25,7 @@ const STAGES = [
   {
     id: "pay",
     title: "Pay",
-    body: "x402 settles MockUSDT0 with EIP-3009. Jobs prefer Safe prepaid escrow; wallet auth stays fallback.",
+    body: "x402 settles Coston2 USDT0 with an ERC-20 approve + facilitator pull. Jobs prefer Safe prepaid escrow; wallet auth stays fallback.",
     rail: "x402",
   },
   {

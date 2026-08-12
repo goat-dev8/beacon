@@ -5,14 +5,17 @@ import {IEIP3009} from "./interfaces/IEIP3009.sol";
 
 interface IERC20Transfer {
     function transfer(address to, uint256 amount) external returns (bool);
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
     function balanceOf(address account) external view returns (uint256);
 }
 
 /// @title BeaconEscrow — lock USDT0 on authorize, release or refund by outcome
-/// @notice Two compliant lock paths:
-/// 1) `lockWithAuthorization` — EIP-3009 payer signature (official Flare x402 pattern)
-/// 2) `lockPrepaid` — tokens already transferred in (e.g. Beacon Safe vault.execute transfer);
-///    owner/settler records the lock. Refunds return to `payer` (the Safe). No forged EIP-3009.
+/// @notice Three compliant lock paths:
+/// 1) `lockFrom` — ERC-20 approve + transferFrom (official Coston2 faucet USDT0)
+/// 2) `lockPrepaid` — tokens already transferred in (Beacon Safe vault.execute transfer);
+///    owner/settler records the lock. Refunds return to `payer` (the Safe).
+/// 3) `lockWithAuthorization` — EIP-3009 (fixture MockUSDT0 / tokens that implement it).
+///    Live Coston2 faucet USDT0 does not implement EIP-3009.
 contract BeaconEscrow {
     IEIP3009 public immutable token;
     address public immutable payee;
@@ -49,6 +52,18 @@ contract BeaconEscrow {
     function freeBalance() public view returns (uint256) {
         uint256 bal = IERC20Transfer(address(token)).balanceOf(address(this));
         return bal > lockedTotal ? bal - lockedTotal : 0;
+    }
+
+    /// @notice Pull `amount` of token from `payer` (requires ERC-20 allowance to this escrow).
+    /// @dev Live Coston2 USDT0 path. Anyone may submit after the payer has approved this contract.
+    function lockFrom(bytes32 jobId, address payer, uint256 amount) external {
+        require(locks[jobId].payer == address(0), "already locked");
+        require(payer != address(0), "zero payer");
+        require(amount > 0, "zero amount");
+        require(IERC20Transfer(address(token)).transferFrom(payer, address(this), amount), "pull failed");
+        lockedTotal += amount;
+        locks[jobId] = Lock({payer: payer, amount: amount, released: false, refunded: false});
+        emit Locked(jobId, payer, amount);
     }
 
     function lockWithAuthorization(

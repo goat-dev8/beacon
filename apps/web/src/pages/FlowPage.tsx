@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "@/lib/api";
-import { mintMockUsdt0 } from "@/lib/wallet";
+import { openCoston2Faucet } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
 import { ChatColumn } from "@/components/flow/ChatColumn";
 import { HistoryRail } from "@/components/flow/HistoryRail";
@@ -415,7 +415,7 @@ export function FlowPage() {
           settledServiceIds={settledServiceIds}
           executionStates={executionStates}
           onExecutionStateChange={onExecutionStateChange}
-          onMint={() => void mintMockUsdt0()}
+          onMint={() => openCoston2Faucet()}
           onBalancesRefresh={() => {
             if (wallet) void qc.invalidateQueries({ queryKey: ["balances", wallet] });
           }}

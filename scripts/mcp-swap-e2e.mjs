@@ -25,7 +25,7 @@ const env = Object.fromEntries(
 
 const API = "https://beacon-api-97gl.onrender.com";
 const rpc = env.COSTON2_RPC_URL || "https://coston2-api.flare.network/ext/C/rpc";
-const tokenAddr = env.X402_TOKEN_ADDRESS || "0x6fd8a72a972040f3153894BBd0d829a58f1Fe86c";
+const tokenAddr = env.X402_TOKEN_ADDRESS || "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F";
 const key = env.DEPLOYER_PRIVATE_KEY.startsWith("0x")
   ? env.DEPLOYER_PRIVATE_KEY
   : `0x${env.DEPLOYER_PRIVATE_KEY}`;

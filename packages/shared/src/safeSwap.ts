@@ -1,10 +1,10 @@
 /**
- * Beacon Safe swap on Coston2 — MockUSDT0 → FXRP via BeaconCoston2SwapDesk.
+ * Beacon Safe swap on Coston2 — USDT0 → FXRP via BeaconCoston2SwapDesk.
  *
  * Why this exists: SparkDEX SwapRouter/QuoterV2 have bytecode on Flare Mainnet (14)
  * only. Coston2 published addresses are empty — forcing MetaMask to Mainnet breaks
- * the hackathon testnet desk. Live MockUSDT0 also has no approve/transferFrom, so
- * Safe spend is vault.execute(token.transfer(desk)) then desk.fulfill(...).
+ * the hackathon testnet desk. Safe spend is vault.execute(token.transfer(desk))
+ * then desk.fulfill(...). Token is official Coston2 faucet USDT0.
  */
 
 import {
@@ -101,7 +101,7 @@ export type SafeSwapQuote =
       desk: string;
       tokenIn: string;
       tokenOut: string;
-      symbolIn: "MockUSDT0";
+      symbolIn: "USDT0";
       symbolOut: "FXRP";
       amountIn: string;
       amountInDisplay: string;
@@ -151,7 +151,7 @@ export async function prepareBeaconSafeSwap(
   if (!vaultAddr) {
     return {
       ok: false,
-      error: "Beacon Safe not configured. Deposit MockUSDT0 to the Safe first.",
+      error: "Beacon Safe not configured. Deposit Coston2 USDT0 to the Safe first.",
       honesty,
     };
   }
@@ -169,7 +169,7 @@ export async function prepareBeaconSafeSwap(
   if (BigInt(status.balance) < amountIn) {
     return {
       ok: false,
-      error: `Safe balance ${status.balanceDisplay} MockUSDT0 < ${params.amountInUnits}. Deposit more or reduce size.`,
+      error: `Safe balance ${status.balanceDisplay} USDT0 < ${params.amountInUnits}. Deposit more or reduce size.`,
       honesty,
     };
   }
@@ -241,7 +241,7 @@ export async function prepareBeaconSafeSwap(
     desk: deskAddr,
     tokenIn: status.token,
     tokenOut: await resolveFxrpAddress(env),
-    symbolIn: "MockUSDT0",
+    symbolIn: "USDT0",
     symbolOut: "FXRP",
     amountIn: amountIn.toString(),
     amountInDisplay: params.amountInUnits,
@@ -479,7 +479,7 @@ export async function readSwapDeskStatus(env: BeaconEnv = loadEnv()): Promise<{
 }> {
   const address = resolveSwapDeskAddress(env);
   const honesty =
-    "Coston2 Beacon swap desk — FTSO-synced MockUSDT0→FXRP for Safe executor spends. Not SparkDEX.";
+    "Coston2 Beacon swap desk — FTSO-synced USDT0→FXRP for Safe executor spends. Not SparkDEX.";
   if (!address) return { configured: false, address: null, honesty };
   const provider = new JsonRpcProvider(env.COSTON2_RPC_URL);
   const desk = new Contract(address, DESK_ABI, provider);

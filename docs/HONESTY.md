@@ -15,7 +15,7 @@ Never set `hardwareClaim: true` by hardcoding `GCP_AMD_SEV` — parse it from th
 
 FCC cannot move funds (`canMoveFunds: false`). Beacon Safe remains the spend boundary.
 
-Coston2 MockUSDT0 is a test token for EIP-3009 (faucet USDT0 may lack transferWithAuthorization — VALIDATE before mainnet).
+Coston2 faucet USDT0 (`0xC1A5…E71F`) is the live Beacon payment token (ERC-20, 6 decimals). It has no EIP-3009. Fixture MockUSDT0 is tests-only.
 
 AgentRouter 401: generation/judge AI is skipped until auth works; L1/L3 and on-chain escrow still real.
 

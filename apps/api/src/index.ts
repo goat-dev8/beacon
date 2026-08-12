@@ -67,7 +67,7 @@ import {
   buildEip3009Domain,
   TRANSFER_WITH_AUTHORIZATION_TYPES,
   randomAuthNonce,
-  MOCK_USDT0_DEMO_LABEL,
+  COSTON2_USDT0_LABEL,
 } from "@beacon/x402";
 import { JsonRpcProvider, Wallet, Signature } from "ethers";
 import {
@@ -569,14 +569,16 @@ const eip3009AuthSchema = z.object({
   payee: z.string().optional(),
   amount: z.string().min(1),
   validAfter: z.string().optional(),
-  validBefore: z.string().min(1),
-  nonce: z.string().min(1),
-  signature: z.string().min(1),
+  validBefore: z.string().optional(),
+  nonce: z.string().optional(),
+  signature: z.string().optional(),
+  mode: z.string().optional(),
+  lockTxHash: z.string().optional(),
 });
 
 const approveSchema = z.object({
   offerId: z.string().uuid(),
-  /** "safe" = server locks from Beacon Safe (no MetaMask). "wallet" = EIP-3009 (default). */
+  /** "safe" = server locks from Beacon Safe (no MetaMask). "wallet" = ERC-20 lockFrom. */
   mode: z.enum(["safe", "wallet"]).optional(),
   /** Owner wallet whose personal Safe pays (required for mode=safe when factory is live). */
   ownerWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
@@ -674,10 +676,10 @@ app.post("/v1/jobs/:id/approve", async (req) => {
       honesty: lock.honesty,
     };
   } else {
-    if (flareRequired && !body.authorization?.signature) {
+    if (flareRequired && !body.lockTxHash && !body.authorization?.lockTxHash && !body.authorization?.signature) {
       throw new AppError("VALIDATION", {
         message:
-          "Fund Beacon Safe and use Pay from Safe, or sign EIP-3009 TransferWithAuthorization for wallet escrow.",
+          "Fund Beacon Safe and use Pay from Safe, or approve Coston2 USDT0 and lock it in escrow (lockFrom).",
       });
     }
     if (payer) {
@@ -1134,7 +1136,7 @@ app.get("/v1/agents", async () => ({
   chainId: env.CHAIN_ID,
   agents: BEACON_AGENTS,
   rails: {
-    mockUsdt0: env.X402_TOKEN_ADDRESS,
+    usdt0: env.X402_TOKEN_ADDRESS,
     facilitator: env.X402_FACILITATOR_ADDRESS,
     escrow: env.BEACON_ESCROW,
     coston2Usdt0: "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
@@ -1142,7 +1144,7 @@ app.get("/v1/agents", async () => ({
     sparkdexNetwork: "flare-mainnet",
     sparkdexChainId: 14,
     honesty:
-      "SparkDEX SwapRouter bytecode is on Flare Mainnet only. Coston2 powers FTSO, FAssets FXRP, LayerZero OFT, and x402.",
+      "SparkDEX SwapRouter bytecode is on Flare Mainnet only. Coston2 powers FTSO, FAssets FXRP, LayerZero OFT, and x402 on official faucet USDT0.",
   },
 }));
 
@@ -1384,7 +1386,11 @@ app.get("/v1/agents/balances", async (req) => {
       usdt0: serializeBal(COSTON2_USDT0, usdt0),
       fxrp: serializeBal(fxrp, fxrpBal),
       mockUsdt0:
-        mock && env.X402_TOKEN_ADDRESS ? serializeBal(env.X402_TOKEN_ADDRESS, mock) : null,
+        mock &&
+        env.X402_TOKEN_ADDRESS &&
+        env.X402_TOKEN_ADDRESS.toLowerCase() !== COSTON2_USDT0.toLowerCase()
+          ? serializeBal(env.X402_TOKEN_ADDRESS, mock)
+          : null,
     },
   };
 });
@@ -1501,12 +1507,13 @@ const agentChatSchema = z.object({
       to: z.string(),
       token: z.string().optional(),
       value: z.string(),
-      validAfter: z.string(),
-      validBefore: z.string(),
+      validAfter: z.string().optional(),
+      validBefore: z.string().optional(),
       nonce: z.string(),
       v: z.number().optional(),
       r: z.string().optional(),
       s: z.string().optional(),
+      mode: z.string().optional(),
       signature: z.string().optional(),
       serviceId: z.string().optional(),
       resource: z.string().optional(),
@@ -1531,10 +1538,15 @@ app.post("/v1/agents/chat", async (req) => {
     });
   }
 
-  if (body.payment?.signature || (body.payment?.r && body.payment?.s)) {
+  if (
+    body.payment &&
+    (body.payment.mode === "erc20-pull" ||
+      body.payment.signature ||
+      (body.payment.r && body.payment.s))
+  ) {
     if (!env.X402_TOKEN_ADDRESS || !env.X402_FACILITATOR_ADDRESS || !env.X402_PAYEE_ADDRESS) {
       throw new AppError("SETTLE_FAILED", {
-        message: "x402 rails not configured (MockUSDT0 demo token / facilitator / payee).",
+        message: "x402 rails not configured (Coston2 USDT0 / facilitator / payee).",
         statusCode: 503,
       });
     }
@@ -1554,14 +1566,13 @@ app.post("/v1/agents/chat", async (req) => {
         network: env.NETWORK_NAME || "coston2",
         tokenAddress: env.X402_TOKEN_ADDRESS,
         payeeAddress: env.X402_PAYEE_ADDRESS,
-        // Chat settles the signed amount; still enforce payee/token/window/nonce.
         exactAmount: BigInt(body.payment.value),
       });
     } catch (err) {
       throw new AppError("PAYMENT_REQUIRED", {
         message:
           (err instanceof Error ? err.message : "x402 payment invalid") +
-          ` (${MOCK_USDT0_DEMO_LABEL})`,
+          ` (${COSTON2_USDT0_LABEL})`,
       });
     }
 
@@ -1571,37 +1582,6 @@ app.post("/v1/agents/chat", async (req) => {
       tokenAddress: env.X402_TOKEN_ADDRESS,
       provider,
     });
-    let signature = body.payment.signature ?? "";
-    if (!signature && body.payment.r && body.payment.s && body.payment.v != null) {
-      signature = Signature.from({
-        r: body.payment.r,
-        s: body.payment.s,
-        v: body.payment.v,
-      }).serialized;
-    }
-
-    const alreadyUsed = await client.isAuthorizationUsed(body.payment.from, fields.nonce);
-    if (alreadyUsed) {
-      throw new AppError("VALIDATION", {
-        message: "x402 nonce already settled on-chain — refuse double charge.",
-      });
-    }
-
-    const ok = await client.verifyPayment(
-      body.payment.from,
-      body.payment.to,
-      fields.value,
-      fields.validAfter,
-      fields.validBefore,
-      fields.nonce,
-      signature,
-    );
-    if (!ok) {
-      throw new AppError("VALIDATION", {
-        message:
-          "x402 payment authorization invalid. EIP-712 domain name must match token.name() (MockUSDT0 may be \"USD0\").",
-      });
-    }
     const settlerKey = env.DEPLOYER_PRIVATE_KEY || env.SETTLER_PRIVATE_KEY;
     if (!settlerKey) {
       throw new AppError("SETTLE_FAILED", {
@@ -1610,20 +1590,77 @@ app.post("/v1/agents/chat", async (req) => {
       });
     }
     const wallet = new Wallet(settlerKey, provider);
-    const settled = await client.settlePayment(
-      wallet,
-      body.payment.from,
-      body.payment.to,
-      fields.value,
-      fields.validAfter,
-      fields.validBefore,
-      fields.nonce,
-      signature,
-    );
-    if (!settled.success || !settled.txHash) {
-      throw new AppError("SETTLE_FAILED", { message: "x402 settlement failed on-chain." });
+    const erc20Pull = body.payment.mode === "erc20-pull";
+
+    if (erc20Pull) {
+      const [allowance, balance] = await Promise.all([
+        client.readAllowance(body.payment.from),
+        client.readBalance(body.payment.from),
+      ]);
+      if (allowance < fields.value) {
+        throw new AppError("PAYMENT_REQUIRED", {
+          message: "Approve the x402 facilitator to spend Coston2 USDT0 first.",
+        });
+      }
+      if (balance < fields.value) {
+        throw new AppError("PAYMENT_REQUIRED", {
+          message: "Insufficient Coston2 USDT0. Get testnet tokens from https://faucet.flare.network/coston2",
+        });
+      }
+      const settled = await client.settleTransferFrom(
+        wallet,
+        body.payment.from,
+        body.payment.to,
+        fields.value,
+      );
+      if (!settled.success || !settled.txHash) {
+        throw new AppError("SETTLE_FAILED", { message: "x402 ERC-20 settlement failed on-chain." });
+      }
+      settlementTxHash = settled.txHash;
+    } else {
+      let signature = body.payment.signature ?? "";
+      if (!signature && body.payment.r && body.payment.s && body.payment.v != null) {
+        signature = Signature.from({
+          r: body.payment.r,
+          s: body.payment.s,
+          v: body.payment.v,
+        }).serialized;
+      }
+      const alreadyUsed = await client.isAuthorizationUsed(body.payment.from, fields.nonce);
+      if (alreadyUsed) {
+        throw new AppError("VALIDATION", {
+          message: "x402 nonce already settled on-chain — refuse double charge.",
+        });
+      }
+      const ok = await client.verifyPayment(
+        body.payment.from,
+        body.payment.to,
+        fields.value,
+        fields.validAfter,
+        fields.validBefore,
+        fields.nonce,
+        signature,
+      );
+      if (!ok) {
+        throw new AppError("VALIDATION", {
+          message: "x402 payment authorization invalid.",
+        });
+      }
+      const settled = await client.settlePayment(
+        wallet,
+        body.payment.from,
+        body.payment.to,
+        fields.value,
+        fields.validAfter,
+        fields.validBefore,
+        fields.nonce,
+        signature,
+      );
+      if (!settled.success || !settled.txHash) {
+        throw new AppError("SETTLE_FAILED", { message: "x402 settlement failed on-chain." });
+      }
+      settlementTxHash = settled.txHash;
     }
-    settlementTxHash = settled.txHash;
     paidResource = true;
     await recordSpendUsdt0(redis, body.payment.from, spendUnits);
   }
@@ -2189,6 +2226,6 @@ export async function buildApproveTypedData(
     primaryType: "TransferWithAuthorization",
     message: fields,
     nonce: randomAuthNonce(),
-    assetLabel: MOCK_USDT0_DEMO_LABEL,
+    assetLabel: COSTON2_USDT0_LABEL,
   };
 }

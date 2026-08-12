@@ -324,15 +324,38 @@ export function parsePriceDisplay(priceDisplay: string): bigint {
 
 export async function getTokenMeta(): Promise<{ name: string; version: string }> {
   const client = publicClient();
-  const abi = parseAbi([
-    "function name() view returns (string)",
-    "function version() view returns (string)",
-  ]);
-  const [name, version] = await Promise.all([
-    client.readContract({ address: CONTRACTS.token, abi, functionName: "name" }),
-    client.readContract({ address: CONTRACTS.token, abi, functionName: "version" }),
-  ]);
+  const nameAbi = parseAbi(["function name() view returns (string)"]);
+  const versionAbi = parseAbi(["function version() view returns (string)"]);
+  const name = await client.readContract({
+    address: CONTRACTS.token,
+    abi: nameAbi,
+    functionName: "name",
+  });
+  let version = "1";
+  try {
+    version = await client.readContract({
+      address: CONTRACTS.token,
+      abi: versionAbi,
+      functionName: "version",
+    });
+  } catch {
+    // Official Coston2 faucet USDT0 has no version().
+  }
   return { name, version };
+}
+
+export function openCoston2Faucet(): void {
+  if (typeof window !== "undefined") {
+    window.open(NETWORK.faucet, "_blank", "noopener,noreferrer");
+  }
+}
+
+/** LIVE path no longer mints MockUSDT0. Opens the official Coston2 faucet. */
+export async function mintMockUsdt0(): Promise<Hex> {
+  openCoston2Faucet();
+  throw new Error(
+    "Beacon uses official Coston2 USDT0. Claim C2FLR + USDT0 from https://faucet.flare.network/coston2 — in-app mint is disabled.",
+  );
 }
 
 export async function getUsdt0Balance(owner: Address): Promise<bigint> {
@@ -345,19 +368,6 @@ export async function getUsdt0Balance(owner: Address): Promise<bigint> {
   });
 }
 
-export async function mintMockUsdt0(amount = 1_000_000_000n): Promise<Hex> {
-  await ensureCoston2Network();
-  const client = walletClient();
-  const [account] = await client.getAddresses();
-  if (!account) throw new Error("Connect a wallet first.");
-  const data = encodeFunctionData({
-    abi: parseAbi(["function mint(address to, uint256 amount)"]),
-    functionName: "mint",
-    args: [account, amount],
-  });
-  return client.sendTransaction({ account, to: CONTRACTS.token, data, chain: coston2 });
-}
-
 export type AuthorizationPayload = {
   payer: string;
   payee: string;
@@ -368,15 +378,17 @@ export type AuthorizationPayload = {
   signature: string;
   jobHash: string;
   lockTxHash?: string;
+  mode?: string;
 };
 
-/** Sign EIP-3009 + lock funds in BeaconEscrow on Coston2, then return API authorize payload. */
+/** Approve Coston2 USDT0 + lockFrom BeaconEscrow, then return API authorize payload. */
 export async function approveJobOnChain(params: {
   jobId: string;
   priceDisplay: string;
 }): Promise<AuthorizationPayload> {
   await ensureCoston2Network();
   const client = walletClient();
+  const pub = publicClient();
   const [account] = await client.getAddresses();
   if (!account) throw new Error("Connect a wallet first.");
 
@@ -384,74 +396,59 @@ export async function approveJobOnChain(params: {
   const balance = await getUsdt0Balance(account);
   if (balance < amount) {
     throw new Error(
-      `Need ${params.priceDisplay} credit. Balance too low — mint test USD₮0 from the desk, then try again.`,
+      `Need ${params.priceDisplay} Coston2 USDT0. Claim from https://faucet.flare.network/coston2 then try again.`,
     );
   }
 
-  const { name, version } = await getTokenMeta();
-  const validAfter = BigInt(Math.floor(Date.now() / 1000) - 60);
-  const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600);
-  const nonce = (`0x${crypto.getRandomValues(new Uint8Array(32)).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "")}`) as Hex;
   const jobHash = jobIdToBytes32(params.jobId);
-
-  const signature = await client.signTypedData({
+  const approveData = encodeFunctionData({
+    abi: parseAbi(["function approve(address spender,uint256 amount) returns (bool)"]),
+    functionName: "approve",
+    args: [CONTRACTS.escrow, amount],
+  });
+  const approveHash = await client.sendTransaction({
     account,
-    domain: {
-      name,
-      version,
-      chainId: NETWORK.chainId,
-      verifyingContract: CONTRACTS.token,
-    },
-    types: {
-      TransferWithAuthorization: [
-        { name: "from", type: "address" },
-        { name: "to", type: "address" },
-        { name: "value", type: "uint256" },
-        { name: "validAfter", type: "uint256" },
-        { name: "validBefore", type: "uint256" },
-        { name: "nonce", type: "bytes32" },
-      ],
-    },
-    primaryType: "TransferWithAuthorization",
-    message: {
-      from: account,
-      to: CONTRACTS.escrow,
-      value: amount,
-      validAfter,
-      validBefore,
-      nonce,
-    },
+    to: CONTRACTS.token,
+    data: approveData,
+    chain: coston2,
   });
+  const approveReceipt = await pub.waitForTransactionReceipt({ hash: approveHash });
+  if (approveReceipt.status === "reverted") {
+    throw new Error("USDT0 approve reverted. Check the token contract and try again.");
+  }
 
-  const data = encodeFunctionData({
-    abi: parseAbi([
-      "function lockWithAuthorization(bytes32 jobId,address payer,uint256 amount,uint256 validAfter,uint256 validBefore,bytes32 nonce,bytes signature)",
-    ]),
-    functionName: "lockWithAuthorization",
-    args: [jobHash, account, amount, validAfter, validBefore, nonce, signature],
+  const lockData = encodeFunctionData({
+    abi: parseAbi(["function lockFrom(bytes32 jobId,address payer,uint256 amount)"]),
+    functionName: "lockFrom",
+    args: [jobHash, account, amount],
   });
-
   const lockTxHash = await client.sendTransaction({
     account,
     to: CONTRACTS.escrow,
-    data,
+    data: lockData,
     chain: coston2,
   });
+  const lockReceipt = await pub.waitForTransactionReceipt({ hash: lockTxHash });
+  if (lockReceipt.status === "reverted") {
+    throw new Error("Escrow lockFrom reverted. Approve USDT0 for the escrow, then retry.");
+  }
 
+  const now = Math.floor(Date.now() / 1000);
   return {
     payer: account,
     payee: CONTRACTS.escrow,
     amount: amount.toString(),
-    validAfter: validAfter.toString(),
-    validBefore: validBefore.toString(),
-    nonce,
-    signature,
+    validAfter: String(now - 60),
+    validBefore: String(now + 3600),
+    nonce: jobHash,
+    signature: "0x",
     jobHash,
     lockTxHash,
+    mode: "erc20-lock",
   };
 }
 
-/** EIP-3009 deposit into Beacon Safe (MockUSDT0 has no approve/transferFrom on Coston2). */
+/** Approve + deposit into Beacon Safe (official Coston2 USDT0 ERC-20). */
 export async function executeAgentVaultPrep(params: {
   to: Address;
   data: Hex;
@@ -468,81 +465,20 @@ export async function executeAgentVaultPrep(params: {
   const [account] = await wallet.getAddresses();
   if (!account) throw new Error("Connect a wallet first.");
 
-  // Coston2 MockUSDT0 has no approve/transferFrom — always EIP-3009 for deposits.
-  if (
-    params.mode === "eip3009" ||
-    params.action === "deposit" ||
-    (params.token && params.amount)
-  ) {
-    const token = (params.token || params.approveTo || CONTRACTS.token) as Address;
-    const amount = params.amount
-      ? BigInt(params.amount)
-      : params.approveData
-        ? // decode amount from approve(spender, amount) last 32 bytes if present
-          BigInt(`0x${params.approveData.slice(-64)}`)
-        : 0n;
-    if (!token || amount <= 0n) throw new Error("Invalid Safe deposit amount.");
+  if (params.mode === "eip3009") {
+    throw new Error(
+      "EIP-3009 deposit is disabled. Official Coston2 USDT0 uses approve + deposit. Claim tokens at https://faucet.flare.network/coston2",
+    );
+  }
 
+  if (params.action === "deposit" && params.amount) {
+    const amount = BigInt(params.amount);
     const balance = await getUsdt0Balance(account);
     if (balance < amount) {
       throw new Error(
-        `Not enough USDT0. Balance ${Number(balance) / 1e6}. Mint test USDT0 on the Safe page, then try again.`,
+        `Not enough Coston2 USDT0. Balance ${Number(balance) / 1e6}. Claim from https://faucet.flare.network/coston2`,
       );
     }
-
-    const { name, version } = await getTokenMeta();
-    const validAfter = BigInt(Math.floor(Date.now() / 1000) - 60);
-    const validBefore = BigInt(Math.floor(Date.now() / 1000) + 3600);
-    const nonce = (`0x${crypto.getRandomValues(new Uint8Array(32)).reduce((s, b) => s + b.toString(16).padStart(2, "0"), "")}`) as Hex;
-
-    const signature = await wallet.signTypedData({
-      account,
-      domain: {
-        name,
-        version,
-        chainId: NETWORK.chainId,
-        verifyingContract: token,
-      },
-      types: {
-        TransferWithAuthorization: [
-          { name: "from", type: "address" },
-          { name: "to", type: "address" },
-          { name: "value", type: "uint256" },
-          { name: "validAfter", type: "uint256" },
-          { name: "validBefore", type: "uint256" },
-          { name: "nonce", type: "bytes32" },
-        ],
-      },
-      primaryType: "TransferWithAuthorization",
-      message: {
-        from: account,
-        to: params.to,
-        value: amount,
-        validAfter,
-        validBefore,
-        nonce,
-      },
-    });
-
-    const data = encodeFunctionData({
-      abi: parseAbi([
-        "function depositWithAuthorization(address from,uint256 amount,uint256 validAfter,uint256 validBefore,bytes32 nonce,bytes signature)",
-      ]),
-      functionName: "depositWithAuthorization",
-      args: [account, amount, validAfter, validBefore, nonce, signature],
-    });
-
-    const txHash = await wallet.sendTransaction({
-      account,
-      to: params.to,
-      data,
-      chain: coston2,
-    });
-    const receipt = await pub.waitForTransactionReceipt({ hash: txHash });
-    if (receipt.status === "reverted") {
-      throw new Error("Safe deposit reverted on Coston2. Check USDT0 balance and try again.");
-    }
-    return { txHash };
   }
 
   let approveHash: Hex | undefined;
@@ -573,28 +509,12 @@ export async function executeAgentVaultPrep(params: {
   return { approveHash, txHash };
 }
 
-/** Mint MockUSDT0 test credit to the connected wallet (public mint on Coston2). */
-export async function mintTestUsdt0(amountDisplay = "100"): Promise<Hex> {
-  await ensureCoston2Network();
-  const wallet = walletClient();
-  const pub = publicClient();
-  const [account] = await wallet.getAddresses();
-  if (!account) throw new Error("Connect a wallet first.");
-  const amount = parsePriceDisplay(amountDisplay);
-  const data = encodeFunctionData({
-    abi: parseAbi(["function mint(address to,uint256 amount)"]),
-    functionName: "mint",
-    args: [account, amount],
-  });
-  const txHash = await wallet.sendTransaction({
-    account,
-    to: CONTRACTS.token,
-    data,
-    chain: coston2,
-  });
-  const receipt = await pub.waitForTransactionReceipt({ hash: txHash });
-  if (receipt.status === "reverted") throw new Error("Mint reverted on Coston2.");
-  return txHash;
+/** Opens the official Coston2 faucet (C2FLR + USDT0 + FXRP). Does not mint MockUSDT0. */
+export async function mintTestUsdt0(): Promise<Hex> {
+  openCoston2Faucet();
+  throw new Error(
+    "Get Coston2 USDT0 from the official faucet: https://faucet.flare.network/coston2",
+  );
 }
 
 export function shortAddress(addr: string): string {

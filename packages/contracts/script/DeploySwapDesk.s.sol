@@ -4,7 +4,7 @@ pragma solidity ^0.8.30;
 import {Script, console2} from "forge-std/Script.sol";
 import {BeaconCoston2SwapDesk} from "../src/BeaconCoston2SwapDesk.sol";
 
-/// @notice Deploy BeaconCoston2SwapDesk on Coston2 (MockUSDT0 ↔ FXRP inventory desk).
+/// @notice Deploy BeaconCoston2SwapDesk on Coston2 (USDT0 ↔ FXRP inventory desk).
 contract DeploySwapDesk is Script {
     function run() external {
         uint256 deployerKey = vm.envUint("DEPLOYMENT_PRIVATE_KEY");

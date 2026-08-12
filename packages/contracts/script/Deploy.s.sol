@@ -8,6 +8,8 @@ import {BeaconJobRegistry} from "../src/BeaconJobRegistry.sol";
 import {BeaconEscrow} from "../src/BeaconEscrow.sol";
 import {BeaconAgentVault} from "../src/BeaconAgentVault.sol";
 
+/// @notice Local/fixture full stack. Deploys MockUSDT0 — NOT the live Coston2 rail.
+///         Live rails: `DeployUsdt0Rails.s.sol` against official faucet USDT0.
 contract Deploy is Script {
     function run() external {
         uint256 deployerKey = vm.envUint("DEPLOYMENT_PRIVATE_KEY");

@@ -758,7 +758,7 @@ async function executeMcpTool(opts: {
         spentTodayUsdt0,
         tools: toolsForGrant(grant).map((t) => t.name),
         flowMap: {
-          swap: "Safe MockUSDT0→FXRP on Coston2",
+          swap: "Safe USDT0→FXRP on Coston2",
           bridge: "Agent OFT FXRP Coston2→peer (use get_bridge_routes)",
           signals: "get_signals",
           yield: "get_yield",
@@ -910,7 +910,7 @@ async function executeMcpTool(opts: {
       payload: {
         ok: true,
         rail: "safe_swap_coston2",
-        pair: "MockUSDT0→FXRP",
+        pair: "USDT0→FXRP",
         result,
         explorer: result.explorerSpend,
         explorerFulfill: result.explorerFulfill,
@@ -1023,7 +1023,7 @@ async function executeMcpTool(opts: {
         amountUsdt0,
         resource,
         honesty:
-          "x402 settlement needs owner EIP-3009 in Flow (or paid resource with X-Payment). MCP returns the intent + resource hint; it does not hold keys.",
+          "x402 settlement needs owner USDT0 approve in Flow (or paid resource with X-Payment). MCP returns the intent + resource hint; it does not hold keys.",
         flow: "https://beacon-desk.vercel.app/flow",
         tip: "In Flow, use x402 buttons / paid resources for settle + receipt.",
       },

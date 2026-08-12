@@ -170,7 +170,7 @@ export const envSchema = z.object({
   BEACON_AGENT_VAULT_ADDRESS: optionalString,
   /** Personal Safe factory — wallet → BeaconAgentVault mapping. */
   BEACON_SAFE_FACTORY_ADDRESS: optionalString,
-  /** Coston2 MockUSDT0→FXRP desk for Safe executor spends (not SparkDEX). */
+  /** Coston2 USDT0→FXRP desk for Safe executor spends (not SparkDEX; SparkDEX is mainnet). */
   BEACON_SWAP_DESK_ADDRESS: optionalString,
 
   S3_ENDPOINT: optionalString,

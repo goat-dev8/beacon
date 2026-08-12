@@ -881,7 +881,7 @@ export function registerFlareNativeRoutes(
           id: "x402",
           status: "REAL",
           role: "machine_payment",
-          note: "EIP-3009 Flow micropays on Coston2 MockUSDT0.",
+          note: "ERC-20 approve + facilitator pull on official Coston2 faucet USDT0 (no EIP-3009 on the faucet token).",
         },
         {
           id: "layerzero",

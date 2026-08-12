@@ -1,0 +1,31 @@
+{
+  "at": "2026-08-12T20:10:08.177Z",
+  "network": "coston2",
+  "chainId": 114,
+  "token": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+  "tokenName": "USDT0 test",
+  "tokenSymbol": "USD₮0",
+  "tokenDecimals": 6,
+  "tokenExplorer": "https://coston2-explorer.flare.network/address/0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+  "faucet": "https://faucet.flare.network/coston2",
+  "facilitator": "0x1506f2177769EcB8Fa4903160c896E68f5d15747",
+  "facilitatorTx": "0xe26ef14849ea4316e1ced95796cdce902311fe20fa1fcb4d5a178ad462b8cb29",
+  "escrow": "0x59F9E2471BE3747b00fD53E0Cea828227345399C",
+  "escrowTx": "0x713767624ed51b9a4be71b77b0708de2e689dd3ee0f74210ad79edf165e73605",
+  "factory": "0x8250e3946fFAD7C3306E7286Cf82131E79038106",
+  "factoryTx": "0x40d00ab8c82c4ca1afa7ca99d7aeccc2073ab4ee8bec222f1db3c512db273638",
+  "swapDesk": "0xD926f5Bce2F89CD279aCa3648807607f6125986F",
+  "swapDeskTx": "0x4f0278feae293b79a2adecc362a166ecba71f8547885cea9555677f4abdd5b01",
+  "tokenOut": "0x0b6A3645c240605887a5532109323A3E12273dc7",
+  "payee": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+  "owner": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+  "executor": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+  "fxrpSeed": {
+    "amount": "5000000",
+    "amountDisplay": "5 FXRP",
+    "from": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+    "txHash": "0x4fa9353f36a8c4e0908a4cb477e1f7a004bdb8ea737c301ec9a58515007fd76d",
+    "explorer": "https://coston2-explorer.flare.network/tx/0x4fa9353f36a8c4e0908a4cb477e1f7a004bdb8ea737c301ec9a58515007fd76d",
+    "note": "Legitimate Coston2 faucet FXRP transferred to the new SwapDesk. Not invented accounting."
+  }
+}

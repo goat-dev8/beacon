@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Loader2 } from "lucide-react";
 import { api, type AgentVaultStatus, type SecurityPolicy } from "@/lib/api";
-import { shortAddress, executeAgentVaultPrep, mintTestUsdt0, getUsdt0Balance, sendPreparedVaultTx } from "@/lib/wallet";
+import { shortAddress, executeAgentVaultPrep, openCoston2Faucet, getUsdt0Balance, sendPreparedVaultTx } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
 import { NETWORK } from "@/lib/chain";
 import type { Address, Hex } from "viem";
@@ -167,9 +167,12 @@ export function SecurityPage() {
   });
 
   const mintTx = useMutation({
-    mutationFn: () => mintTestUsdt0("100"),
-    onSuccess: (hash) => {
-      setTxNote(`Minted 100 USDT0 · ${shortAddress(hash)}`);
+    mutationFn: async () => {
+      openCoston2Faucet();
+      return "faucet" as const;
+    },
+    onSuccess: () => {
+      setTxNote("Opened Coston2 faucet — claim C2FLR and USDT0, then deposit.");
     },
     onError: (err) => {
       setTxNote(err instanceof Error ? err.message : String(err));
@@ -248,7 +251,8 @@ export function SecurityPage() {
             Your prepaid AI budget
           </h1>
           <p className="mt-2 max-w-md text-sm leading-relaxed text-[var(--p-muted)]">
-            Gas first, then create your Safe, mint MockUSDT0, deposit, and set limits.
+            Gas first, then create your Safe, claim Coston2 USDT0 from the faucet, deposit, and set
+            limits.
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -348,8 +352,8 @@ export function SecurityPage() {
               </h2>
               <p className="mt-2 max-w-lg text-sm leading-relaxed text-[var(--p-muted)]">
                 Each wallet owns its own prepaid budget and spending policy. You will not see another
-                user’s Safe. After you have C2FLR gas, create yours on {NETWORK.name}, then mint and
-                deposit MockUSDT0.
+                user’s Safe. After you have C2FLR gas, create yours on {NETWORK.name}, then deposit
+                Coston2 USDT0 from the official faucet.
               </p>
               <button
                 type="button"
@@ -508,11 +512,11 @@ export function SecurityPage() {
 
         <footer className="border-t border-[var(--p-border)] pt-6 text-center">
           <p className="text-xs text-[var(--p-faint)]">
-            Agent Jobs prefer this Safe: vault.execute(transfer→escrow) + lockPrepaid. Wallet EIP-3009
-            remains as fallback.
+            Agent Jobs prefer this Safe: vault.execute(transfer→escrow) + lockPrepaid. Wallet ERC-20
+            lockFrom remains as fallback.
           </p>
           <p className="mt-1 font-mono text-[10px] text-[var(--p-faint)]">
-            {NETWORK.name} · Beacon Safe · MockUSDT0 rails
+            {NETWORK.name} · Beacon Safe · Coston2 USDT0
           </p>
         </footer>
       </main>

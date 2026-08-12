@@ -57,7 +57,7 @@ const FACTORY_ABI = [
 ];
 
 const DISTINCTION =
-  "Beacon Safe is your personal prepaid budget under your policy. Agent Jobs lock from your Safe via vault.execute + BeaconEscrow.lockPrepaid (wallet EIP-3009 remains fallback).";
+  "Beacon Safe is your personal prepaid budget under your policy. Agent Jobs lock from your Safe via vault.execute + BeaconEscrow.lockPrepaid (wallet ERC-20 lockFrom remains fallback).";
 
 const NOT_CONFIGURED_NOTE =
   "Create your Beacon Safe (or set BEACON_SAFE_FACTORY_ADDRESS). No fake balances are shown.";
@@ -81,7 +81,7 @@ export interface AgentVaultPrep {
   data: string;
   approveTo?: string;
   approveData?: string;
-  /** EIP-3009 deposit fields (MockUSDT0 has no approve/transferFrom on Coston2). */
+  /** EIP-3009 deposit fields (fixture MockUSDT0 only). Live faucet USDT0 uses approve. */
   token?: string;
   amount?: string;
   mode?: "eip3009" | "approve";
@@ -212,7 +212,8 @@ export async function resolveVaultForWallet(opts: {
   if (wallet) {
     const personal = await lookupPersonalSafe(wallet, env);
     if (personal) return { address: personal, source: "personal", factory, wallet };
-    if (opts.personalOnly) return { address: null, source: "none", factory, wallet };
+    // Factory is the live USDT0 rail. Never fall back to a Mock-era shared vault.
+    if (opts.personalOnly || factory) return { address: null, source: "none", factory, wallet };
   }
 
   const legacy = resolveAgentVaultAddress(env);
@@ -466,22 +467,24 @@ export async function prepareAgentVaultDeposit(
   params: { amountUsdt0: string; address?: string | null },
   env: BeaconEnv = loadEnv(),
 ): Promise<AgentVaultPrep> {
-  const { address, token, decimals } = await resolveVaultAndDecimals(env, params.address);
+  const { address, token, decimals, iface } = await resolveVaultAndDecimals(env, params.address);
   const amount = parseUnits(params.amountUsdt0, decimals);
   if (amount <= 0n) throw new Error("amount must be > 0");
-  // Coston2 MockUSDT0 is EIP-3009 only (no approve/transferFrom). Deposit uses authorization.
+  const erc20 = new Interface(ERC20_ABI);
   return {
     action: "deposit",
     chainId: COSTON2_CHAIN_ID_VAULT,
     network: "Flare Testnet Coston2",
     to: address,
-    data: "0x",
+    data: iface.encodeFunctionData("deposit", [amount]),
+    approveTo: token,
+    approveData: erc20.encodeFunctionData("approve", [address, amount]),
     token,
     amount: amount.toString(),
-    mode: "eip3009",
+    mode: "approve",
     value: "0",
     ownerOnly: false,
-    note: "Any wallet: sign EIP-3009 TransferWithAuthorization, then Beacon Safe pulls USDT0.",
+    note: "Approve Coston2 USDT0, then Beacon Safe pulls it with deposit(). Official faucet token — not MockUSDT0.",
     honesty: DISTINCTION,
   };
 }

@@ -1,3 +1,93 @@
+## 2026-08-12 - REAL Coston2 faucet USDT0 rails (implementation)
+
+### Timestamp
+2026-08-12 (implementation; production Chrome E2E follows deploy)
+
+### Change
+Live Beacon payment rail switched from fixture MockUSDT0 to official Coston2 faucet USDT0 `0xC1A5B41512496B80903D1f32d6dEa3a73212E71F` (name `USDT0 test`, 6 decimals, ERC-20). Confirmed in Flare docs: [Control USDT0](https://dev.flare.network/smart-accounts/guides/typescript-viem/control-usdt0-ts) and [Coston2 faucet](https://faucet.flare.network/coston2) (C2FLR + USDT0 + FXRP). Not mainnet USD₮0 `0xe7cd…`.
+
+New Coston2 rails (`docs/evidence/usdt0-rails-deploy.json`):
+- X402Facilitator `0x1506f2177769EcB8Fa4903160c896E68f5d15747` tx `0xe26ef148…cb29`
+- BeaconEscrow `0x59F9E2471BE3747b00fD53E0Cea828227345399C` tx `0x71376762…3605`
+- BeaconSafeFactory `0x8250e3946fFAD7C3306E7286Cf82131E79038106` tx `0x40d00ab8…3638`
+- BeaconCoston2SwapDesk `0xD926f5Bce2F89CD279aCa3648807607f6125986F` tx `0x4f0278fe…5b01`
+- FXRP seed 5 FXRP → desk tx `0x4fa9353f…d76d` (real faucet FXRP, not invented accounting)
+- Job registry unchanged `0x100a3E24909DE25B9CAe75Ba665Be6F893b98889`
+
+Money path: approve + `deposit` / `lockFrom` / `settleTransferFrom`. Faucet USDT0 has **no EIP-3009** (`transferWithAuthorization` / `permit` / `authorizationState` revert). Fixture MockUSDT0 remains tests-only (`packages/contracts/src/mocks/MockUSDT0.sol`).
+
+Redis spend window reverse on job refund: `reverseSpendUsdt0` in API workers + settler after successful escrow refund.
+
+Hardware FCC **not changed**: `SIMULATED_TEE=false`, `FCC_MODE=verified`, TEE `0xA5E9…646d`, extension 65925, codeHash `0x2813e4ec…5806`. `scripts/deploy-render.mjs` no longer forces `SIMULATED_TEE=true`.
+
+### Reason
+Product must use the official faucet token, not a Beacon-minted mock. Old Mock Safes are not migrated by copying database balances — users create a new Safe on factory `0x8250…8106`.
+
+### Test (local, this commit)
+- `npm test` / `npm run test:contracts` / `npm run typecheck` / `npm run web:build` (recorded after this entry)
+- On-chain token probe earlier this session: wallet `0x3bE57A5b65265D3704f846B93600308154fec794` held faucet USDT0; Mock Safe `0x8D53…` is historical
+
+### Result
+LIVE UI no longer shows MockUSDT0. Flow balances API returns `mockUsdt0: null` when `X402_TOKEN_ADDRESS` is faucet USDT0. Factory-configured wallets never fall back to Mock-era shared vault.
+
+### Remaining issue
+- Production Render/Vercel env + Chrome E2E (faucet claim, new Safe, Jobs, swap, refund Redis reverse, fresh x402, FCC ALLOW + policy DENY) still required after push/deploy.
+- Hardware TEE signed **status 0** for amount-cap DENY is **not available** without a new measured image. Beacon policy DENY (100 vs cap 10) refuses before FCC submit (`onChainInstruction: null`). Empty-name SAY_HELLO remains historical, not this gate.
+- SparkDEX SwapRouter bytecode is empty on Coston2 — Safe swap stays SwapDesk + FTSO.
+- FAssets mint remains XRPL Core Vault handoff. Xaman is optional FAssets-only, not a global requirement. Smart Accounts STUB.
+- Bridge stays FXRP OFT, not USDT0.
+
+### Evidence
+`docs/evidence/usdt0-rails-deploy.json`
+
+---
+
+
+
+### What was tested
+Full TEST + VERIFICATION pass of live production (desk `https://beacon-desk.vercel.app`, API `https://beacon-api-97gl.onrender.com`) after the hardware FCC switch. No new features. No architecture redesign. Policy was not altered.
+
+### Passed
+- Hardware FCC independent of UI/env: `/health` `simulatedTee=false`, `/ready` true, `/v1/fcc/status` `mode=verified` `hardwareClaim=true` `attestationKind=hardware` `teeMachineStatus=2`, `/v1/fcc/lifecycle` proxy reachable + non-ephemeral, `/v1/flare/integrations` 200.
+- TEE runtime: extension **65925**, TEE `0xA5E9a81044dd4d66384DE09CF95dB317fde5646d`, registered URL reserved ngrok, `/info` JWT `hwmodel=GCP_AMD_SEV` `swname=CONFIDENTIAL_SPACE`, measured codeHash `0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806`. Systems explorer v0.1.2 lists that codeHash on `GCP_AMD_SEV`.
+- ALLOW: instruction `0xac8bae0adae4c86839e71393857d259f57292239914c891fc2266ea66a136134`, tx `0xa06806bb9add50f5cb9e8fbde6dcf459887851a5d622d82bf9aaa4b8dfaface3`, TEE signed status **1** `log=ok` FIT/EVALUATE. `canMoveFunds: false`.
+- Genuine policy DENY: 100 USDT0 vs cap 10 + per-job 25 → DENY, `onChainInstruction: null` (submit only on ALLOW). Not empty-name SAY_HELLO.
+- Flow swap executed: 0.01 MockUSDT0 → ~0.009877 FXRP. Safe spend `0x74a45325…8238`, desk fulfill `0xa22708be047b81e19ca9233a9cd570fa3c68aa9a3c090997a012057108205372` status 0x1. Live FTSO quote.
+- Flow bridge executed: 0.1 FXRP → Sepolia. Approve `0xa1a982a1…a9b3`, OFT send `0x954228b00a6b6cffb886e09e9e766c5d8cdb397026796bbf7fe6fa895fe45d6e`. Dest OFTReceived still in flight at capture.
+- Agent Jobs coding PASS `305052b9-36aa-496c-a324-8907e28db36c` paid $0.008268. Lock/spend/settle on-chain. Safe rail.
+- Agent Jobs images PASS `c705bdfb-1280-4b78-aee1-d5f918300fd0` paid $0.010697. Settle `0xec9644d6…0b53`.
+- Jobs failure: coding `daf4f48f-9c5e-4a57-a4ab-76a61a73fd10` `generation_failed`, refund `0x762f122c…f2a7`, UI Not charged. Funds not kept.
+- Safe regression: owner still connected wallet, executor `0xBDfC…0034`, paused No, caps 10/50, session active, hardware TEE badge. Policy not changed.
+- Chat: new chat, history restore, shortcuts, reload keeps history + explorer links + wallet.
+- FTSO: `/v1/ftso/guard` REAL; Flow LIVE FTSO card; swap used FTSO-synced desk.
+- FDC: `/v1/fdc/status` REAL; explorer round 1420937 FINALIZED with AddressValidity; prior on-chain verify retained.
+- FAssets: live FTestXRP, 4 agents, mint=docs_handoff, UI does not invent COMPLETE.
+- MCP smoke: `/flow/mcp` MCP LIVE, `/v1/mcp/health` ok. No money-moving MCP. User performs independent Claude/Cursor validation.
+- Chrome E2E: Landing, Get Started (through FCC step), Wallet, Safe, Flow, Jobs, MCP, FCC JSON, TEE explorer, FDC explorer, swap explorer.
+- Automated (this session): `typecheck` 0; vitest **123/123** (20 files); forge **48/48** (7 suites); `web:build` 0 (chunk-size warnings). Lint: no root script — NOT RUN.
+- Production health recheck: health/ready/FCC/FTSO/FDC/FAssets/MCP/desk all HTTP 200. `SIMULATED_TEE` not active. 0 `SIMULATED_TEE` strings in web dist.
+
+### Failed / limitations (not hidden)
+- TEE signed status-0 DENY **not re-run** this pass. Empty-name SAY_HELLO is historical, not this DENY gate.
+- x402 **settle NOT RE-TESTED**. Quote/unpaid cards shown. Prior receipt `0x759a14ca…` from 2026-08-10.
+- L2 AI judge **405** on both PASS jobs. L1+L3 still applied. Not fake success.
+- Redis window spend **did not reverse** on job refund (~0.008 still counted).
+- SwapDesk FXRP inventory was 0.02519; default 1 USDT0 quote said “Seed the desk.” Operational seed 1.5 FXRP tx `0xc6c80c93…f08a` (not a code change). Small 0.01 swap then succeeded.
+- LayerZero destination receipt in flight — not claimed complete.
+- FAssets COMPLETED redemption not re-run this pass (prior `44497208` retained).
+- FDC AddressValidity not re-submitted this pass.
+- Execution surface step chips reset to “ready” after reload/new tab; history explorer links remain source of truth.
+- Smart Accounts remain STUB. FCC `canMoveFunds: false`.
+
+### What changed
+- Docs only: `README.md`, this history entry, `docs/evidence/final-production-verification.json`. No production policy change. No FCC/Safe/Jobs/Flow code change in this verification pass.
+- Operational: SwapDesk FXRP seed (existing contract, testnet FXRP).
+
+### Evidence
+`docs/evidence/final-production-verification.json` plus raw files under `docs/evidence/final-prod-raw/`.
+
+---
+
 ## 2026-08-12 - Production FCC switched off simulated mode
 
 ### Deploy

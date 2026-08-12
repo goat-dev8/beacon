@@ -3,7 +3,10 @@ pragma solidity ^0.8.30;
 
 import {IEIP3009} from "../interfaces/IEIP3009.sol";
 
-/// @title MockUSDT0 — testnet USDT0 with EIP-3009 (6 decimals)
+/// @title MockUSDT0 — FIXTURE-ONLY EIP-3009 token (6 decimals)
+/// @notice Do not deploy this as the live Beacon rail. Production/testnet product
+///         uses official Coston2 faucet USDT0:
+///         0xC1A5B41512496B80903D1f32d6dEa3a73212E71F
 contract MockUSDT0 is IEIP3009 {
     string public constant name = "USD0";
     string public constant version = "1";

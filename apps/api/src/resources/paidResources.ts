@@ -13,7 +13,7 @@ import {
   FacilitatorClient,
   parseUsdtAmount,
   assertX402PaymentFields,
-  MOCK_USDT0_DEMO_LABEL,
+  COSTON2_USDT0_LABEL,
 } from "@beacon/x402";
 
 type PaymentPayload = {
@@ -21,9 +21,10 @@ type PaymentPayload = {
   to: string;
   token?: string;
   value: string;
-  validAfter: string;
-  validBefore: string;
+  validAfter?: string;
+  validBefore?: string;
   nonce: string;
+  mode?: string;
   v?: number;
   r?: string;
   s?: string;
@@ -54,18 +55,18 @@ function paymentRequirementFor(
     mimeType: "application/json",
     payTo: env.X402_PAYEE_ADDRESS!,
     maxTimeoutSeconds: 300,
-    /** Demo asset until production EIP-3009 USDT0 exists — never SparkDEX USDT0. */
-    asset: "MockUSDT0",
-    assetLabel: MOCK_USDT0_DEMO_LABEL,
+    asset: "USDT0",
+    assetLabel: COSTON2_USDT0_LABEL,
     extra: {
       tokenAddress: env.X402_TOKEN_ADDRESS!,
       facilitatorAddress: env.X402_FACILITATOR_ADDRESS!,
       chainId: env.CHAIN_ID || 114,
       network: env.NETWORK_NAME || "coston2",
       serviceId: res.id,
-      demo: true,
       testnetOnly: true,
-      eip712Note: "EIP-712 domain name is read from token.name() (MockUSDT0 may be \"USD0\").",
+      settleMode: "erc20-transferFrom",
+      faucet: "https://faucet.flare.network/coston2",
+      eip712Note: "Coston2 faucet USDT0 has no EIP-3009. Approve the facilitator, then Beacon pulls.",
     },
   };
 }
@@ -86,12 +87,13 @@ function parsePaymentPayload(req: FastifyRequest, body?: unknown): PaymentPayloa
   return null;
 }
 
-function paymentSignature(payment: PaymentPayload): string {
+function paymentSignature(payment: PaymentPayload): string | null {
+  if (payment.mode === "erc20-pull") return null;
   if (payment.signature) return payment.signature;
   if (payment.r && payment.s && payment.v != null) {
     return Signature.from({ r: payment.r, s: payment.s, v: payment.v }).serialized;
   }
-  throw new AppError("VALIDATION", { message: "x402 payment signature missing." });
+  return null;
 }
 
 function receiptKey(nonce: string): string {
@@ -173,9 +175,44 @@ async function verifyAndSettlePayment(
     tokenAddress: env.X402_TOKEN_ADDRESS!,
     provider,
   });
-  const signature = paymentSignature(payment);
+  const settlerKey = env.DEPLOYER_PRIVATE_KEY || env.SETTLER_PRIVATE_KEY;
+  if (!settlerKey) {
+    throw new AppError("SETTLE_FAILED", {
+      message: "Payment settlement unavailable — settler private key not configured.",
+      statusCode: 503,
+    });
+  }
+  const wallet = new Wallet(settlerKey, provider);
+  const erc20Pull = payment.mode === "erc20-pull" || !paymentSignature(payment);
 
-  // Fail closed: refuse re-settle of a consumed nonce (idempotent delivery uses receipt cache).
+  if (erc20Pull) {
+    const [allowance, balance] = await Promise.all([
+      client.readAllowance(payment.from),
+      client.readBalance(payment.from),
+    ]);
+    if (allowance < fields.value) {
+      throw new AppError("PAYMENT_REQUIRED", {
+        message: `Approve ${env.X402_FACILITATOR_ADDRESS} to spend USDT0 first (allowance ${allowance.toString()}).`,
+      });
+    }
+    if (balance < fields.value) {
+      throw new AppError("PAYMENT_REQUIRED", {
+        message: "Insufficient Coston2 USDT0. Get testnet USDT0 from https://faucet.flare.network/coston2",
+      });
+    }
+    const settled = await client.settleTransferFrom(wallet, payment.from, payment.to, fields.value);
+    if (!settled.success || !settled.txHash) {
+      throw new AppError("SETTLE_FAILED", { message: "x402 ERC-20 settlement failed on-chain." });
+    }
+    return { txHash: settled.txHash };
+  }
+
+  const signature = paymentSignature(payment);
+  if (!signature) {
+    throw new AppError("VALIDATION", { message: "x402 payment signature missing." });
+  }
+
+  // EIP-3009 path (fixture MockUSDT0 only — faucet USDT0 has no authorizationState).
   const alreadyUsed = await client.isAuthorizationUsed(payment.from, fields.nonce);
   if (alreadyUsed) {
     throw new AppError("VALIDATION", {
@@ -194,20 +231,10 @@ async function verifyAndSettlePayment(
   );
   if (!ok) {
     throw new AppError("VALIDATION", {
-      message:
-        "x402 payment authorization invalid (signature/domain). Domain name must match token.name() — MockUSDT0 uses \"USD0\", not \"USD₮0\".",
+      message: "x402 payment authorization invalid (signature/domain).",
     });
   }
 
-  const settlerKey = env.DEPLOYER_PRIVATE_KEY || env.SETTLER_PRIVATE_KEY;
-  if (!settlerKey) {
-    throw new AppError("SETTLE_FAILED", {
-      message: "Payment settlement unavailable — settler private key not configured.",
-      statusCode: 503,
-    });
-  }
-
-  const wallet = new Wallet(settlerKey, provider);
   const settled = await client.settlePayment(
     wallet,
     payment.from,
@@ -248,9 +275,10 @@ async function handlePaidResource(
           to: z.string(),
           token: z.string().optional(),
           value: z.string(),
-          validAfter: z.string(),
-          validBefore: z.string(),
+          validAfter: z.string().optional(),
+          validBefore: z.string().optional(),
           nonce: z.string(),
+          mode: z.string().optional(),
           v: z.number().optional(),
           r: z.string().optional(),
           s: z.string().optional(),
@@ -269,7 +297,7 @@ async function handlePaidResource(
       error: "Payment Required",
       x402Version: "1",
       accepts: [paymentRequirementFor(resourcePath, res, env)],
-      honesty: MOCK_USDT0_DEMO_LABEL,
+      honesty: COSTON2_USDT0_LABEL,
     });
   }
 
@@ -283,8 +311,8 @@ async function handlePaidResource(
           transactionHash: cached.txHash,
           settled: true,
           replay: true,
-          asset: "MockUSDT0",
-          demo: true,
+          asset: "USDT0",
+          testnetOnly: true,
         }),
       ).toString("base64"),
     );
@@ -339,9 +367,9 @@ async function handlePaidResource(
     agentId: fulfilled.agentId,
     text: fulfilled.text,
     cards: fulfilled.cards,
-    asset: "MockUSDT0",
-    assetLabel: MOCK_USDT0_DEMO_LABEL,
-    demo: true,
+    asset: "USDT0",
+    assetLabel: COSTON2_USDT0_LABEL,
+    testnetOnly: true,
     network: env.NETWORK_NAME || "coston2",
     chainId: env.CHAIN_ID || 114,
   };
@@ -358,8 +386,8 @@ async function handlePaidResource(
       JSON.stringify({
         transactionHash: txHash,
         settled: true,
-        asset: "MockUSDT0",
-        demo: true,
+        asset: "USDT0",
+        testnetOnly: true,
       }),
     ).toString("base64"),
   );

@@ -10,7 +10,7 @@ interface IERC20VaultToken {
 }
 
 /// @title BeaconAgentVault — prepaid agent spend under owner policy
-/// @notice Pooled ERC20 budget (typically MockUSDT0 / USDT0) that an executor may spend
+/// @notice Pooled ERC20 budget (official Coston2 USDT0) that an executor may spend
 ///         only within owner-set limits. Distinct from Bound Work per-job escrow
 ///         (`BeaconEscrow`): vault funds are prepaid agent budgets; escrow locks are
 ///         outcome-priced job holds and must not be conflated with this pool.
@@ -95,7 +95,7 @@ contract BeaconAgentVault {
         emit Deposited(msg.sender, amount, token.balanceOf(address(this)));
     }
 
-    /// @notice Deposit via EIP-3009 (MockUSDT0 / USDT0 authorization pattern).
+    /// @notice Deposit via EIP-3009 (fixture MockUSDT0 only — faucet USDT0 has no EIP-3009).
     /// @dev `from` must be the authorizer; any caller may submit the signed auth.
     function depositWithAuthorization(
         address from,

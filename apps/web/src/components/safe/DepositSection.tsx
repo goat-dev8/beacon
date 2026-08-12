@@ -49,9 +49,9 @@ export function DepositSection({
             Fund the Safe
           </h2>
           <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-[var(--p-muted)]">
-            Sign once in MetaMask to move {tokenSymbol} into Beacon Safe (EIP-3009). Mint test tokens
-            here if your wallet balance is empty — faucet USDT0 is for other Flare demos, not this
-            Safe rail.
+            Sign once in MetaMask to approve Coston2 USDT0, then Beacon Safe pulls it with
+            deposit(). Get testnet USDT0 from the official faucet (C2FLR + USDT0 + FXRP) — this
+            is real USDT0 on Coston2, not mainnet USD₮0.
           </p>
         </div>
       </div>
@@ -107,7 +107,7 @@ export function DepositSection({
           onChange={(v) => onAmountChange(String(v))}
           string
           disabled={!wallet || pending}
-          hint="One MetaMask signature moves funds into the Safe"
+          hint="Approve USDT0, then deposit into the Safe"
         />
         <div className="flex flex-wrap gap-2">
           {onMint && (
@@ -117,7 +117,7 @@ export function DepositSection({
               onClick={onMint}
               className="rounded-full border border-[var(--p-border-strong)] px-4 py-2.5 text-sm disabled:opacity-40"
             >
-              {minting ? "Minting…" : `Get test ${tokenSymbol}`}
+              {minting ? "Opening faucet…" : `Get Coston2 ${tokenSymbol}`}
             </button>
           )}
           <button

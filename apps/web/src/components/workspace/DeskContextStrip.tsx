@@ -7,7 +7,7 @@ import { shortAddress } from "@/lib/wallet";
 import { useProductWallet } from "@/lib/productWallet";
 import { cn } from "@/lib/utils";
 
-/** Live Safe + Flare rails context for Agent Jobs (Safe prepaid or EIP-3009 wallet). */
+/** Live Safe + Flare rails context for Agent Jobs (Safe prepaid or wallet lockFrom). */
 export function DeskContextStrip({
   escrowLockedDisplay,
   lockTx,
@@ -42,7 +42,7 @@ export function DeskContextStrip({
             Flare Coston2 · Agent Jobs
           </p>
           <p className="mt-0.5 text-sm text-ink-muted">
-            Prefer your personal Beacon Safe for job locks. Wallet EIP-3009 remains as fallback.
+            Prefer your personal Beacon Safe for job locks. Wallet USDT0 lockFrom remains as fallback.
           </p>
         </div>
         <Link
@@ -81,7 +81,7 @@ export function DeskContextStrip({
         <Metric
           label="Job lock"
           value={escrowLockedDisplay ? `${escrowLockedDisplay}` : "Ready"}
-          hint={lockTx ? `${lockTx.slice(0, 10)}…` : "Safe prepaid or EIP-3009"}
+          hint={lockTx ? `${lockTx.slice(0, 10)}…` : "Safe prepaid or wallet lockFrom"}
         />
       </div>
     </section>

@@ -3,7 +3,14 @@ pragma solidity ^0.8.30;
 
 import {IEIP3009} from "./interfaces/IEIP3009.sol";
 
-/// @title X402Facilitator — verify and settle EIP-3009 payments
+interface IERC20Pull {
+    function transferFrom(address from, address to, uint256 amount) external returns (bool);
+}
+
+/// @title X402Facilitator — settle x402 payments
+/// @notice Live Coston2 faucet USDT0 has no EIP-3009. Prefer `settleTransferFrom`
+///         (payer approves this contract, settler pulls). `settlePayment` remains
+///         for fixture MockUSDT0 / EIP-3009 tokens.
 contract X402Facilitator {
     event PaymentVerified(address indexed token, address indexed payer, address indexed payee, uint256 amount);
     event PaymentSettled(address indexed token, address indexed payer, address indexed payee, uint256 amount, bytes32 nonce);
@@ -44,6 +51,20 @@ contract X402Facilitator {
         );
         require(ok, "transfer failed");
         emit PaymentSettled(token, payer, payee, amount, nonce);
+        return true;
+    }
+
+    /// @notice Pull ERC-20 from `payer` to `payee` after the payer approved this facilitator.
+    /// @dev Official Coston2 faucet USDT0 path (6 decimals, standard transferFrom).
+    function settleTransferFrom(
+        address token,
+        address payer,
+        address payee,
+        uint256 amount
+    ) external returns (bool) {
+        require(amount > 0 && payer != address(0) && payee != address(0), "bad args");
+        require(IERC20Pull(token).transferFrom(payer, payee, amount), "pull failed");
+        emit PaymentSettled(token, payer, payee, amount, bytes32(0));
         return true;
     }
 }

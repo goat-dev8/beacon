@@ -4,7 +4,11 @@ Flare AI OS on **Flare Testnet Coston2** (chain ID **114**).
 
 Finish AI work. Pay only when it passes.
 
-Beacon combines a chat OS (Flow), prepaid AI jobs with escrow (Agent Jobs), and a policy vault (Beacon Safe) on MockUSDT0 / x402 / EIP-3009 rails.
+Beacon is a production desk for **policy-bounded AI spend** on Flare testnet. The core problem: an agent with a hot wallet can approve anything. Beacon puts a prepaid budget in **Beacon Safe**, evaluates spend against **policy + FCC**, then executes on Flare rails and leaves an explorer receipt.
+
+**User flow:** connect a Coston2 wallet → create/fund a personal Safe → set caps/session → open Flow or Agent Jobs → quote → policy check → execute from Safe (or x402 wallet fallback) → receipt on [Coston2 explorer](https://coston2-explorer.flare.network).
+
+Independent verification after the hardware FCC switch: [`docs/evidence/final-production-verification.json`](./docs/evidence/final-production-verification.json) (2026-08-12). Engineering log: [`history.md`](./history.md).
 
 | Doc | Role |
 |-----|------|
@@ -24,6 +28,25 @@ Beacon combines a chat OS (Flow), prepaid AI jobs with escrow (Agent Jobs), and 
 
 Three product surfaces (see `ARCHITECTURE_AUDIT.md`):
 
+```mermaid
+flowchart LR
+  User[Wallet on Coston2] --> Desk[Beacon desk]
+  Desk --> Safe[Beacon Safe]
+  Safe --> Policy[Policy + remaining budget]
+  Policy --> FCC[Hardware FCC]
+  FCC --> Jobs[Agent Jobs]
+  FCC --> Flow[Flow Chat]
+  Jobs --> Escrow[USDT0 escrow]
+  Flow --> Swap[USDT0 to FXRP SwapDesk]
+  Flow --> Bridge[FXRP LayerZero OFT]
+  Flow --> X402[x402 ERC-20 pull]
+  Escrow --> Receipt[Explorer receipt]
+  Swap --> FTSO[FTSOv2 guard]
+  Flow --> FDC[FDC attestations]
+  Flow --> FAssets[FXRP FAssets]
+  Desk --> MCP[MCP grants]
+```
+
 | Surface | Route / role |
 |---------|----------------|
 | **Flow** | Chat OS: swap, bridge, research, signals, portfolio, risk, yield, FAssets, x402 micropays |
@@ -33,11 +56,15 @@ Three product surfaces (see `ARCHITECTURE_AUDIT.md`):
 
 ### Payment paths (Agent Jobs)
 
-**Primary (Beacon Safe):** create personal Safe → fund once (EIP-3009 deposit) → owner sets policy → unlock one wallet-bound Agent session → `POST /v1/jobs/:id/approve-safe` (Bearer session; no per-job signature) → `vault.execute(transfer->escrow)` → `escrow.lockPrepaid` → generate → acceptance → release or refund to **that** vault.
+**Primary (Beacon Safe):** create personal Safe → fund once (approve + `deposit` of official Coston2 USDT0) → owner sets policy → unlock one wallet-bound Agent session → `POST /v1/jobs/:id/approve-safe` (Bearer session; no per-job signature) → `vault.execute(transfer->escrow)` → `escrow.lockPrepaid` → generate → acceptance → release or refund to **that** vault.
 
-**Fallback (wallet EIP-3009):** user signs `TransferWithAuthorization` -> `escrow.lockWithAuthorization` -> generate -> release or refund to wallet.
+**Fallback (wallet ERC-20):** user approves escrow → `escrow.lockFrom` → generate → release or refund to wallet.
 
 Beacon Safe is a personal `BeaconAgentVault` per wallet, created via `BeaconSafeFactory`. It is **not** Flare Smart Accounts (those are XRPL personal accounts).
+
+**Payment asset:** official Coston2 faucet **USDT0** `0xC1A5B41512496B80903D1f32d6dEa3a73212E71F` (6 decimals, name `USDT0 test`). This is real USDT0 on Flare Testnet Coston2 — not mainnet USD₮0 and not fixture MockUSDT0. Faucet: https://faucet.flare.network/coston2 (C2FLR + USDT0 + FXRP).
+
+**USDT0 vs FXRP:** USDT0 is the EVM testnet payment rail (Safe, Jobs, Flow swap input, x402). FXRP is the FAsset / XRPL / LayerZero OFT rail. They are not interchangeable. Bridge stays FXRP. FAssets mint/redeem stays FXRP.
 
 The browser session is authentication, not custody: it never signs token transfers. The allowlisted executor submits transactions, while the Safe contract enforces target/selector allowlists, per-transaction and rolling caps, pause, expiry, and replay nonces. Research and UI-truth audit: `docs/RESEARCH_AGENT_SAFE_SESSION_AND_REALITY.md`.
 
@@ -47,9 +74,11 @@ FCC on live Coston2 is **hardware-backed GCP Confidential Space** (`SIMULATED_TE
 
 **FDC (REAL + on-chain VERIFIED):** AddressValidity on Coston2 — FdcHub tx `0x2c62375359beeb5491c648260d79c2ec69a71fc2260bcb21027b7ad86be04516`, round `1420937` finalized, DA proof `isValid: true`, `FdcVerification.verifyAddressValidity` **staticCall** `onChainVerified: true` (evidence: `docs/evidence/fdc-address-validity-verify.json`).
 
-**FCC (hardware + TEE PRODUCTION status 2):** TEE `0xA5E9a81044dd4d66384DE09CF95dB317fde5646d` on FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE`. InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46`. Extension `65925` / `0x…10185`. ALLOW instruction `0xb21e7dcc…b97e` (status 1) and DENY tx `0xeb7f237c…50b82a` (status 0, empty name). `canMoveFunds: false`. Value-protection: `POST /v1/fcc/policy/evaluate` (ALLOW/DENY).
+**FCC (hardware + TEE PRODUCTION status 2):** TEE `0xA5E9a81044dd4d66384DE09CF95dB317fde5646d` on FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE`. InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46`. Extension `65925` / `0x…10185`. Hardware claim is only true when live `/info` shows `GCP_AMD_SEV` + `CONFIDENTIAL_SPACE`, measured codeHash `0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806`, FlareTeeManager status 2, and a stable proxy — not from env vars or UI labels alone. `canMoveFunds: false`. Value-protection: `POST /v1/fcc/policy/evaluate`.
 
-**FAssets (REAL COMPLETE for request `44497208`):** Live AssetManagerFXRP + redeem prepare/track. Redeem tx `0x2a2edb61…66440` → XRPL pay `2C088911…E11A` (paymentReference match) → `RedemptionPerformed` `0x5466fbc6…9a14`. Evidence: `docs/evidence/fassets-redemption-44497208.json`. Tracker fixed for `uint256` requestId + chunked logs. Mint = docs handoff. Smart Accounts = **STUB**.
+Current production ALLOW (2026-08-12): instruction `0xac8bae0adae4c86839e71393857d259f57292239914c891fc2266ea66a136134`, tx [`0xa06806bb…face3`](https://coston2-explorer.flare.network/tx/0xa06806bb9add50f5cb9e8fbde6dcf459887851a5d622d82bf9aaa4b8dfaface3), TEE signed status 1. Current production DENY gate: Beacon policy amount-cap / per-job limit (100 USDT0 vs cap 10) — instruction **not** submitted on DENY. Historical empty-name SAY_HELLO DENY (`0xeb7f237c…`) is kept as TEE status-0 evidence; it is not the current policy-boundary proof.
+
+**FAssets:** FXRP minting on Coston2 is an XRPL Testnet payment to the Core Vault plus FDC proof — not an in-app USDT0 click. Xaman is an optional XRPL wallet for that FAssets path only; it is **not** required for Safe, Jobs, Flow, MCP, or x402. Smart Accounts remain **STUB** (Beacon Safe ≠ Flare Smart Account). Do not invent custom `0xFE`/`0xFF` instructions.
 
 See `docs/FLARE_FINAL_AUDIT.md` and `docs/FLARE_FINAL_IMPLEMENTATION_PLAN.md`.
 
@@ -77,7 +106,7 @@ beacon/
     settler/          Escrow settle / refund loop (`npm run settler`)
   packages/
     shared/           Env, vault, agents, FTSO, desks
-    x402/             Facilitator / EIP-3009 helpers
+    x402/             Facilitator / ERC-20 pull + historical EIP-3009 helpers
     quote/            Job quotes
     execution/        Execution helpers
     acceptance/       Acceptance judge
@@ -162,7 +191,7 @@ Copy from [`apps/web/.env.example`](./apps/web/.env.example):
 |------|---------|
 | `VITE_API_URL` | API base (local `http://localhost:3001` or production Render URL) |
 | `VITE_RPC_URL` | Coston2 RPC |
-| `VITE_X402_TOKEN_ADDRESS` | MockUSDT0 |
+| `VITE_X402_TOKEN_ADDRESS` | Official Coston2 faucet USDT0 |
 | `VITE_X402_FACILITATOR_ADDRESS` | X402Facilitator |
 | `VITE_X402_PAYEE_ADDRESS` | Payee / settler address |
 | `VITE_BEACON_JOB_REGISTRY` | Job registry |
@@ -170,7 +199,7 @@ Copy from [`apps/web/.env.example`](./apps/web/.env.example):
 | `VITE_BEACON_SAFE_FACTORY_ADDRESS` | Personal Safe factory |
 | `VITE_BEACON_AGENT_VAULT_ADDRESS` | Legacy shared vault (optional) |
 
-Keep `VITE_BEACON_ESCROW` aligned with root `BEACON_ESCROW`. Current prepaid escrow in `ARCHITECTURE_AUDIT.md` / web defaults is `0xE68c22621314977f00c85D89e4f5b10573C51C7E`. Older example files may list a previous escrow; prefer the audit / live env.
+Keep `VITE_BEACON_ESCROW` aligned with root `BEACON_ESCROW`. Live prepaid escrow is `0x59F9E2471BE3747b00fD53E0Cea828227345399C` (USDT0 rails). Evidence: `docs/evidence/usdt0-rails-deploy.json`.
 
 ---
 
@@ -188,9 +217,9 @@ Keep `VITE_BEACON_ESCROW` aligned with root `BEACON_ESCROW`. Current prepaid esc
 ### MetaMask
 
 1. Add network: Coston2, chain ID `114`, RPC above, explorer above.
-2. Fund the wallet with **C2FLR** from the faucet (gas) — open https://faucet.flare.network/coston2, paste your address, request C2FLR **before** Create Beacon Safe.
-3. For x402 / Safe / Agent Jobs, use Beacon **MockUSDT0** (`0x6fd8a72a972040f3153894BBd0d829a58f1Fe86c`) via **Get test USDT0** on the Safe page, not faucet USDT0 (`0xC1A5…`). Faucet USDT0 is for Smart Accounts / SparkDEX demos and lacks the EIP-3009 settle path Beacon needs. Deep dive: `docs/RESEARCH_USDT0_FAUCET_VS_MOCK.md`.
-4. Stay on chain **114**. Product agent Safe swaps are Coston2-only; SparkDEX Mainnet (14) is not the default desk path.
+2. Fund the wallet from the official faucet: https://faucet.flare.network/coston2 — claim **C2FLR** (gas), **USDT0** (Safe / Jobs / Flow / x402), and **FXRP** if you will test FAssets or OFT.
+3. Create a **new** Beacon Safe after the USDT0 factory deploy (`0x8250…8106`). Old MockUSDT0 Safes are historical and are not migrated by copying database balances.
+4. Stay on chain **114**. Product agent Safe swaps are Coston2-only; SparkDEX Mainnet (14) is not the default desk path. SparkDEX SwapRouter bytecode is empty on Coston2.
 
 ---
 
@@ -209,10 +238,11 @@ Scripts under `packages/contracts/script/`:
 
 | Script | Purpose | Env used by script |
 |--------|---------|---------------------|
-| `Deploy.s.sol` | Full stack: MockUSDT0, Facilitator, JobRegistry, Escrow, AgentVault | `DEPLOYMENT_PRIVATE_KEY`, `X402_PAYEE_ADDRESS`, optional `INITIAL_OWNER`, `VAULT_EXECUTOR` |
-| `DeployEscrowPrepaid.s.sol` | Redeploy prepaid `BeaconEscrow` on existing token | `DEPLOYMENT_PRIVATE_KEY`, `X402_TOKEN_ADDRESS`, `X402_PAYEE_ADDRESS`, optional `INITIAL_OWNER` |
-| `DeployAgentVault.s.sol` | Vault only on existing token | `DEPLOYMENT_PRIVATE_KEY`, `X402_TOKEN_ADDRESS`, optional `INITIAL_OWNER`, `VAULT_EXECUTOR` |
-| `DeploySwapDesk.s.sol` | Coston2 MockUSDT0->FXRP swap desk | `DEPLOYMENT_PRIVATE_KEY`, `X402_TOKEN_ADDRESS`, `EXPECTED_FXRP_TOKEN`, optional owner/operator/rate/fee |
+| `Deploy.s.sol` | Fixture-only full stack (deploys MockUSDT0 — not live) | `DEPLOYMENT_PRIVATE_KEY`, `X402_PAYEE_ADDRESS` |
+| `DeployUsdt0Rails.s.sol` | Live Coston2 rails on official faucet USDT0 | `DEPLOYMENT_PRIVATE_KEY`, `X402_TOKEN_ADDRESS=0xC1A5…`, `X402_PAYEE_ADDRESS`, `EXPECTED_FXRP_TOKEN` |
+| `DeployEscrowPrepaid.s.sol` | Redeploy prepaid `BeaconEscrow` on existing token | `DEPLOYMENT_PRIVATE_KEY`, `X402_TOKEN_ADDRESS`, `X402_PAYEE_ADDRESS` |
+| `DeployAgentVault.s.sol` | Vault only on existing token | `DEPLOYMENT_PRIVATE_KEY`, `X402_TOKEN_ADDRESS` |
+| `DeploySwapDesk.s.sol` | Coston2 USDT0→FXRP swap desk | `DEPLOYMENT_PRIVATE_KEY`, `X402_TOKEN_ADDRESS`, `EXPECTED_FXRP_TOKEN` |
 
 Example broadcast (loads `[rpc_endpoints].coston2` from `foundry.toml`):
 
@@ -226,17 +256,26 @@ forge script script/DeploySwapDesk.s.sol:DeploySwapDesk --rpc-url coston2 --broa
 
 After deploy, set the printed addresses into root `.env` and matching `VITE_*` values. Do not redeploy casually against production without updating Render + Vercel env.
 
-### Current Coston2 addresses (from `ARCHITECTURE_AUDIT.md`)
+### Current Coston2 addresses (official faucet USDT0 rails)
 
-| Component | Address |
-|-----------|---------|
-| MockUSDT0 | `0x6fd8a72a972040f3153894BBd0d829a58f1Fe86c` |
-| X402Facilitator | `0x1f409a809cE6e8A4467C1fD40943aC40169f4779` |
-| BeaconEscrow (prepaid) | `0xE68c22621314977f00c85D89e4f5b10573C51C7E` |
-| BeaconSafeFactory | `0x9e88ADFB4dA7530675acC520cC9a0a818543c4F2` |
-| BeaconAgentVault (legacy shared) | `0xc7C6C06Dd59173dBAf8382627d6A483Ca53AAF33` |
-| Executor / escrow owner / payee | `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034` |
-| Job registry (web default) | `0x100a3E24909DE25B9CAe75Ba665Be6F893b98889` |
+Evidence: [`docs/evidence/usdt0-rails-deploy.json`](./docs/evidence/usdt0-rails-deploy.json). Explorer: https://coston2-explorer.flare.network
+
+| Component | Address | Deploy tx |
+|-----------|---------|-----------|
+| **USDT0** (official faucet) | `0xC1A5B41512496B80903D1f32d6dEa3a73212E71F` | Flare faucet token |
+| X402Facilitator | `0x1506f2177769EcB8Fa4903160c896E68f5d15747` | [`0xe26ef148…cb29`](https://coston2-explorer.flare.network/tx/0xe26ef14849ea4316e1ced95796cdce902311fe20fa1fcb4d5a178ad462b8cb29) |
+| BeaconEscrow | `0x59F9E2471BE3747b00fD53E0Cea828227345399C` | [`0x71376762…3605`](https://coston2-explorer.flare.network/tx/0x713767624ed51b9a4be71b77b0708de2e689dd3ee0f74210ad79edf165e73605) |
+| BeaconSafeFactory | `0x8250e3946fFAD7C3306E7286Cf82131E79038106` | [`0x40d00ab8…3638`](https://coston2-explorer.flare.network/tx/0x40d00ab8c82c4ca1afa7ca99d7aeccc2073ab4ee8bec222f1db3c512db273638) |
+| BeaconCoston2SwapDesk | `0xD926f5Bce2F89CD279aCa3648807607f6125986F` | [`0x4f0278fe…5b01`](https://coston2-explorer.flare.network/tx/0x4f0278feae293b79a2adecc362a166ecba71f8547885cea9555677f4abdd5b01) |
+| FXRP seed (5 FXRP → desk) | — | [`0x4fa9353f…d76d`](https://coston2-explorer.flare.network/tx/0x4fa9353f36a8c4e0908a4cb477e1f7a004bdb8ea737c301ec9a58515007fd76d) |
+| Executor / escrow owner / payee | `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034` | — |
+| Job registry | `0x100a3E24909DE25B9CAe75Ba665Be6F893b98889` | unchanged |
+| FXRP (FTestXRP) | `0x0b6A3645c240605887a5532109323A3E12273dc7` | FAsset |
+| FlareTeeManager | `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE` | — |
+| InstructionSender | `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46` | — |
+| Hardware TEE (status 2) | `0xA5E9a81044dd4d66384DE09CF95dB317fde5646d` | extension 65925 |
+
+Historical MockUSDT0 `0x6fd8…Fe86c` and the previous factory/escrow/desk remain on-chain as **HISTORICAL**. They are not the live product rail. Fixture contract: `packages/contracts/src/mocks/MockUSDT0.sol`.
 
 ---
 
@@ -304,6 +343,54 @@ Notes:
 
 ---
 
+## What is live (and how to verify)
+
+Do not treat marketing copy as proof. Each claim below has a live source.
+
+| Topic | What is live | Source |
+|-------|----------------|--------|
+| **Beacon** | Desk + API on Coston2 114 | https://beacon-desk.vercel.app · https://beacon-api-97gl.onrender.com |
+| **Problem / money path** | Wallet → Safe → policy/FCC → Flare → receipt | `/start` (11 steps); `apps/web/src/pages/GetStartedPage.tsx` |
+| **Beacon Safe** | Personal `BeaconAgentVault` per wallet on official USDT0 factory | `/flow/security` · factory `0x8250…8106` |
+| **Policy boundary** | Server Redis policy + on-chain vault caps; fail-closed | `POST /v1/fcc/policy/evaluate` · `apps/api/src/securityPolicy.ts` |
+| **Agent Jobs** | Escrow lock from Safe → generate → accept → settle/refund | `/flow/desk` · escrow `0x59F9…399C` |
+| **Flow** | Chat OS: swap, bridge, signals, FAssets, x402 | `/flow` |
+| **MCP** | OAuth + scoped tools; **no private key to the agent** | `/flow/mcp` · `GET /v1/mcp/health` |
+| **x402** | HTTP 402 + Coston2 USDT0 ERC-20 approve/pull | Flow x402 cards; facilitator `0x1506…5747` |
+| **FTSO** | Live FTSOv2 feeds guard Safe swaps | `GET /v1/ftso/guard` · Flow Signals · [price feeds](https://coston2-systems-explorer.flare.network/price-feeds?tab=block-latency) |
+| **FDC** | Verifier + DA configured; proofs never invented | `GET /v1/fdc/status` · [attestation explorer](https://coston2-systems-explorer.flare.network/attestation-request) |
+| **FCC** | Hardware GCP Confidential Space (AMD SEV) | `GET /v1/fcc/status` + `/v1/fcc/lifecycle` + TEE `/info` + [extension 65925](https://coston2-systems-explorer.flare.network/tee/extensions/65925) |
+| **FAssets** | FTestXRP live; mint = docs handoff; redeem prepare | `GET /v1/agents/fassets` · [FAssets explorer](https://coston2-systems-explorer.flare.network/fassets) |
+| **LayerZero** | Agent OFT FXRP → Sepolia | Flow Bridge; FXRP rail (not USDT0) |
+| **FTSO** | Live FTSOv2 feeds guard Safe swaps | `GET /v1/ftso/guard` · Flow Signals |
+| **FDC** | Verifier + DA configured; proofs never invented | `GET /v1/fdc/status` · AddressValidity evidence `docs/evidence/fdc-address-validity-verify.json` · round [1420937](https://coston2-systems-explorer.flare.network/voting-round/1420937?tab=fdc) |
+| **FCC** | Hardware GCP Confidential Space (AMD SEV) | `GET /v1/fcc/status` + `/v1/fcc/lifecycle` + TEE `/info` + [extension 65925](https://coston2-systems-explorer.flare.network/tee/extensions/65925) |
+| **FAssets** | FTestXRP live; mint = docs handoff; redeem prepare | `GET /v1/agents/fassets` · Flow FAssets |
+| **LayerZero** | Agent OFT FXRP → Sepolia | Flow Bridge; source tx in evidence file |
+| **Hardware TEE** | status 2, `GCP_AMD_SEV`, measured codeHash | See “Verify hardware FCC” below |
+| **Security model** | FCC cannot move funds; Safe is spend boundary | `canMoveFunds: false` on FCC endpoints; vault `execute` allowlists |
+| **Smart Accounts** | **STUB** (not Beacon Safe) | `packages/smart-accounts` · honesty docs |
+
+Latest independent pass: [`docs/evidence/final-production-verification.json`](./docs/evidence/final-production-verification.json).
+
+### Verify hardware FCC (do not stop at env)
+
+1. `GET https://beacon-api-97gl.onrender.com/v1/fcc/status` — expect `simulatedTee=false`, `mode=verified`, `hardwareClaim=true`, `attestationKind=hardware`, `teeMachineStatus=2`, `platformAscii=GCP_AMD_SEV`, `codeHash=0x2813e4ec…5806`, `canMoveFunds=false`.
+2. `GET /v1/fcc/lifecycle` — `extProxyReachable=true`, `extProxyEphemeral=false`, same TEE id.
+3. `GET https://policy-handful-outlast.ngrok-free.dev/info` with `User-Agent: BeaconVerify/1.0` and `ngrok-skip-browser-warning: true`. Decode attestation JWT: `hwmodel=GCP_AMD_SEV`, `swname=CONFIDENTIAL_SPACE`.
+4. On-chain: FlareTeeManager `getTeeMachine` for `0xA5E9…646d` status 2 and registered URL. Explorer: https://coston2-systems-explorer.flare.network/tee/extensions/65925
+5. Status 2, UI badges, or `SIMULATED_TEE=false` **alone** are not a hardware proof.
+
+### Reproduce key flows (Coston2 testnet)
+
+- **Swap:** Flow → Swap. If quote says “Seed the desk,” SwapDesk FXRP inventory is too low for 1 USDT0; use a small size (this pass: 0.01) or seed the desk. Confirm FTSO age, then Execute from Beacon Safe. Open fulfill tx on explorer.
+- **Bridge:** Flow → Bridge. Size must fit executor FXRP + C2FLR fee. Confirm LZ quote, execute, open source tx. Destination OFTReceived can lag — do not invent COMPLETE.
+- **Jobs:** `/flow/desk` → Coding or Images → brief → quote → Safe approve (active session) → wait CLOSED. Check lock/spend/settle or refund hashes. Quality FAIL/generation_failed must refund, not silent success.
+- **Policy DENY:** `POST /v1/fcc/policy/evaluate` with amount above Safe/app cap. Expect `decision=DENY` and `onChainInstruction=null`.
+- **MCP:** open `/flow/mcp` and `GET /v1/mcp/health`. Full Claude/Cursor tool execution is **your** independent test; this repo’s smoke test does not claim it.
+
+---
+
 ## Verify deployments / explorer links
 
 1. **API health:** `GET https://beacon-api-97gl.onrender.com/health` (and FCC status endpoints when enabled; see `docs/HONESTY.md`).
@@ -314,8 +401,9 @@ Notes:
    or  
    https://coston2.testnet.flarescan.com  
    Confirm bytecode at `BEACON_ESCROW` / `BEACON_AGENT_VAULT_ADDRESS` matches env.
-5. **x402 smoke:** unpaid agent resource returns HTTP **402** with Coston2 / MockUSDT0 / facilitator fields (see history).
+5. **x402 smoke:** unpaid agent resource returns HTTP **402** with Coston2 / USDT0 / facilitator fields. Settle uses ERC-20 approve + `settleTransferFrom` (faucet USDT0 has no EIP-3009).
 6. **Env alignment:** root `BEACON_ESCROW` == `VITE_BEACON_ESCROW` == live prepaid escrow.
+7. **Evidence pack:** `docs/evidence/final-production-verification.json` (no secrets).
 
 Example explorer bases:
 
@@ -333,7 +421,7 @@ Example explorer bases:
 | `BEACON_ESCROW not configured` | Missing escrow env | Set `BEACON_ESCROW` (and matching `VITE_*`) |
 | Safe balance / policy wrong or empty | Vault unset or wrong address | `BEACON_AGENT_VAULT_ADDRESS` / `VITE_BEACON_AGENT_VAULT_ADDRESS` |
 | MetaMask wrong network / Mainnet switch | Not on Coston2 114 | Add/switch chain 114; Safe path stays Coston2 |
-| EIP-3009 / deposit fails on faucet USDT0 | Token lacks authorization | Use Beacon MockUSDT0 for x402 rails |
+| Deposit / x402 fails | Missing faucet USDT0 or allowance | Claim https://faucet.flare.network/coston2 then approve the Safe / facilitator |
 | Settler / approve fails | Missing `SETTLER_PRIVATE_KEY` or `DEPLOYER_PRIVATE_KEY` | Key must own escrow / have gas (C2FLR) |
 | AI hard fail with `AI_REQUIRE_REAL` | Proxy/key/WAF | Production uses Vercel `AI_PROXY_URL`; local needs working `AI_*` |
 | FCC honesty mismatch | Claiming simulated FCC in production | Keep `SIMULATED_TEE=false` / `FCC_MODE=verified`; `/v1/fcc/status` must show `hardwareClaim: true` |
@@ -345,11 +433,13 @@ Example explorer bases:
 - Never commit `.env`, `.env.local`, or private keys. Use `.env.example` names only in docs.
 - Treat `SETTLER_PRIVATE_KEY` / `DEPLOYER_PRIVATE_KEY` / `DEPLOYMENT_PRIVATE_KEY` as production secrets (escrow owner, vault executor gas, deploys).
 - Keep `SESSION_SECRET` and `AI_PROXY_SECRET` long and unique per environment.
-- Do not forge EIP-3009 ->as-> the Safe. Safe jobs use `vault.execute` + `lockPrepaid` only.
+- Do not forge EIP-3009 as the Safe. Safe jobs use `vault.execute` + `lockPrepaid` only. Live faucet USDT0 has no EIP-3009.
 - Align escrow/vault addresses across Render, Vercel, and local before testing pays.
 - Prefer official Flare RPC/explorer/faucet URLs.
 - Production: no laptop tunnels for AI/API. Render + Vercel only (see history).
 - Pause Safe / tighten policy when demoing with a funded vault.
+- Frontend never holds `DEPLOYER_PRIVATE_KEY` / settler keys. MCP copy and Connect Agents UI must not expose a private key.
+- Production FCC: `SIMULATED_TEE=false`. Do not advertise hardware while simulated.
 
 ---
 
