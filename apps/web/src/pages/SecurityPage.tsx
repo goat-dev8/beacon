@@ -257,6 +257,11 @@ export function SecurityPage() {
               Confidential policy (simulated TEE)
             </span>
           )}
+          {fccQuery.data?.mode === "verified" && (
+            <span className="hidden rounded-full border border-[var(--p-accent)]/40 bg-[var(--p-accent-soft)] px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-[var(--p-accent-text)] sm:inline-flex">
+              Confidential policy (hardware TEE)
+            </span>
+          )}
           {wallet ? (
             <span className="rounded-full border border-[var(--p-border)] bg-[var(--p-card)] px-3 py-1.5 font-mono text-xs">
               {shortAddress(wallet)}

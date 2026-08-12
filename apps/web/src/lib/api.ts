@@ -59,11 +59,16 @@ export const api = {
       ok: boolean;
       mode: "simulated" | "unavailable" | "verified";
       simulatedTee: boolean;
+      hardwareClaim?: boolean;
+      platformAscii?: string | null;
+      codeHash?: string | null;
+      teeId?: string | null;
+      teeProduction?: boolean;
+      honesty: string;
       localMode?: boolean;
       proxyReachable: boolean;
       extensionId?: string;
       extProxyConfigured?: boolean;
-      honesty: string;
     }>("/v1/fcc/status"),
   ready: () =>
     request<{ ready: boolean; checks: Record<string, { ok: boolean }> }>("/ready"),

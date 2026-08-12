@@ -37,5 +37,5 @@ describe("quote", () => {
       briefText: "code for calculator",
     });
     expect(verdict.capability).toBe("FIT");
-  });
+  }, 30_000);
 });

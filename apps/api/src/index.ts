@@ -80,6 +80,7 @@ import {
 import { registryFromEnv, assertRegistryConfigured, encodeCreditDepositMemo } from "@beacon/smart-accounts";
 import { startEmbeddedWorkers } from "./workers.js";
 import { PIPELINE_CAPS } from "@beacon/pipeline";
+import { getFccLifecycleStatus } from "@beacon/fdc";
 import {
   assertPolicyAllows,
   DEFAULT_SECURITY_POLICY,
@@ -247,7 +248,7 @@ app.get("/health", async () => ({
   ],
   simulatedTee: env.SIMULATED_TEE,
   fccMode: resolveFccMode(process.env, env.SIMULATED_TEE),
-  honesty: honestyMessage(env.SIMULATED_TEE),
+  honesty: honestyMessage(env.SIMULATED_TEE, resolveFccMode(process.env, env.SIMULATED_TEE)),
   service: "beacon-api",
   version: "0.1.0",
   pipeline: PIPELINE_CAPS,
@@ -342,33 +343,44 @@ app.get("/v1/ai/probe", async () => {
   };
 });
 
-/** FCC honesty status — simulated TEE on Coston2 is the accepted hackathon path. */
+/** FCC honesty status — hardware claim only when lifecycle /info proves GCP_AMD_SEV. */
 app.get("/v1/fcc/status", async () => {
   const mode = resolveFccMode(process.env, env.SIMULATED_TEE);
+  const lifecycle = await getFccLifecycleStatus(env);
   const proxy = await probeExtProxy(env.EXT_PROXY_URL || undefined);
   const extensionId =
     proxy.extensionId ||
+    lifecycle.extensionId ||
     (env.EXTENSION_ID ? String(env.EXTENSION_ID) : undefined);
-  const hardwareClaim =
-    mode === "verified"
-      ? "Mode=verified requested — Beacon still requires registered-machine + code-hash evidence before claiming Confidential Space hardware."
-      : mode === "simulated"
-        ? "SIMULATED_TEE=true — official Coston2 simulated-attestation path. NOT hardware Confidential Space."
-        : "FCC unavailable — fail closed for confidential authorization; server policy remains authoritative.";
+  const reportedMode = env.SIMULATED_TEE
+    ? "simulated"
+    : lifecycle.hardwareClaim
+      ? "verified"
+      : mode;
   return {
     ok: true,
-    mode,
+    mode: reportedMode,
     status:
-      mode === "simulated" ? "SIMULATED" : mode === "verified" ? "REAL" : "NOT_AVAILABLE",
+      reportedMode === "simulated"
+        ? "SIMULATED"
+        : reportedMode === "verified"
+          ? "REAL"
+          : "NOT_AVAILABLE",
     simulatedTee: env.SIMULATED_TEE,
     localMode: env.LOCAL_MODE,
-    proxyReachable: proxy.proxyReachable,
+    proxyReachable: proxy.proxyReachable || lifecycle.extProxyReachable,
     extensionId: extensionId || undefined,
     extProxyConfigured: Boolean(env.EXT_PROXY_URL),
+    teeId: lifecycle.teeId,
+    teeProduction: lifecycle.teeProduction,
+    teeMachineStatus: lifecycle.teeMachineStatus,
+    platformAscii: lifecycle.platformAscii,
+    codeHash: lifecycle.codeHash,
+    attestationKind: lifecycle.attestationKind,
     canMoveFunds: false,
     shadowOnly: true,
-    hardwareClaim,
-    honesty: honestyMessage(env.SIMULATED_TEE),
+    hardwareClaim: lifecycle.hardwareClaim,
+    honesty: honestyMessage(env.SIMULATED_TEE, reportedMode),
     docs: ["https://dev.flare.network/fcc/overview", "https://dev.flare.network/fcc/guides"],
   };
 });

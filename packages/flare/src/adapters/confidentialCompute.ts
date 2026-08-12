@@ -73,8 +73,8 @@ export class ConfidentialComputeAdapter {
       case "verified":
         status = "REAL";
         note =
-          "FCC mode is verified — hardware TEE attestation expected. " +
-          "WARNING: Beacon does not currently verify hardware attestation evidence.";
+          "FCC mode is verified — hardware-backed GCP Confidential Space (AMD SEV). " +
+          "Beacon Safe remains the spend boundary; FCC cannot move funds.";
         break;
       case "simulated":
         status = "SIMULATED";
@@ -116,8 +116,8 @@ export class ConfidentialComputeAdapter {
       case "verified":
         status = "REAL";
         honestyLabel =
-          "FCC verified mode — authorization created but Beacon lacks hardware attestation verification. " +
-          "Do NOT trust this as hardware TEE proof.";
+          "FCC verified mode — hardware-backed GCP Confidential Space (AMD SEV) shadow authorization. " +
+          "canMoveFunds: false. Do not treat as spend authority.";
         break;
       case "simulated":
         status = "SIMULATED";

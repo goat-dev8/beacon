@@ -17,7 +17,13 @@ services:
       - key: NETWORK_NAME
         value: coston2
       - key: SIMULATED_TEE
-        value: "true"
+        value: "false"
+      - key: FCC_MODE
+        value: "verified"
+      - key: TEE_ID
+        value: "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d"
+      - key: FLARE_TEE_MANAGER
+        value: "0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE"
       - key: ENABLE_API
         value: "true"
       - key: ENABLE_FCC
@@ -95,7 +101,7 @@ services:
       - key: EXTENSION_ID
         sync: false
       - key: EXT_PROXY_URL
-        sync: false
+        value: "https://policy-handful-outlast.ngrok-free.dev"
       - key: NORMAL_PROXY_URL
         sync: false
       - key: APP_URL

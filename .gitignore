@@ -34,3 +34,7 @@ data/*.json
 tmp-*
 .vercel
 .env*
+
+# Hardware FCC image artifacts (local/build only)
+docs/evidence/hardware-fcc/*.tar
+

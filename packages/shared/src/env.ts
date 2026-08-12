@@ -85,6 +85,7 @@ export const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: optionalString,
 
   SIMULATED_TEE: optionalBool,
+  FCC_MODE: optionalString,
   LOCAL_MODE: optionalBool,
   MODE: optionalInt(1),
   TEE_PROXY_URL: optionalString,
@@ -243,9 +244,12 @@ export function resolveFccMode(
   return tee ? "simulated" : "unavailable";
 }
 
-export function honestyMessage(simulatedTee: boolean): string {
-  if (simulatedTee) {
+export function honestyMessage(simulatedTee: boolean, mode?: FccMode): string {
+  if (simulatedTee || mode === "simulated") {
     return "FCC path uses SIMULATED_TEE on Coston2 (hackathon-accepted), not hardware-attested Confidential Space. Spend policy and receipts remain server/on-chain enforceable.";
+  }
+  if (mode === "verified") {
+    return "FCC path uses hardware-backed GCP Confidential Space (AMD SEV) on Coston2. Beacon Safe remains the spend boundary; FCC cannot move funds (canMoveFunds: false).";
   }
   return "FCC / confidential compute is unavailable in this deployment. Spend policy and receipts are server and on-chain only.";
 }

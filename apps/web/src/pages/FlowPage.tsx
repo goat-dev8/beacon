@@ -103,7 +103,7 @@ export function FlowPage() {
     fccMode === "simulated"
       ? "Confidential policy (simulated TEE)"
       : fccMode === "verified"
-        ? "Confidential policy (verified TEE)"
+        ? "Confidential policy (hardware TEE)"
         : "Security Policy · server-enforced";
 
   const balancesQuery = useQuery({

@@ -1252,6 +1252,11 @@ export function ActionCard({
               Confidential policy (simulated TEE)
             </div>
           )}
+          {card.fccMode === "verified" && (
+            <div className="mt-2 inline-flex rounded-full border border-signal/35 bg-signal/10 px-2.5 py-0.5 font-mono text-[10px] text-[var(--p-accent-text)]">
+              Confidential policy (hardware TEE)
+            </div>
+          )}
           <div className="mt-1">Server policy · Coston2 · pause anytime in Safe</div>
         </dl>
         {!allowed && (

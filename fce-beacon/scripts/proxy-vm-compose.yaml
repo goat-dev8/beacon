@@ -1,0 +1,24 @@
+# Runs on the GCE proxy VM only. Image digest is the Artifact Registry push.
+services:
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save "" --appendonly no
+    restart: unless-stopped
+    networks: [beacon]
+
+  ext-proxy:
+    image: us-central1-docker.pkg.dev/project-62df34c9-fd72-4fee-80f/beacon-fcc/tee-proxy@sha256:5244f324914678433261b42cc2cf750e7f4154a0b66bb30c51e0c84dc79df8aa
+    volumes:
+      - /opt/beacon-fcc/config.toml:/app/config/config.toml:ro
+    environment:
+      PROXY_PRIVATE_KEY: ${PROXY_PRIVATE_KEY}
+    ports:
+      - "6663:6663"
+      - "127.0.0.1:6664:6664"
+    depends_on: [redis]
+    restart: "on-failure:5"
+    networks: [beacon]
+
+networks:
+  beacon:
+    name: beacon-fcc

@@ -1,0 +1,1 @@
+["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin","SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt","MODE=0","CONFIG_PORT=5501","SIGN_PORT=7701","EXTENSION_PORT=7702"]

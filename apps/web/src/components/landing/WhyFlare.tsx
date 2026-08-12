@@ -17,7 +17,7 @@ export const WHY_FLARE_ITEMS = [
   {
     id: "fcc",
     title: "Private policy checks",
-    body: "Flare Confidential Compute can evaluate spend rules away from a hot key. On Coston2 Beacon uses SIMULATED_TEE (hackathon-accepted), not hardware-attested Confidential Space.",
+    body: "Flare Confidential Compute evaluates spend rules inside GCP Confidential Space (AMD SEV). Beacon Safe remains the spend boundary; FCC cannot move funds.",
   },
   {
     id: "fdc",

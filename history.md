@@ -1,3 +1,65 @@
+## 2026-08-12 - Hardware FCC: GCP Confidential Space PRODUCTION (ALLOW+DENY)
+
+### Goal
+Finish Beacon FCC as a real hardware-backed Confidential Space deployment. Keep the old simulated path as documented history only; do not leave simulated mode as production.
+
+### Proven (independent of production UI until Render env is live)
+- GCP project `project-62df34c9-fd72-4fee-80f`, zone `us-east1-b`, Free Trial credits in use (no paid upgrade).
+- Confidential Space VM `beacon-fcc-tee` (`n2d-standard-2` AMD Milan SEV) + proxy VM `beacon-fcc-proxy` (`e2-small`).
+- Image `beacon-fcc-hardware:v0.1.2` MODE=0, tee-node v0.0.24, tee-proxy v0.0.21.
+- Measured codeHash `0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806`.
+- `/info` platform bytes decode to `GCP_AMD_SEV` (not hardcoded).
+- Stable HTTPS: reserved ngrok `https://policy-handful-outlast.ngrok-free.dev`.
+- Current FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE`.
+- Extension `65925` / `0x…10185`. Hardware TEE `0xA5E9a81044dd4d66384DE09CF95dB317fde5646d` status **2 PRODUCTION**.
+- Stale simulated machines paused after hardware hit status 2: `0x6516…c8ed`, `0x112a…9511`.
+- ALLOW SAY_HELLO instruction `0xb21e7dcc…b97e` status 1, signed result.
+- DENY empty-name tx `0xeb7f237c…50b82a` instruction `0xd9afe14f…e597` status 0 `name must not be empty`, signed result.
+- Evidence: `docs/evidence/hardware-fcc/STATUS.json`, `allow-path.json`, `deny-path.json`.
+
+### Production switch (this change)
+- `SIMULATED_TEE=false`, `FCC_MODE=verified` in `render.yaml` + local `.env` (not committed).
+- `hardwareClaim` is a boolean derived from live `/info` (GCP_AMD_SEV + codeHash + status 2 + stable proxy).
+- Reserved `*.ngrok-free.dev` is not treated as ephemeral.
+- UI/docs no longer present simulated FCC as the current production implementation.
+- `canMoveFunds` stays false. Beacon Safe remains the spend boundary.
+- Historical simulated evidence is kept; it is not the active path.
+
+### Cost
+Smallest viable CS (`n2d-standard-2`) + `e2-small` proxy. No extra load balancers. Do not duplicate VMs. Leave CS+proxy running while judging evidence is needed.
+
+### Recovery
+Restart of Confidential Space = new teeId. Re-register → availability → PRODUCTION → pause stale identity. Do not fall back to simulated production.
+
+---
+
+## 2026-08-12 - Hardware FCC: MODE=0 image ready; GCP billing BLOCKED
+
+
+### Goal
+Deploy real hardware-backed FCC (GCP Confidential Space → GCP_AMD_SEV + measured codeHash) while keeping simulated Coston2 path as rollback.
+
+### Done (prep)
+- Official path: `flare-foundation/fce-sign` DEPLOYMENT_STEPS + Beacon `fce-beacon` extension (ext `0x…10185`).
+- Built `beacon-fcc-hardware:v0.1.0` with **MODE=0** baked (`go/Dockerfile.hardware`); launch-policy allows `MODE`/`EXTENSION_ID`/`PROXY_URL` overrides.
+- Scripts: `scripts/build-hardware-image.sh`, `scripts/deploy-confidential-space.sh` (n2d-standard-2 SEV, least-priv SA).
+- Evidence: `docs/evidence/hardware-fcc/STATUS.json` + build log. Simulated prod baseline still `simulatedTee:true` / `hardwareClaim:false`.
+
+### Blocker (cannot fake)
+GCP project `project-62df34c9-fd72-4fee-80f` billing `015F00-887287-317C77`:
+- Free trial needs **$10 one-time prepayment** (EG country).
+- Visa ••••6583 charge **DECLINED** (`OR_MIVEM_04` — card could not be verified).
+- Also requires **Egypt tax info (ETA)** submission.
+- Credits page: empty → no Compute / Confidential Space until payment clears.
+
+### Not claimed
+No GCP_AMD_SEV, no hardware registration, no hardware ALLOW/DENY. Simulated FCC remains the live path.
+
+### Unblock
+Fix card / alternate payment → $10 prepay + tax → reply; resume Artifact Registry push → CS deploy → stable proxy → `post-build` rRap → E2E.
+
+---
+
 ## 2026-08-12 - MCP Flow-parity: bridge + full default scopes
 
 ### Problem
@@ -1588,4 +1650,25 @@ Stale Redis policies blocked `@fassets` / `@liquidity` etc. `loadPolicy` now uni
 - Loudness-matched Flare insert VO to film body (~-14 LUFS; was ~-30)
 - Premium motion upgrade on insert only (logos, radar rings, pipeline, climax)
 - Final still edit/final.mp4 under 5:00; Safe/Flow/Jobs preserved
+
+
+## 2026-08-12 — Hardware FCC path (in progress, production still simulated)
+
+GCP Free Trial credits are active ($300 / 90 days). Production Beacon API/UI is **unchanged** (`SIMULATED_TEE=true`); simulated path kept as rollback until hardware gates pass.
+
+### Done
+- Hardware image `beacon-fcc-hardware:v0.1.1` baked `MODE=0` `CHAIN_ID=114`, pushed to Artifact Registry by digest `sha256:e5be32fd2e27ea154aeb92508d6557dbe450e790f9b5b33c9a773b0ec0bf6471`
+- tee-proxy `v0.0.21` (matches Beacon `tools/go.mod`; scaffold main pins `v0.0.18` with the same tee-node `v0.0.24`) pushed `sha256:5244f324914678433261b42cc2cf750e7f4154a0b66bb30c51e0c84dc79df8aa`
+- Proxy VM `beacon-fcc-proxy` e2-small `us-east1-b` (us-central1 e2-small pool exhausted). Reserved ngrok domain in use (not trycloudflare).
+- Confidential Space VM `beacon-fcc-tee` n2d-standard-2 AMD Milan **SEV**, image family `confidential-space` (hardened). First create failed: `tee-container-log-redirect=true` is illegal on the production CS image and powered the VM off. Recreated without log redirect.
+- CS launcher: TPM quote, attestation token refresh, `workload task started`, VM still RUNNING. No `/info` yet because ext-proxy cannot start.
+
+### Blocked
+- Shared Coston2 indexer user at `max_user_connections=100`. ext-proxy stopped (no crash loop). Retrying until a slot opens.
+- Do not register TEE or switch production until `GET /info` shows `GCP_AMD_SEV` and a non-simulated codeHash.
+
+### Not claimed
+- Hardware FCC in production
+- `SIMULATED_TEE=false` on Render
+- ALLOW/DENY on the hardware machine
 

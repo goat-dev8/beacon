@@ -18,7 +18,7 @@ const RAILS = [
     id: "fcc",
     title: "FCC",
     why: "Policy evaluation should stay off the public chat surface.",
-    how: "Coston2 uses SIMULATED_TEE (hackathon-accepted). Not hardware-attested Confidential Space.",
+    how: "Coston2 production uses GCP Confidential Space (AMD SEV). FCC cannot move funds; Beacon Safe remains the spend boundary.",
   },
   {
     id: "x402",

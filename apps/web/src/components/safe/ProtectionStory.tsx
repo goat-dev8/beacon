@@ -15,7 +15,7 @@ const CARDS = [
   {
     icon: EyeOff,
     title: "What confidential policy protects",
-    body: "Your spend rules stay off the public chat surface. On Coston2 this is a Simulated TEE path (SIMULATED_TEE): hackathon-accepted confidentiality, not hardware-attested Confidential Space.",
+    body: "Your spend rules stay off the public chat surface. Production FCC evaluates inside GCP Confidential Space (AMD SEV). Beacon Safe remains the spend boundary; FCC cannot move funds.",
   },
 ] as const;
 
@@ -52,7 +52,12 @@ export function ProtectionStory({
                     Confidential policy (simulated TEE)
                   </p>
                 )}
-                {i === 2 && fccMode !== "simulated" && (
+                {i === 2 && fccMode === "verified" && (
+                  <p className="mt-3 inline-flex rounded-full border border-[var(--p-accent)]/40 bg-[var(--p-accent-soft)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--p-accent-text)]">
+                    Confidential policy (hardware TEE)
+                  </p>
+                )}
+                {i === 2 && fccMode !== "simulated" && fccMode !== "verified" && (
                   <p className="mt-3 inline-flex rounded-full border border-[var(--p-border-strong)] px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-[var(--p-faint)]">
                     Server policy · FCC {fccMode}
                   </p>

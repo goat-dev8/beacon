@@ -79,7 +79,7 @@ export function registerFlareNativeRoutes(
       ...info,
       canMoveFunds: false as const,
       canAuthorize: adapter.canAuthorize(),
-      honesty: honestyMessage(env.SIMULATED_TEE),
+      honesty: honestyMessage(env.SIMULATED_TEE, resolveFccMode(process.env, env.SIMULATED_TEE)),
       docs: adapter.getDocs(),
     };
   });
@@ -110,7 +110,7 @@ export function registerFlareNativeRoutes(
   /**
    * FCC Lifecycle Status — honest reporting of InstructionSender, extension, proxy, TEE machine.
    * canMoveFunds: false ALWAYS until a polled TEE result is verified (never faked).
-   * teeProduction (status===2) ≠ hardware Confidential Space when SIMULATED_TEE=true.
+   * teeProduction (status===2) is hardware Confidential Space only when hardwareClaim is true.
    */
   app.get("/v1/fcc/lifecycle", async () => {
     const status = await getFccLifecycleStatus(env);
@@ -346,12 +346,14 @@ export function registerFlareNativeRoutes(
           ? "SIMULATED_TEE — hackathon-accepted, NOT hardware-attested"
           : fccLifecycle.mode === "unavailable"
             ? "NOT_AVAILABLE — FCC not configured"
-            : "VERIFIED mode configured but hardware attestation not verified by Beacon",
+            : "REAL — hardware-backed GCP Confidential Space (AMD SEV); still canMoveFunds:false",
         teeMachine:
           fccLifecycle.teeProduction
-            ? fccLifecycle.simulatedTee
-              ? "PRODUCTION (status=2) via SIMULATED_TEE availability attestation — NOT GCP Confidential Space hardware"
-              : "PRODUCTION (status=2) reported — Beacon still sets hardwareClaim:false without measured codeHash proof"
+            ? fccLifecycle.hardwareClaim
+              ? `PRODUCTION (status=2) hardware TEE ${fccLifecycle.teeId} platform=${fccLifecycle.platformAscii} codeHash=${fccLifecycle.codeHash}`
+              : fccLifecycle.simulatedTee
+                ? "PRODUCTION (status=2) via SIMULATED_TEE availability attestation — NOT GCP Confidential Space hardware"
+                : "PRODUCTION (status=2) reported — hardwareClaim false until /info proves GCP_AMD_SEV + measured codeHash"
             : fccLifecycle.teeMachineStatus != null
               ? `teeMachineStatus=${fccLifecycle.teeMachineStatus} (${fccLifecycle.teeMachineStatusLabel}) — not PRODUCTION`
               : "TEE machine status not probed",
@@ -367,7 +369,9 @@ export function registerFlareNativeRoutes(
               : "NOT_ATTEMPTED"
             : "NOT_SUBMITTED — pass submitInstruction:true to attempt on-chain FCC (opt-in)",
         fundsMoved: "NEVER — this endpoint does not move funds",
-        hardwareClaim: "false — Beacon does not claim hardware Confidential Space while SIMULATED_TEE or without attestation chain",
+        hardwareClaim: fccLifecycle.hardwareClaim
+          ? "true — /info reports GCP_AMD_SEV with measured codeHash; FCC still cannot move funds"
+          : "false — Beacon does not claim hardware Confidential Space while SIMULATED_TEE or without attestation chain",
         canMoveFunds: "false — kept false until result verified; never faked",
       },
       daLayerNote: "Correct DA base: https://ctn2-data-availability.flare.network/ — proof path: /api/v1/fdc/proof-by-request-round-raw",
@@ -858,7 +862,7 @@ export function registerFlareNativeRoutes(
             instructionPath: fccLifecycle.instructionPath,
             blockers: fccLifecycle.blockers,
             canMoveFunds: false,
-            hardwareClaim: false,
+            hardwareClaim: fccLifecycle.hardwareClaim,
           },
         },
         {

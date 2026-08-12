@@ -6,8 +6,12 @@ import {
   teeMachineStatusLabel,
   isTeeProduction,
   isEphemeralExtProxyUrl,
+  decodeFccPlatform,
+  isHardwareAttestedPlatform,
   COSTON2_FLARE_TEE_MANAGER,
   COSTON2_EVIDENCE_TEE_ID,
+  COSTON2_HARDWARE_TEE_ID,
+  COSTON2_HISTORICAL_SIMULATED_TEE_ID,
 } from "./fcc.js";
 
 describe("teeMachineStatusLabel", () => {
@@ -49,8 +53,14 @@ describe("isEphemeralExtProxyUrl", () => {
     ).toBe(true);
   });
 
-  it("detects ngrok hosts", () => {
+  it("detects random ngrok-free.app hosts", () => {
     expect(isEphemeralExtProxyUrl("https://abc.ngrok-free.app")).toBe(true);
+  });
+
+  it("treats reserved ngrok-free.dev as stable", () => {
+    expect(
+      isEphemeralExtProxyUrl("https://policy-handful-outlast.ngrok-free.dev"),
+    ).toBe(false);
   });
 
   it("returns false for stable domains", () => {
@@ -64,12 +74,30 @@ describe("isEphemeralExtProxyUrl", () => {
 });
 
 describe("Coston2 evidence constants", () => {
-  it("exposes FlareTeeManager + evidence TEE id", () => {
+  it("exposes FlareTeeManager + hardware TEE id", () => {
     expect(COSTON2_FLARE_TEE_MANAGER.toLowerCase()).toBe(
       "0x1a9c4a0f9d76c0b1d91d22e24e573a9b377618ae",
     );
     expect(COSTON2_EVIDENCE_TEE_ID.toLowerCase()).toBe(
+      COSTON2_HARDWARE_TEE_ID.toLowerCase(),
+    );
+    expect(COSTON2_HARDWARE_TEE_ID.toLowerCase()).toBe(
+      "0xa5e9a81044dd4d66384de09cf95db317fde5646d",
+    );
+    expect(COSTON2_HISTORICAL_SIMULATED_TEE_ID.toLowerCase()).toBe(
       "0x6516ce58ae346fb4c438463f05b17b50eeb1c8ed",
     );
+  });
+});
+
+describe("decodeFccPlatform", () => {
+  it("decodes GCP_AMD_SEV platform bytes", () => {
+    expect(
+      decodeFccPlatform(
+        "0x4743505f414d445f534556000000000000000000000000000000000000000000",
+      ),
+    ).toBe("GCP_AMD_SEV");
+    expect(isHardwareAttestedPlatform("GCP_AMD_SEV")).toBe(true);
+    expect(isHardwareAttestedPlatform("SIMULATED")).toBe(false);
   });
 });

@@ -6,6 +6,7 @@ import {
   loadEnv,
   requireEnv,
   honestyMessage,
+  resolveFccMode,
   isAiConfigured,
   probeModels,
   resolveAiBaseUrl,
@@ -41,7 +42,7 @@ async function main(): Promise<void> {
   results.push({
     name: "SIMULATED_TEE",
     ok: true,
-    detail: `${env.SIMULATED_TEE} — ${honestyMessage(env.SIMULATED_TEE)}`,
+    detail: `${env.SIMULATED_TEE} — ${honestyMessage(env.SIMULATED_TEE, resolveFccMode(process.env, env.SIMULATED_TEE))}`,
   });
 
   if (env.DATABASE_URL_DIRECT) {

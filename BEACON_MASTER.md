@@ -2,7 +2,7 @@
 
 **Single source of truth for Beacon (Flare AI OS).**  
 **Network:** Flare Testnet Coston2 (chain ID **114**)  
-**Last aligned with:** `history.md` (2026-08-12 MCP Flow-parity tools + bridge), `docs/FLARE_FINAL_IMPLEMENTATION_PLAN.md`, `docs/FLARE_FINAL_AUDIT.md`  
+**Last aligned with:** `history.md` (2026-08-12 hardware FCC GCP Confidential Space PRODUCTION), `docs/evidence/hardware-fcc/STATUS.json`  
 **Rule:** Do not invent facts. Mark unknowns as TODO. No secrets in this file.
 
 ---
@@ -29,7 +29,7 @@ Landing (/)
   -> Connect wallet (MetaMask / Rabby, Coston2 only)
   -> Fund Beacon Safe (EIP-3009 deposit or transfer of MockUSDT0)
   -> Set spending policy (caps, window, session, pause)
-  -> FCC path is honest: SIMULATED_TEE on Coston2; FlareTeeManager may show PRODUCTION (status 2) without claiming hardware Confidential Space
+  -> FCC path is hardware-backed GCP Confidential Space (AMD SEV) on Coston2; FlareTeeManager status 2 PRODUCTION; `canMoveFunds: false`
   -> x402 micropays in Flow (Facilitator + EIP-3009) and/or Agent Jobs escrow
   -> Receipts (job receipt + explorer tx links)
   -> Flow (/flow) for ongoing chat OS work
@@ -129,10 +129,10 @@ Bridge spend/policy is evaluated on **Coston2 (114)**. Destination peer names ar
   MockUSDT0, Facilitator, Escrow, AgentVault, JobRegistry, SwapDesk
   FTSO (execution guard on Safe swaps), FAssets status/redeem, LayerZero OFT + delivery track
   FDC API lifecycle (REAL + on-chain AddressValidity VERIFIED via staticCall; never invented proofs)
-  FCC shadow + value-protection evaluate (SIMULATED_TEE; FlareTeeManager PRODUCTION status 2 ≠ hardware)
+  FCC shadow + value-protection evaluate (hardware GCP Confidential Space; FlareTeeManager PRODUCTION status 2)
 
 * FDC: API `/v1/fdc/*` wired; Flow does not silently fake attestations. Evidence: `docs/evidence/fdc-address-validity-verify.json` (`onChainVerified: true`).
-* FCC: SIMULATED_TEE / FCC_MODE=simulated — not hardware Confidential Space. TEE `0x6516…c8ed` on manager `0x1a9C…18aE` is **PRODUCTION (status 2)** via availability attestation. Shadow / value-protection evaluate cannot move funds (`canMoveFunds: false`). Instruction→result may still be PARTIAL if EXT_PROXY poll 404; trycloudflare EXT_PROXY is ephemeral.
+* FCC: `SIMULATED_TEE=false` / `FCC_MODE=verified`. TEE `0xA5E9…646d` on manager `0x1a9C…18aE` is **PRODUCTION (status 2)** with `/info` platform `GCP_AMD_SEV` and measured codeHash `0x2813e4ec…5806`. Shadow / value-protection evaluate cannot move funds (`canMoveFunds: false`). Stable ext-proxy: reserved ngrok `https://policy-handful-outlast.ngrok-free.dev`. Historical simulated TEE `0x6516…c8ed` is paused (development evidence only).
 * Beacon Safe ≠ Flare Smart Account. Smart Accounts rail = **STUB**. Local credit memo markers are `0xbe`/`0xbc`, not SA `0xff`.
 ```
 
@@ -220,7 +220,7 @@ Agent Jobs escrow is a **product extension** (lock until acceptance), not a repl
 ## 7. Honesty constraints (non-negotiable)
 
 1. **EIP-3009 cannot forge from Safe.** Signature must recover to `from`. A contract Safe has no private key for that address. Beacon does **not** set `from = Safe` with a wallet signature. Safe jobs use `vault.execute` + `escrow.lockPrepaid`.
-2. **FCC = SIMULATED_TEE on Coston2.** Live: `SIMULATED_TEE=true`, `FCC_MODE=simulated`. FlareTeeManager may report **PRODUCTION (status 2)** for a registered machine — that is availability attestation, **not** hardware Confidential Space / measured enclave. `canMoveFunds: false` until instruction result is polled and verified (never faked). EXT_PROXY may be an ephemeral trycloudflare tunnel.
+2. **FCC = hardware Confidential Space on Coston2.** Live: `SIMULATED_TEE=false`, `FCC_MODE=verified`. FlareTeeManager **PRODUCTION (status 2)** for TEE `0xA5E9a81044dd4d66384DE09CF95dB317fde5646d` with `/info` `GCP_AMD_SEV` and measured codeHash. `hardwareClaim` is true only when those fields are observed — never hardcoded. `canMoveFunds: false`. Beacon Safe remains the spend boundary. Historical simulated path is documented, not active.
 3. **Beacon Safe -> Flare Smart Accounts.** Smart Accounts are XRPL-controlled personal accounts. BeaconAgentVault is a MetaMask/agent policy vault.
 4. **MockUSDT0** (`0x6fd8…e86c`) is the payment asset for Safe / Jobs / x402 until FXRP (or faucet USDT0) has official EIP-3009 in Flare x402 guides. Faucet [Coston2](https://faucet.flare.network/coston2) supplies **C2FLR gas** (and optional USDT0/FXRP for other demos). See `docs/RESEARCH_USDT0_FAUCET_VS_MOCK.md`.
 5. **Coston2 only** for agent / Safe product rails (chain 114). SparkDEX Mainnet paths are blocked for Safe auto-spend; Safe FXRP uses SwapDesk + FTSO.
@@ -230,6 +230,33 @@ Agent Jobs escrow is a **product extension** (lock until acceptance), not a repl
 9. **Safe prepaid lock currently uses two Coston2 transactions.** `vault.execute(transfer)` then `lockPrepaid`; do not describe it as one atomic transaction.
 
 Deep audit: `docs/RESEARCH_AGENT_SAFE_SESSION_AND_REALITY.md`.
+
+### FCC hardware architecture (Coston2)
+
+```
+Beacon API / Flow
+  -> InstructionSender 0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46
+  -> Flare data providers POST https://policy-handful-outlast.ngrok-free.dev/instruction
+  -> GCP tee-proxy (beacon-fcc-proxy, us-east1-b) :6664
+  -> Confidential Space VM beacon-fcc-tee (n2d-standard-2 AMD Milan SEV, MODE=0)
+  -> signed result -> ext-proxy /action/result
+  -> Beacon verifier / policy evaluate (canMoveFunds: false)
+```
+
+- Extension ID `65925` / `0x…10185`
+- TEE ID `0xA5E9a81044dd4d66384DE09CF95dB317fde5646d` (status 2 PRODUCTION)
+- Image `beacon-fcc-hardware:v0.1.2` digest `sha256:60b9867ad637fb6eacc7a64b4bdc053375d7ac30125681c4dbac0848671af2c5`
+- Measured codeHash `0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806`
+- `/info` platform `GCP_AMD_SEV` (parsed from bytes, never hardcoded into the TEE)
+- Evidence: `docs/evidence/hardware-fcc/`
+
+### FCC recovery
+
+1. Confirm `/info` on the reserved HTTPS endpoint still reports `GCP_AMD_SEV` + the measured codeHash.
+2. Confirm FlareTeeManager `getTeeMachineStatus` is `2`. Restarting the Confidential Space VM creates a **new TEE identity** — do not reuse a stale teeId. Register the new machine, complete availability (`rRap`), reach PRODUCTION, then pause the stale identity.
+3. Keep `SIMULATED_TEE=false` on Render. Do not silently fall back to simulated execution.
+4. If the hardware path is down, FCC endpoints must fail closed (`mode=unavailable`, `hardwareClaim=false`) rather than claiming simulated production.
+5. Historical simulated evidence (`docs/evidence/fcc-tee-production.json`, paused machines `0x6516…c8ed` / `0x112a…9511`) is not the live path.
 
 ---
 
@@ -377,7 +404,7 @@ Local desk (dev): `http://localhost:5173` -> API `http://127.0.0.1:3001` (when r
 | **LayerZero OFT** | Flow bridge intents / agent bridge | Compliant (Flow) |
 | **x402** | Flow micropays via Facilitator + EIP-3009 | Compliant |
 | **FDC** | Flow attestation paths + on-chain AddressValidity VERIFIED (staticCall) | Not claimed on Jobs desk |
-| **FCC** | Lifecycle + value-protection evaluate (ALLOW/DENY) | `SIMULATED_TEE`; PRODUCTION status 2 ≠ hardware; result poll may be PARTIAL |
+| **FCC** | Lifecycle + value-protection evaluate (ALLOW/DENY) | Hardware GCP Confidential Space (`GCP_AMD_SEV`); PRODUCTION status 2; `canMoveFunds: false` |
 | **EIP-3009 / MockUSDT0** | Safe funding, wallet job locks, x402 | Compliant; no forged Safe-as-from |
 
 ---
@@ -395,7 +422,7 @@ Method used in history: Chrome DevTools against production desk + MetaMask on Co
 - **Bridge:** quote -> Confirm -> Execute with Beacon Agent; explorer + LZ Scan links when on-chain
 - **x402:** Unpaid -> EIP-3009 on chain 114 -> settle
 - **Agent Jobs:** brief -> quote -> **Pay from Beacon Safe** (primary) or wallet EIP-3009 -> generate -> PASS/CLOSED or NEEDS_LOOK with deliverable; receipt + explorer; Safe timeline shows `vault.execute` + `lockPrepaid`
-- **FCC badge:** SIMULATED_TEE honesty (PRODUCTION status 2 ≠ hardware Confidential Space)
+- **FCC badge:** hardware TEE when `/v1/fcc/status` `mode=verified` and `hardwareClaim=true`
 - **CI local:** `npm run typecheck`, `npm test`, `npm run test:contracts`, `npm run web:build`
 
 ### Scripted e2e
@@ -413,7 +440,7 @@ Method used in history: Chrome DevTools against production desk + MetaMask on Co
 | Policy / overspend reject | `maxSpendPerTx`, rolling window, pause, session, allowlist | Safe page LIVE status; `assertPolicyAllows`; vault allowlist includes `transfer(address,uint256)` to escrow |
 | Safe job needs gas | Executor needs C2FLR | Faucet; settler/executor balance |
 | Claiming "Safe paid via EIP-3009 as Safe" | Protocol-illegal | Use prepaid path only |
-| FCC shown as hardware TEE | Misconfig / bad copy | `SIMULATED_TEE`, `FCC_MODE=simulated`, `/v1/fcc/status`, `/health` honesty |
+| FCC shown as simulated TEE | Stale env / UI | `SIMULATED_TEE=false`, `FCC_MODE=verified`, `/v1/fcc/status` `hardwareClaim`, `/health` honesty |
 | AI 401 / CORS / probe fail | Proxy / keys / ASN | `/v1/ai/probe`; `AI_PROXY_URL`; Vercel `/api/ai/proxy`; no laptop relay required for prod |
 | INTERNAL opaque 500 | Server exception | Response `error.detail` (sliced); Render logs |
 | SSE / progress crash | Historic `JSON.parse("[object Object]")` | Fixed in history; re-check if regressions |
@@ -444,7 +471,7 @@ Companion audit: `ARCHITECTURE_AUDIT.md`. Living engineering log: `history.md`.
 - [ ] Sync `apps/web/.env.example` escrow to prepaid `0xE68c->1C7E` (currently may still show old address).
 - [ ] Confirm live Vercel env SHA matches latest `main` after any billing/deploy gaps noted in older audits.
 - [ ] Video pipeline production readiness beyond "Coming Soon" UI.
-- [ ] Hardware FCC / verified enclave when Flare ships a public production path.
+- [ ] Hardware FCC / verified enclave: MODE=0 image built (`beacon-fcc-hardware:v0.1.0`); GCP CS blocked on EG $10 prepay + card verify (`OR_MIVEM_04`) + ETA tax — evidence `docs/evidence/hardware-fcc/STATUS.json`. Do not claim GCP_AMD_SEV until that clears.
 
 ---
 

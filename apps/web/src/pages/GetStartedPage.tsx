@@ -43,7 +43,7 @@ const STEPS = [
   {
     id: "fcc",
     title: "FCC on Coston2",
-    body: "Policy stays off the public chat surface. Hackathon mode uses SIMULATED_TEE, not hardware-attested Confidential Space.",
+    body: "Policy stays off the public chat surface. Production FCC runs in GCP Confidential Space (AMD SEV). Beacon Safe remains the spend boundary.",
     diagram: 2,
   },
   {

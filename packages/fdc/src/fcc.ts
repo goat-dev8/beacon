@@ -78,7 +78,7 @@ export class FccExtensionClient {
   }
 
   honesty(): string {
-    return honestyMessage(this.cfg.simulatedTee);
+    return honestyMessage(this.cfg.simulatedTee, this.cfg.simulatedTee ? "simulated" : "verified");
   }
 
   /**
@@ -285,8 +285,18 @@ function extractInstructionId(receipt: {
 /** Known Coston2 FlareTeeManager diamond (evidence 2026-08-10). */
 export const COSTON2_FLARE_TEE_MANAGER = "0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE";
 
-/** Known Beacon TEE machine used for Coston2 PRODUCTION evidence (SIMULATED_TEE). */
-export const COSTON2_EVIDENCE_TEE_ID = "0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed";
+/** Current Beacon hardware TEE on Coston2 (GCP Confidential Space, status 2). */
+export const COSTON2_HARDWARE_TEE_ID = "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d";
+
+/** Historical simulated TEE (paused). Keep for development evidence only. */
+export const COSTON2_HISTORICAL_SIMULATED_TEE_ID = "0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed";
+
+/** Known Beacon TEE machine used for current Coston2 PRODUCTION evidence. */
+export const COSTON2_EVIDENCE_TEE_ID = COSTON2_HARDWARE_TEE_ID;
+
+/** Measured codeHash of hardware image beacon-fcc-hardware:v0.1.2 (MODE=0). */
+export const COSTON2_HARDWARE_CODE_HASH =
+  "0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806";
 
 const TEE_MANAGER_ABI = [
   "function getTeeMachineStatus(address) view returns (uint8)",
@@ -334,7 +344,11 @@ export interface FccLifecycleStatus {
   };
   /** Always false until a TEE action result is polled and verified — never faked. */
   canMoveFunds: false;
-  hardwareClaim: false;
+  /** True only when /info reports GCP_AMD_SEV + measured codeHash and the machine is PRODUCTION. */
+  hardwareClaim: boolean;
+  platform: string | null;
+  platformAscii: string | null;
+  codeHash: string | null;
   contractCapabilities: FccContractCapabilities | null;
   honesty: string;
   blockers: string[];
@@ -358,10 +372,33 @@ export function isEphemeralExtProxyUrl(url: string | null | undefined): boolean 
   if (!url) return false;
   try {
     const host = new URL(url).hostname.toLowerCase();
-    return host.endsWith(".trycloudflare.com") || host.endsWith(".ngrok-free.app") || host.endsWith(".ngrok.io");
+    if (host.endsWith(".trycloudflare.com")) return true;
+    if (host.endsWith(".ngrok.io")) return true;
+    if (host.endsWith(".ngrok-free.app")) return true;
+    // Reserved ngrok hostnames (*.ngrok-free.dev, *.ngrok.app) are stable.
+    return false;
   } catch {
-    return /trycloudflare\.com|ngrok/i.test(url);
+    return /trycloudflare\.com|ngrok-free\.app|\.ngrok\.io/i.test(url);
   }
+}
+
+/** Decode Flare FCC platform bytes32 to ASCII (stops at first NUL). */
+export function decodeFccPlatform(platformHex: string | null | undefined): string | null {
+  if (!platformHex) return null;
+  const hex = platformHex.startsWith("0x") ? platformHex.slice(2) : platformHex;
+  if (!/^[0-9a-fA-F]*$/.test(hex) || hex.length % 2 !== 0) return null;
+  const chars: string[] = [];
+  for (let i = 0; i < hex.length; i += 2) {
+    const code = Number.parseInt(hex.slice(i, i + 2), 16);
+    if (code === 0) break;
+    if (code >= 32 && code < 127) chars.push(String.fromCharCode(code));
+  }
+  const ascii = chars.join("").trim();
+  return ascii || null;
+}
+
+export function isHardwareAttestedPlatform(platformAscii: string | null | undefined): boolean {
+  return platformAscii === "GCP_AMD_SEV";
 }
 
 function resolveTeeManagerAddress(env: BeaconEnv): string {
@@ -468,11 +505,10 @@ export async function getFccLifecycleStatus(env: BeaconEnv = loadEnv()): Promise
             const ids = (await mgr.getRandomTeeIds(extNum, 1)) as string[];
             if (ids?.[0]) teeId = ids[0];
           } catch {
-            // Fall back to evidence TEE when configured on Coston2 path
-            if (simulatedTee) teeId = COSTON2_EVIDENCE_TEE_ID;
+            teeId = simulatedTee ? COSTON2_HISTORICAL_SIMULATED_TEE_ID : COSTON2_HARDWARE_TEE_ID;
           }
-        } else if (simulatedTee) {
-          teeId = COSTON2_EVIDENCE_TEE_ID;
+        } else {
+          teeId = simulatedTee ? COSTON2_HISTORICAL_SIMULATED_TEE_ID : COSTON2_HARDWARE_TEE_ID;
         }
       }
       if (teeId) {
@@ -494,13 +530,34 @@ export async function getFccLifecycleStatus(env: BeaconEnv = loadEnv()): Promise
     }
   }
 
-  // Check extension proxy (result poll path)
+  let platform: string | null = null;
+  let platformAscii: string | null = null;
+  let codeHash: string | null = null;
+
+  // Check extension proxy (result poll path) and parse /info attestation fields
   if (extProxyConfigured && env.EXT_PROXY_URL) {
     try {
       const base = env.EXT_PROXY_URL.replace(/\/$/, "");
-      const resp = await fetch(`${base}/info`, { method: "GET" });
+      const resp = await fetch(`${base}/info`, {
+        method: "GET",
+        headers: {
+          "User-Agent": "BeaconFCC/1.0",
+          "ngrok-skip-browser-warning": "true",
+        },
+      });
       extProxyReachable = resp.ok;
-      if (!extProxyReachable) {
+      if (resp.ok) {
+        try {
+          const info = (await resp.json()) as {
+            machineData?: { platform?: string; codeHash?: string; extensionId?: string };
+          };
+          platform = info.machineData?.platform ?? null;
+          platformAscii = decodeFccPlatform(platform);
+          codeHash = info.machineData?.codeHash ?? null;
+        } catch {
+          // /info was not JSON — do not claim hardware
+        }
+      } else {
         const health = await fetch(`${base}/health`, { method: "GET" });
         extProxyReachable = health.ok;
       }
@@ -528,21 +585,33 @@ export async function getFccLifecycleStatus(env: BeaconEnv = loadEnv()): Promise
 
   if (extProxyEphemeral) {
     blockers.push(
-      "EXT_PROXY_URL is ephemeral (trycloudflare/ngrok) — tunnel must stay alive or re-register with a stable domain",
+      "EXT_PROXY_URL is ephemeral (trycloudflare / ngrok-free.app) — tunnel must stay alive or re-register with a stable domain",
     );
   }
 
-  // Determine mode — SIMULATED_TEE never upgrades to "verified" hardware claim
+  const hardwareClaim =
+    !simulatedTee &&
+    teeProduction &&
+    isHardwareAttestedPlatform(platformAscii) &&
+    Boolean(codeHash) &&
+    !extProxyEphemeral &&
+    extProxyReachable;
+
+  // Determine mode — SIMULATED_TEE never upgrades to "verified"
   let mode: "verified" | "simulated" | "unavailable" = "unavailable";
   if (simulatedTee) {
     mode = "simulated";
-  } else if (blockers.length === 0 && instructionSenderHasBytecode && extProxyConfigured) {
+  } else if (hardwareClaim) {
     mode = "verified";
+  } else if (blockers.length === 0 && instructionSenderHasBytecode && extProxyConfigured) {
+    blockers.push(
+      "Hardware attestation not proven from ext-proxy /info (need GCP_AMD_SEV + measured codeHash + PRODUCTION + stable proxy)",
+    );
   }
 
   const attestationKind: FccAttestationKind = simulatedTee
     ? "simulated"
-    : mode === "verified"
+    : hardwareClaim
       ? "hardware"
       : "unknown";
 
@@ -568,14 +637,18 @@ export async function getFccLifecycleStatus(env: BeaconEnv = loadEnv()): Promise
       ]
         .filter(Boolean)
         .join(" ")
-    : mode === "unavailable"
-      ? `FCC unavailable: ${blockers.join("; ")}. Shadow authorization fail-closed.`
-      : [
-          "FCC mode claims verified path, but Beacon does not independently verify hardware attestation chain.",
+    : hardwareClaim
+      ? [
+          "FCC path uses hardware-backed GCP Confidential Space (AMD SEV).",
           productionNote,
-          "Do NOT treat as hardware TEE proof without measured codeHash + Confidential Space evidence.",
-          "canMoveFunds: false until instruction result verified.",
-        ].join(" ");
+          platformAscii ? `platform=${platformAscii}.` : null,
+          codeHash ? `measured codeHash=${codeHash}.` : null,
+          "canMoveFunds: false — Beacon Safe remains the spend boundary.",
+          "hardwareClaim: true.",
+        ]
+          .filter(Boolean)
+          .join(" ")
+      : `FCC unavailable: ${blockers.join("; ") || "hardware attestation not proven"}. Shadow authorization fail-closed.`;
 
   return {
     mode,
@@ -607,14 +680,17 @@ export async function getFccLifecycleStatus(env: BeaconEnv = loadEnv()): Promise
         : "Instruction→result is PARTIAL until EXT_PROXY_URL is reachable and a result is polled.",
     },
     canMoveFunds: false,
-    hardwareClaim: false,
+    hardwareClaim,
+    platform,
+    platformAscii,
+    codeHash,
     contractCapabilities,
     honesty,
     blockers,
     docs: [
       "https://dev.flare.network/fcc/overview",
       "https://dev.flare.network/fcc/developer-guides",
-      "docs/evidence/fcc-tee-production.json",
+      "docs/evidence/hardware-fcc/STATUS.json",
     ],
   };
 }

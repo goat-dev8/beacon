@@ -19,7 +19,7 @@ const STAGES = [
   {
     id: "policy",
     title: "Policy",
-    body: "Beacon Safe caps and FCC (SIMULATED_TEE on Coston2) gate spend. Blocked still leaves a receipt.",
+    body: "Beacon Safe caps and FCC (hardware TEE on Coston2) gate spend. Blocked still leaves a receipt.",
     rail: "Safe + FCC",
   },
   {

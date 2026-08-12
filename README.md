@@ -41,13 +41,13 @@ Beacon Safe is a personal `BeaconAgentVault` per wallet, created via `BeaconSafe
 
 The browser session is authentication, not custody: it never signs token transfers. The allowlisted executor submits transactions, while the Safe contract enforces target/selector allowlists, per-transaction and rolling caps, pause, expiry, and replay nonces. Research and UI-truth audit: `docs/RESEARCH_AGENT_SAFE_SESSION_AND_REALITY.md`.
 
-FCC on live Coston2 is **simulated TEE** (`SIMULATED_TEE=true`, `FCC_MODE=simulated`). A FlareTeeManager **PRODUCTION (status 2)** registration is availability attestation — do **not** claim a hardware Confidential Space enclave.
+FCC on live Coston2 is **hardware-backed GCP Confidential Space** (`SIMULATED_TEE=false`, `FCC_MODE=verified`, `/info` platform `GCP_AMD_SEV`). TEE `0xA5E9a81044dd4d66384DE09CF95dB317fde5646d` is FlareTeeManager **PRODUCTION (status 2)**. Measured codeHash `0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806`. Stable ext-proxy: `https://policy-handful-outlast.ngrok-free.dev`. FCC cannot move funds (`canMoveFunds: false`). Evidence: `docs/evidence/hardware-fcc/STATUS.json`. Historical simulated TEE evidence remains under `docs/evidence/fcc-tee-production.json`.
 
 **Flare-native execution (2026-08-09/10):** Safe job approve is **policy-before-spend**. FTSOv2 guards Safe swaps. Package `@beacon/flare` provides protocol adapters + `EvidenceEnvelope`.
 
 **FDC (REAL + on-chain VERIFIED):** AddressValidity on Coston2 — FdcHub tx `0x2c62375359beeb5491c648260d79c2ec69a71fc2260bcb21027b7ad86be04516`, round `1420937` finalized, DA proof `isValid: true`, `FdcVerification.verifyAddressValidity` **staticCall** `onChainVerified: true` (evidence: `docs/evidence/fdc-address-validity-verify.json`).
 
-**FCC (SIMULATED + TEE PRODUCTION status):** TEE `0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed` on FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE` is **status 2 = PRODUCTION** (evidence: `docs/evidence/fcc-tee-production.json`). InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46`. Re-verified ALLOW tx `0xc40fb4d8…de702` / DENY tx `0x637b2e3f…e2d2b`. `EXT_PROXY_URL` may be an ephemeral trycloudflare tunnel — prefer named/reserved tunnel + `rRap` on rotate. `canMoveFunds: false`. Value-protection: `POST /v1/fcc/policy/evaluate` (ALLOW/DENY).
+**FCC (hardware + TEE PRODUCTION status 2):** TEE `0xA5E9a81044dd4d66384DE09CF95dB317fde5646d` on FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE`. InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46`. Extension `65925` / `0x…10185`. ALLOW instruction `0xb21e7dcc…b97e` (status 1) and DENY tx `0xeb7f237c…50b82a` (status 0, empty name). `canMoveFunds: false`. Value-protection: `POST /v1/fcc/policy/evaluate` (ALLOW/DENY).
 
 **FAssets (REAL COMPLETE for request `44497208`):** Live AssetManagerFXRP + redeem prepare/track. Redeem tx `0x2a2edb61…66440` → XRPL pay `2C088911…E11A` (paymentReference match) → `RedemptionPerformed` `0x5466fbc6…9a14`. Evidence: `docs/evidence/fassets-redemption-44497208.json`. Tracker fixed for `uint256` requestId + chunked logs. Mint = docs handoff. Smart Accounts = **STUB**.
 
@@ -300,7 +300,7 @@ Notes:
 - Web build: `vercel.json` -> `npm run build -w @beacon/web`, output `apps/web/dist`.
 - API image: `Dockerfile` -> `npx tsx apps/api/src/index.ts` (embedded workers when Redis is set).
 - Production AI egress uses Vercel Node proxy: `AI_PROXY_URL` -> `https://beacon-desk.vercel.app/api/ai/proxy` (see history / production audit). Do not point live Render at localhost or ephemeral tunnels.
-- `render.yaml` documents the `beacon-api` service shape (Coston2 `CHAIN_ID=114`, `SIMULATED_TEE=true`).
+- `render.yaml` documents the `beacon-api` service shape (Coston2 `CHAIN_ID=114`, `SIMULATED_TEE=false`, `FCC_MODE=verified`).
 
 ---
 
@@ -336,7 +336,7 @@ Example explorer bases:
 | EIP-3009 / deposit fails on faucet USDT0 | Token lacks authorization | Use Beacon MockUSDT0 for x402 rails |
 | Settler / approve fails | Missing `SETTLER_PRIVATE_KEY` or `DEPLOYER_PRIVATE_KEY` | Key must own escrow / have gas (C2FLR) |
 | AI hard fail with `AI_REQUIRE_REAL` | Proxy/key/WAF | Production uses Vercel `AI_PROXY_URL`; local needs working `AI_*` |
-| FCC honesty mismatch | Claiming hardware TEE | Keep `SIMULATED_TEE=true` / `FCC_MODE=simulated` unless you run a real enclave path |
+| FCC honesty mismatch | Claiming simulated FCC in production | Keep `SIMULATED_TEE=false` / `FCC_MODE=verified`; `/v1/fcc/status` must show `hardwareClaim: true` |
 
 ---
 
