@@ -1,0 +1,95 @@
+{
+  "useCase": "amount_cap",
+  "valueProtection": {
+    "decision": "DENY",
+    "allow": false,
+    "deny": true,
+    "reasons": [
+      "Amount 100 USDT0 exceeds cap 10 USDT0",
+      "Per-job app limit is 25 USDT0; this spend is 100.00. Raise it under Safe → App limits (separate from on-chain Safe caps)."
+    ],
+    "checks": {
+      "useCase": "amount_cap",
+      "amountUsdt0": 100,
+      "amountCapUsdt0": 10,
+      "recipient": null,
+      "expiresAt": null,
+      "nowSec": 1786573291,
+      "underAmountCap": false
+    },
+    "canMoveFunds": false,
+    "teeResultVerified": false,
+    "note": "DENY — Amount 100 USDT0 exceeds cap 10 USDT0; Per-job app limit is 25 USDT0; this spend is 100.00. Raise it under Safe → App limits (separate from on-chain Safe caps)."
+  },
+  "serverPolicy": {
+    "allowed": false,
+    "reason": "Per-job app limit is 25 USDT0; this spend is 100.00. Raise it under Safe → App limits (separate from on-chain Safe caps).",
+    "policyVersion": "1.0.0",
+    "enforcement": "server",
+    "fccMode": "verified",
+    "checks": {
+      "policySource": "redis",
+      "spentTodayUsdt0": 0.31618199999999996,
+      "emergencyPause": false,
+      "amountUsdt0": 100,
+      "allowedChains": [
+        114,
+        14
+      ],
+      "sessionExpiryHours": 24,
+      "sessionStartedAt": null,
+      "sessionExpired": false,
+      "perJobLimitUsdt0": 25
+    }
+  },
+  "shadowFcc": {
+    "status": "REAL",
+    "mode": "verified",
+    "allow": false,
+    "canMoveFunds": false,
+    "honestyLabel": "FCC verified mode — hardware-backed GCP Confidential Space (AMD SEV) shadow authorization. canMoveFunds: false. Do not treat as spend authority.",
+    "authorization": {
+      "actionHash": "closeout-deny-100-vs-10-1786573291990",
+      "policyHash": "v1.0.0:verified:amount_cap",
+      "nonce": "1786573291983",
+      "validAfter": "2026-08-12T22:21:31.983Z",
+      "validBefore": "2026-08-12T22:26:31.983Z",
+      "allow": false,
+      "reasonCommitment": "Amount 100 USDT0 exceeds cap 10 USDT0; Per-job app limit is 25 USDT0; this spend is 100.00. Raise it under Safe → App limits (separate from on-chain Safe caps).",
+      "timestamp": "2026-08-12T22:21:31.983Z"
+    }
+  },
+  "tee": {
+    "teeId": "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d",
+    "flareTeeManager": "0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE",
+    "teeMachineStatus": 2,
+    "teeMachineStatusLabel": "PRODUCTION",
+    "teeProduction": true,
+    "simulatedTee": false,
+    "attestationKind": "hardware",
+    "instructionPath": {
+      "senderReady": true,
+      "canSubmitInstruction": true,
+      "canPollResult": true,
+      "resultVerified": false,
+      "note": "Instruction submit possible; result poll reachable — still not auto-verified for fund movement."
+    },
+    "extProxyEphemeral": false
+  },
+  "onChainInstruction": null,
+  "honesty": {
+    "serverPolicy": "REAL — Redis-backed spend accounting with fail-closed on unavailable",
+    "valueProtection": "DENY path clear — spend must not proceed on this decision",
+    "shadowFcc": "REAL — hardware-backed GCP Confidential Space (AMD SEV); still canMoveFunds:false",
+    "teeMachine": "PRODUCTION (status=2) hardware TEE 0xA5E9a81044dd4d66384DE09CF95dB317fde5646d platform=GCP_AMD_SEV codeHash=0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806",
+    "onChainFcc": "NOT_ATTEMPTED",
+    "fundsMoved": "NEVER — this endpoint does not move funds",
+    "hardwareClaim": "true — /info reports GCP_AMD_SEV with measured codeHash; FCC still cannot move funds",
+    "canMoveFunds": "false — kept false until result verified; never faked"
+  },
+  "daLayerNote": "Correct DA base: https://ctn2-data-availability.flare.network/ — proof path: /api/v1/fdc/proof-by-request-round-raw",
+  "docs": [
+    "https://dev.flare.network/fcc/overview",
+    "https://dev.flare.network/fcc/developer-guides"
+  ]
+}

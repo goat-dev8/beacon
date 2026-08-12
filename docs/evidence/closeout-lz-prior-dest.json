@@ -1,0 +1,159 @@
+{
+  "sourceTx": "0x954228b00a6b6cffb886e09e9e766c5d8cdb397026796bbf7fe6fa895fe45d6e",
+  "layerZeroScan": "https://testnet.layerzeroscan.com/tx/0x954228b00a6b6cffb886e09e9e766c5d8cdb397026796bbf7fe6fa895fe45d6e",
+  "scanApi": {
+    "pathway": {
+      "srcEid": 40294,
+      "dstEid": 40161,
+      "sender": {
+        "address": "0xcd3d2127935ae82af54fc31ccd9d3440dbf46639",
+        "chain": "flare-testnet"
+      },
+      "receiver": {
+        "address": "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+        "chain": "sepolia"
+      },
+      "id": "40294-40161-0xcd3d2127935ae82af54fc31ccd9d3440dbf46639-0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+      "nonce": 268
+    },
+    "source": {
+      "status": "SUCCEEDED",
+      "tx": {
+        "txHash": "0x954228b00a6b6cffb886e09e9e766c5d8cdb397026796bbf7fe6fa895fe45d6e",
+        "blockHash": "0x0bd28414691b97e9eafc38c36466907c94ce8bf96b5ed68a73a6ba6105ae00d3",
+        "blockNumber": "33978410",
+        "blockTimestamp": 1786560501,
+        "from": "0xbdfcee82bd42fefa58ee850b3709636a8b6b0034",
+        "payload": "0x0000000000000000000000003be57a5b65265d3704f846b93600308154fec79400000000000186a0",
+        "readinessTimestamp": 1786560503,
+        "options": {
+          "lzReceive": {
+            "gas": "500000",
+            "value": "0"
+          },
+          "ordered": false
+        }
+      }
+    },
+    "destination": {
+      "nativeDrop": {
+        "status": "N/A"
+      },
+      "lzCompose": {
+        "status": "N/A"
+      },
+      "tx": {
+        "txHash": "0xb81d0aec70c8c72da661705b7d814c32755d204cff2e545be62d101fbbe43b38",
+        "blockHash": "0x23b48e17b1ededd4ef1fb2a4306afb1dc35596dfd1df9a8bda417d2ef0a2bfaf",
+        "blockNumber": 11475059,
+        "blockTimestamp": 1786560672
+      },
+      "status": "SUCCEEDED"
+    },
+    "verification": {
+      "dvn": {
+        "dvns": {
+          "0x8eebf8b423b73bfca51a1db4b7354aa0bfca9193": {
+            "txHash": "0xa33afe509604b17e080445c2f628e0aad335f1b01310865491c2bcaa8c585b27",
+            "blockHash": "0x234d5ed8345ea0e2c4d3d9f160ddb4bd397aca87e05cf293a3b3930290461ad4",
+            "blockNumber": 11475047,
+            "blockTimestamp": 1786560528,
+            "proof": {
+              "packetHeader": "0x01000000000000010c00009d66000000000000000000000000cd3d2127935ae82af54fc31ccd9d3440dbf4663900009ce100000000000000000000000081672c5d42f3573ad95a0bdfbe824faac547d4e6",
+              "payloadHash": "0x8677b4e17a7abef09bc4c51284770f6cda50b5a4c971f8bc7f4a6141b87206f3"
+            },
+            "optional": false,
+            "status": "SUCCEEDED"
+          }
+        },
+        "status": "SUCCEEDED"
+      },
+      "sealer": {
+        "tx": {
+          "txHash": "0xa62b7da6f3dd04d4e43346b4339b8fe56e7f030db1107de5df17b178e30c5634",
+          "blockHash": "0x0a14027a51147e88cfe3876a9d949ebb7c1cb48d9235eac8bb090a8a4e846a11",
+          "blockNumber": 11475054,
+          "blockTimestamp": 1786560612
+        },
+        "status": "SUCCEEDED"
+      }
+    },
+    "guid": "0x6ea2dfc72beec0d3c6f6ebd085efe723158a19a7a1490d91759490bc701f389f",
+    "config": {
+      "error": false,
+      "receiveLibrary": "0xdAf00F5eE2158dD58E0d3857851c432E34A3A851",
+      "sendLibrary": "0x00C5C0B8e0f75aB862CbAaeCfff499dB555FBDD2",
+      "inboundConfig": {
+        "confirmations": 2,
+        "requiredDVNCount": 1,
+        "optionalDVNCount": 0,
+        "optionalDVNThreshold": 0,
+        "requiredDVNs": [
+          "0x8eebf8b423b73bfca51a1db4b7354aa0bfca9193"
+        ],
+        "requiredDVNNames": [
+          "LayerZero Labs"
+        ],
+        "optionalDVNs": [],
+        "optionalDVNNames": []
+      },
+      "outboundConfig": {
+        "confirmations": 2,
+        "requiredDVNCount": 1,
+        "optionalDVNCount": 0,
+        "optionalDVNThreshold": 0,
+        "requiredDVNs": [
+          "0x12523de19dc41c91f7d2093e0cfbb76b17012c8d"
+        ],
+        "requiredDVNNames": [
+          "LayerZero Labs"
+        ],
+        "optionalDVNs": [],
+        "optionalDVNNames": [],
+        "executor": "0x9dB9Ca3305B48F196D18082e91cB64663b13d014"
+      },
+      "ulnSendVersion": "V302",
+      "ulnReceiveVersion": "V302"
+    },
+    "status": {
+      "name": "DELIVERED",
+      "message": "Executor transaction confirmed"
+    },
+    "created": "2026-08-12T18:48:27.000Z",
+    "updated": "2026-08-12T18:52:11.000Z"
+  },
+  "trackOftDelivery": {
+    "phase": "dest_confirmed",
+    "sourceTxHash": "0x954228b00a6b6cffb886e09e9e766c5d8cdb397026796bbf7fe6fa895fe45d6e",
+    "guid": "0x6ea2dfc72beec0d3c6f6ebd085efe723158a19a7a1490d91759490bc701f389f",
+    "dstEid": 40161,
+    "destination": "Sepolia",
+    "destPeer": "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+    "destTxHash": "0xb81d0aec70c8c72da661705b7d814c32755d204cff2e545be62d101fbbe43b38",
+    "amountReceivedLD": "100000",
+    "layerZeroScanUrl": "https://testnet.layerzeroscan.com/tx/0x954228b00a6b6cffb886e09e9e766c5d8cdb397026796bbf7fe6fa895fe45d6e",
+    "explorerUrl": "https://coston2-explorer.flare.network/tx/0x954228b00a6b6cffb886e09e9e766c5d8cdb397026796bbf7fe6fa895fe45d6e",
+    "destExplorerUrl": "https://sepolia.etherscan.io/tx/0xb81d0aec70c8c72da661705b7d814c32755d204cff2e545be62d101fbbe43b38",
+    "note": "Destination OFTReceived found on-chain. Bridge fill confirmed.",
+    "uiPhases": [
+      {
+        "id": "source",
+        "label": "Source tx",
+        "status": "done"
+      },
+      {
+        "id": "protocol",
+        "label": "Protocol observe",
+        "status": "done"
+      },
+      {
+        "id": "dest",
+        "label": "Dest receipt",
+        "status": "done"
+      }
+    ]
+  },
+  "sepoliaDestTx": "0xb81d0aec70c8c72da661705b7d814c32755d204cff2e545be62d101fbbe43b38",
+  "sepoliaExplorer": "https://sepolia.etherscan.io/tx/0xb81d0aec70c8c72da661705b7d814c32755d204cff2e545be62d101fbbe43b38",
+  "status": "DELIVERED"
+}

@@ -1,0 +1,125 @@
+{
+  "at": "2026-08-12T22:50:37.549Z",
+  "jobId": "b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+  "desk": "https://beacon-desk.vercel.app/flow/desk?job=b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+  "status": "CLOSED",
+  "paymentRail": {
+    "mode": "safe",
+    "lockTxHash": "0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b",
+    "spendTxHash": "0x5f06e09889c0961389b8173e8d56ca533d51eeca1b31dad5c484bda16afdef68",
+    "payer": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+    "ownerWallet": "0x3bE57A5b65265D3704f846B93600308154fec794"
+  },
+  "recentEvents": [
+    {
+      "type": "status",
+      "payload": {
+        "to": "FAILED",
+        "from": "GENERATING",
+        "trigger": "generation_failed"
+      },
+      "ts": "2026-08-12T22:47:55.002Z"
+    },
+    {
+      "type": "status",
+      "payload": {
+        "to": "GENERATING",
+        "from": "PREPARING",
+        "trigger": "stages_start"
+      },
+      "ts": "2026-08-12T22:47:53.870Z"
+    },
+    {
+      "type": "status",
+      "payload": {
+        "to": "PREPARING",
+        "from": "AUTHORIZED",
+        "trigger": "orchestrator_prepare"
+      },
+      "ts": "2026-08-12T22:47:53.164Z"
+    },
+    {
+      "type": "status",
+      "payload": {
+        "status": "AUTHORIZED"
+      },
+      "ts": "2026-08-12T22:47:50.107Z"
+    },
+    {
+      "type": "status",
+      "payload": {
+        "status": "QUOTED"
+      },
+      "ts": "2026-08-12T22:47:38.631Z"
+    },
+    {
+      "type": "status",
+      "payload": {
+        "status": "QUOTING"
+      },
+      "ts": "2026-08-12T22:47:35.186Z"
+    }
+  ],
+  "onChainLock": {
+    "payer": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+    "amount": "8000",
+    "released": false,
+    "refunded": true
+  },
+  "spendTx": "0x5f06e09889c0961389b8173e8d56ca533d51eeca1b31dad5c484bda16afdef68",
+  "lockTx": "0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b",
+  "refundTx": "0xd5a853aabb40f0c756d0980f1d3eccd6a55838a48b9ae7c922ea1435b255967d",
+  "explorerSpend": "https://coston2-explorer.flare.network/tx/0x5f06e09889c0961389b8173e8d56ca533d51eeca1b31dad5c484bda16afdef68",
+  "explorerLock": "https://coston2-explorer.flare.network/tx/0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b",
+  "explorerRefund": "https://coston2-explorer.flare.network/tx/0xd5a853aabb40f0c756d0980f1d3eccd6a55838a48b9ae7c922ea1435b255967d",
+  "productionCommit": "88bd79c",
+  "ui": {
+    "receiptApi": "Not charged / $0.00 / settled false",
+    "deskCopyNote": "Desk also showed Paid $0.000000 · quality checks passed. Receipt API is source of truth."
+  },
+  "redisSpend": {
+    "beforeThisJob": 0.32443199999999994,
+    "afterClosed": 0.32443199999999994,
+    "netZeroVsBefore": true
+  },
+  "safeUsdt0": {
+    "beforeThisJob": "9.953033",
+    "afterClosed": "9.953033",
+    "netZeroOnChain": true
+  },
+  "receipt": {
+    "jobId": "b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+    "receipt": {
+      "id": "f930b3bf-c83f-4291-904c-96f08d27bedf",
+      "txHash": "0xd5a853aabb40f0c756d0980f1d3eccd6a55838a48b9ae7c922ea1435b255967d",
+      "createdAt": "2026-08-12T22:48:07.036Z",
+      "jobId": "b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+      "offer": {
+        "offerId": "1f6d914f-910f-45d5-8142-d8168b594e18",
+        "briefHash": "0x9457cbc49718c8f1b45f2d640627ffd7493952723d6dc7d51aa1d1d5947d2580",
+        "priceUsdt0": "8250",
+        "rubricHash": "0xbaa4d25268b1ba87e2bf6f2563de50eb34b8249020163d2d181bf1f8afef19c9"
+      },
+      "accept": {
+        "result": "FAIL",
+        "summary": "Job did not pass — escrow refunded.",
+        "acceptId": "5fe17104-3475-49ab-bca6-a781bb549288",
+        "confidence": 0
+      },
+      "display": {
+        "title": "Coding job",
+        "statusLabel": "Not charged",
+        "priceDisplay": "$0.00"
+      },
+      "payment": {
+        "txHash": "0xd5a853aabb40f0c756d0980f1d3eccd6a55838a48b9ae7c922ea1435b255967d",
+        "settled": false,
+        "paymentId": "5faeab8e-64f2-4027-80f2-2b215a421e77",
+        "amountUsdt0": "0"
+      },
+      "version": "1.0",
+      "artifacts": [],
+      "serviceId": "coding"
+    }
+  }
+}

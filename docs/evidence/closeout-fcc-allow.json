@@ -1,0 +1,108 @@
+{
+  "useCase": "amount_cap",
+  "valueProtection": {
+    "decision": "ALLOW",
+    "allow": true,
+    "deny": false,
+    "reasons": [],
+    "checks": {
+      "useCase": "amount_cap",
+      "amountUsdt0": 1,
+      "amountCapUsdt0": 10,
+      "recipient": null,
+      "expiresAt": null,
+      "nowSec": 1786573293,
+      "underAmountCap": true
+    },
+    "canMoveFunds": false,
+    "teeResultVerified": false,
+    "note": "ALLOW — server/value-protection checks passed. Funds not moved; FCC result not treated as spend authority."
+  },
+  "serverPolicy": {
+    "allowed": true,
+    "reason": "Policy checks passed (server-enforced).",
+    "policyVersion": "1.0.0",
+    "enforcement": "server",
+    "fccMode": "verified",
+    "checks": {
+      "policySource": "redis",
+      "spentTodayUsdt0": 0.31618199999999996,
+      "emergencyPause": false,
+      "amountUsdt0": 1,
+      "allowedChains": [
+        114,
+        14
+      ],
+      "sessionExpiryHours": 24,
+      "sessionStartedAt": null,
+      "sessionExpired": false,
+      "shadowFcc": {
+        "status": "REAL",
+        "mode": "verified",
+        "allow": true,
+        "canMoveFunds": false,
+        "honestyLabel": "FCC verified mode — hardware-backed GCP Confidential Space (AMD SEV) shadow authorization. canMoveFunds: false. Do not treat as spend authority."
+      },
+      "dailySpendUsdt0": 50,
+      "perJobLimitUsdt0": 25,
+      "remainingUsdt0": 49.683818
+    }
+  },
+  "shadowFcc": {
+    "status": "REAL",
+    "mode": "verified",
+    "allow": true,
+    "canMoveFunds": false,
+    "honestyLabel": "FCC verified mode — hardware-backed GCP Confidential Space (AMD SEV) shadow authorization. canMoveFunds: false. Do not treat as spend authority.",
+    "authorization": {
+      "actionHash": "closeout-allow-1-vs-10-1786573293716",
+      "policyHash": "v1.0.0:verified:amount_cap",
+      "nonce": "1786573293702",
+      "validAfter": "2026-08-12T22:21:33.702Z",
+      "validBefore": "2026-08-12T22:26:33.702Z",
+      "allow": true,
+      "reasonCommitment": "value_protection_allow",
+      "timestamp": "2026-08-12T22:21:33.702Z"
+    }
+  },
+  "tee": {
+    "teeId": "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d",
+    "flareTeeManager": "0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE",
+    "teeMachineStatus": 2,
+    "teeMachineStatusLabel": "PRODUCTION",
+    "teeProduction": true,
+    "simulatedTee": false,
+    "attestationKind": "hardware",
+    "instructionPath": {
+      "senderReady": true,
+      "canSubmitInstruction": true,
+      "canPollResult": true,
+      "resultVerified": false,
+      "note": "Instruction submit possible; result poll reachable — still not auto-verified for fund movement."
+    },
+    "extProxyEphemeral": false
+  },
+  "onChainInstruction": {
+    "txHash": "0x3cb3248e2b8a5cb454f4e82a0af8e0881a9bbaf8bf9a10b72c333923b3cebdf5",
+    "instructionId": "0x7f0613d075ef6f337695b3942a885636c8e8d18455ad47f6acf329508c67536e",
+    "status": "status_1",
+    "partial": false,
+    "resultPolled": true,
+    "resultVerified": false
+  },
+  "honesty": {
+    "serverPolicy": "REAL — Redis-backed spend accounting with fail-closed on unavailable",
+    "valueProtection": "ALLOW path clear — still canMoveFunds:false until separate Safe/x402 rails execute under their own gates",
+    "shadowFcc": "REAL — hardware-backed GCP Confidential Space (AMD SEV); still canMoveFunds:false",
+    "teeMachine": "PRODUCTION (status=2) hardware TEE 0xA5E9a81044dd4d66384DE09CF95dB317fde5646d platform=GCP_AMD_SEV codeHash=0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806",
+    "onChainFcc": "PARTIAL — instruction result polled; canMoveFunds still false (no fake TEE verified spend)",
+    "fundsMoved": "NEVER — this endpoint does not move funds",
+    "hardwareClaim": "true — /info reports GCP_AMD_SEV with measured codeHash; FCC still cannot move funds",
+    "canMoveFunds": "false — kept false until result verified; never faked"
+  },
+  "daLayerNote": "Correct DA base: https://ctn2-data-availability.flare.network/ — proof path: /api/v1/fdc/proof-by-request-round-raw",
+  "docs": [
+    "https://dev.flare.network/fcc/overview",
+    "https://dev.flare.network/fcc/developer-guides"
+  ]
+}

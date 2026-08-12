@@ -8,7 +8,7 @@ Beacon is a production desk for **policy-bounded AI spend** on Flare testnet. Th
 
 **User flow:** connect a Coston2 wallet → create/fund a personal Safe → set caps/session → open Flow or Agent Jobs → quote → policy check → execute from Safe (or x402 wallet fallback) → receipt on [Coston2 explorer](https://coston2-explorer.flare.network).
 
-Independent verification after the hardware FCC switch: [`docs/evidence/final-production-verification.json`](./docs/evidence/final-production-verification.json) (2026-08-12). Engineering log: [`history.md`](./history.md).
+Independent closeout verification: [`docs/evidence/final-production-verification.json`](./docs/evidence/final-production-verification.json) (2026-08-12/13). Engineering log: [`history.md`](./history.md). **Not a FINAL PASS:** hardware TEE signed status-0 DENY is still unavailable on measured image `0x2813…b75806`.
 
 | Doc | Role |
 |-----|------|
@@ -76,7 +76,7 @@ FCC on live Coston2 is **hardware-backed GCP Confidential Space** (`SIMULATED_TE
 
 **FCC (hardware + TEE PRODUCTION status 2):** TEE `0xA5E9a81044dd4d66384DE09CF95dB317fde5646d` on FlareTeeManager `0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE`. InstructionSender `0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46`. Extension `65925` / `0x…10185`. Hardware claim is only true when live `/info` shows `GCP_AMD_SEV` + `CONFIDENTIAL_SPACE`, measured codeHash `0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806`, FlareTeeManager status 2, and a stable proxy — not from env vars or UI labels alone. `canMoveFunds: false`. Value-protection: `POST /v1/fcc/policy/evaluate`.
 
-Current production ALLOW (2026-08-12, USDT0 rails): instruction `0xce2aff582e17c069dd85e91efeae7e6c5b2992c6a5afbd8c7a36456b848b41c5`, tx [`0xf24fddd9…dc4a4`](https://coston2-explorer.flare.network/tx/0xf24fddd9a2b9bcb296d55899b290e3c29b4d9d50d024a0112a02ae32db3dc4a4), TEE signed status 1. Genuine policy DENY: 100 USDT0 vs cap 10 — Beacon refuses before FCC submit (`onChainInstruction: null`). Hardware TEE signed status-0 for amount-cap is **not available** without a new measured image. Historical empty-name SAY_HELLO DENY (`0xeb7f237c…`) is kept as TEE status-0 evidence; it is not this gate.
+This-pass hardware ALLOW (2026-08-12): instruction `0x7f0613d075ef6f337695b3942a885636c8e8d18455ad47f6acf329508c67536e`, tx [`0x3cb3248e…bdf5`](https://coston2-explorer.flare.network/tx/0x3cb3248e2b8a5cb454f4e82a0af8e0881a9bbaf8bf9a10b72c333923b3cebdf5), TEE signed status 1. Genuine policy DENY: 100 USDT0 vs cap 10 — Beacon refuses before FCC submit (`onChainInstruction: null`, `docs/evidence/closeout-fcc-deny.json`). A well-formed over-cap `sendEvaluateFit` still returned TEE **status 1** (`docs/evidence/closeout-fcc-overcap-evaluate.json`) — the measured image does not emit signed status 0 for amount-cap. Hardware TEE signed status-0 DENY is **FAILED / not available** without a new measured image (would change codeHash / teeId). Historical empty-name SAY_HELLO DENY is kept as TEE status-0 evidence; it is not this gate.
 
 **FAssets:** FXRP minting on Coston2 is an XRPL Testnet payment to the Core Vault plus FDC proof — not an in-app USDT0 click. Xaman is an optional XRPL wallet for that FAssets path only; it is **not** required for Safe, Jobs, Flow, MCP, or x402. Smart Accounts remain **STUB** (Beacon Safe ≠ Flare Smart Account). Do not invent custom `0xFE`/`0xFF` instructions.
 
@@ -270,10 +270,11 @@ Evidence: [`docs/evidence/usdt0-rails-deploy.json`](./docs/evidence/usdt0-rails-
 | FXRP seed (5 FXRP → desk) | — | [`0x4fa9353f…d76d`](https://coston2-explorer.flare.network/tx/0x4fa9353f36a8c4e0908a4cb477e1f7a004bdb8ea737c301ec9a58515007fd76d) |
 | Real USDT0 Safe swap (local 0.01 → 0.009892 FXRP) | Safe `0x96875f3F4346e2183A3ee0d156cAe6871551A0A6` | spend [`0x3d051304…0af8`](https://coston2-explorer.flare.network/tx/0x3d051304c6f7687932dc82b279338ea8cdcebda1c255c64c4b43883c32b30af8) · fulfill [`0xcc449c20…39d3`](https://coston2-explorer.flare.network/tx/0xcc449c200ca3d7a6684d31ce92d0341360a4e30ce986d9563f50697ad08639d3) |
 | Chrome Flow USDT0→FXRP | same Safe | spend [`0xdbac957f…efb8`](https://coston2-explorer.flare.network/tx/0xdbac957f242bf0bca42b2dd7e15cca04cb65f2a2c7c96270b75856e7e6acefb8) · fulfill [`0xede05e68…7cce`](https://coston2-explorer.flare.network/tx/0xede05e68cbe508fb3af32338058d4f13c49d7ea031c8b1ef2c3f2f0121587cce) |
-| Agent Jobs Coding | `$0.008270` USDT0 | settle [`0x5605be29…5f47`](https://coston2-explorer.flare.network/tx/0x5605be29eb3f16029174d1aeb0df194dd6b96c52fe808911211ecf402f015f47) |
-| Agent Jobs Images | `$0.010697` USDT0 | settle [`0x5b994db1…2080`](https://coston2-explorer.flare.network/tx/0x5b994db141748842e6e04f039024c0d0c74d27920130801a005e07920d5c2080) |
-| x402 FTSO deep pack | `$0.25` wallet USDT0 | settle [`0x19435960…4fc5`](https://coston2-explorer.flare.network/tx/0x1943596070e8709b00ea536190ffe40f409f8c2c8639fd6bcde5d1f7ee734fc5) |
-| Escrow refund (0.01 USDT0) | live `BeaconEscrow` | lock [`0xaa2d2708…96f2`](https://coston2-explorer.flare.network/tx/0xaa2d27082201ea5c1a24ffbea00d39024757c2612866e7a96a2130ed2c6096f2) · refund [`0xec7a52c5…7ade`](https://coston2-explorer.flare.network/tx/0xec7a52c5fa06c266b26aee1e79eb83bb01faecf700816a225f4d5474af347ade) |
+| Agent Jobs Coding (closeout success) | `$0.00825` USDT0 | lock [`0x85ad5be2…2feb`](https://coston2-explorer.flare.network/tx/0x85ad5be2bc69b4e000219918341015406768ef7b3a31b1bb31ac055a6cea2feb) · settle [`0x361c17c2…bc8c`](https://coston2-explorer.flare.network/tx/0x361c17c2db161b7d38f18755ef9d1aa0a154f43c948b56dc1aec91957154bc8c) |
+| Agent Jobs fail + refund (Redis net-zero) | generation_failed | lock [`0x28fed1c9…fd2b`](https://coston2-explorer.flare.network/tx/0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b) · refund [`0xd5a853aa…967d`](https://coston2-explorer.flare.network/tx/0xd5a853aabb40f0c756d0980f1d3eccd6a55838a48b9ae7c922ea1435b255967d) |
+| Agent Jobs Images (prior same day) | `$0.010697` USDT0 | settle [`0x5b994db1…2080`](https://coston2-explorer.flare.network/tx/0x5b994db141748842e6e04f039024c0d0c74d27920130801a005e07920d5c2080) |
+| x402 FTSO deep pack (prior same day) | `$0.25` wallet USDT0 | settle [`0x19435960…4fc5`](https://coston2-explorer.flare.network/tx/0x1943596070e8709b00ea536190ffe40f409f8c2c8639fd6bcde5d1f7ee734fc5) |
+| LayerZero FXRP OFT Coston2→Sepolia | 0.05 FTestXRP | source [`0xa0d9bb54…b657`](https://coston2-explorer.flare.network/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657) · dest [`0xafa0b7a0…c2de`](https://sepolia.etherscan.io/tx/0xafa0b7a0f33a1e56b16b346ba298251a040030b7e17887708bd4e7879d1fc2de) · [LZ scan](https://testnet.layerzeroscan.com/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657) |
 | Executor / escrow owner / payee | `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034` | — |
 | Job registry | `0x100a3E24909DE25B9CAe75Ba665Be6F893b98889` | unchanged |
 | FXRP (FTestXRP) | `0x0b6A3645c240605887a5532109323A3E12273dc7` | FAsset |
@@ -367,7 +368,7 @@ Do not treat marketing copy as proof. Each claim below has a live source.
 | **FDC** | Verifier + DA configured; this-pass AddressValidity round 1423789 | `GET /v1/fdc/status` · [round 1423789](https://coston2-systems-explorer.flare.network/voting-round/1423789?tab=fdc) · `docs/evidence/usdt0-fdc-this-pass.json` |
 | **FCC** | Hardware GCP Confidential Space (AMD SEV) | `GET /v1/fcc/status` + `/v1/fcc/lifecycle` + TEE `/info` + [extension 65925](https://coston2-systems-explorer.flare.network/tee/extensions/65925) |
 | **FAssets** | FTestXRP live; mint = docs handoff; redeem prepare | `GET /v1/agents/fassets` · [FAssets explorer](https://coston2-systems-explorer.flare.network/fassets) |
-| **LayerZero** | Agent OFT FXRP → Sepolia | Flow Bridge; FXRP rail (not USDT0) |
+| **LayerZero** | Agent OFT FXRP → Sepolia with destination OFTReceived | Flow Bridge; FXRP rail (not USDT0). Fresh dest: [`0xafa0b7a0…`](https://sepolia.etherscan.io/tx/0xafa0b7a0f33a1e56b16b346ba298251a040030b7e17887708bd4e7879d1fc2de) · `docs/evidence/closeout-lz-fresh-dest.json` |
 | **Hardware TEE** | status 2, `GCP_AMD_SEV`, measured codeHash | See “Verify hardware FCC” below |
 | **Security model** | FCC cannot move funds; Safe is spend boundary | `canMoveFunds: false` on FCC endpoints; vault `execute` allowlists |
 | **Smart Accounts** | **STUB** (not Beacon Safe) | `packages/smart-accounts` · honesty docs |
@@ -385,9 +386,9 @@ Latest independent pass: [`docs/evidence/final-production-verification.json`](./
 ### Reproduce key flows (Coston2 testnet)
 
 - **Swap:** Flow → Swap. If quote says “Seed the desk,” SwapDesk FXRP inventory is too low for 1 USDT0; use a small size (this pass: 0.01) or seed the desk. Confirm FTSO age, then Execute from Beacon Safe. Open fulfill tx on explorer.
-- **Bridge:** Flow → Bridge. Size must fit executor FXRP + C2FLR fee. Confirm LZ quote, execute, open source tx. Destination OFTReceived can lag — do not invent COMPLETE.
+- **Bridge:** Flow → Bridge. Size must fit executor FXRP + C2FLR fee. Confirm LZ quote, execute, wait for destination OFTReceived (do not stop at “message sent”). This-pass dest fill: Sepolia `0xafa0b7a0…` received 0.05 FTestXRP.
 - **Jobs:** `/flow/desk` → Coding or Images → brief → quote → Safe approve (active session) → wait CLOSED. Check lock/spend/settle or refund hashes. Quality FAIL/generation_failed must refund, not silent success.
-- **Policy DENY:** `POST /v1/fcc/policy/evaluate` with amount above Safe/app cap. Expect `decision=DENY` and `onChainInstruction=null`.
+- **Policy DENY:** `POST /v1/fcc/policy/evaluate` with amount above Safe/app cap. Expect `decision=DENY` and `onChainInstruction=null`. That is Beacon policy, not a hardware TEE signed status-0 result. Do not claim hardware DENY until a new measured image produces status 0.
 - **MCP:** open `/flow/mcp` and `GET /v1/mcp/health`. Full Claude/Cursor tool execution is **your** independent test; this repo’s smoke test does not claim it.
 
 ---

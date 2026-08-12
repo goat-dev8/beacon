@@ -1,0 +1,237 @@
+{
+  "at": "2026-08-12T22:47:58.861Z",
+  "jobId": "b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+  "desk": "https://beacon-desk.vercel.app/flow/desk?job=b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+  "service": "coding",
+  "briefToken": "BEACON_E2E_GENERATION_FAIL",
+  "quote": {
+    "quoteId": "1f6d914f-910f-45d5-8142-d8168b594e18",
+    "priceDisplay": "$0.008",
+    "etaSeconds": 480,
+    "includes": [
+      "Implementation",
+      "Review summary",
+      "Docs snippet"
+    ],
+    "expiresAt": "2026-08-12T23:02:38.288Z",
+    "capability": "FIT",
+    "breakdown": {
+      "model": "gpt-5.6-sol",
+      "inputTokens": 80,
+      "outputTokens": 700,
+      "modelCostUsdt0": "0.002304",
+      "infraCostUsdt0": "0.004000",
+      "platformFeeUsdt0": "0.000946",
+      "networkFeeUsdt0": "0.001000",
+      "totalUsdt0": "0.008250"
+    }
+  },
+  "safe": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+  "ownerWallet": "0x3bE57A5b65265D3704f846B93600308154fec794",
+  "spendTx": "0x5f06e09889c0961389b8173e8d56ca533d51eeca1b31dad5c484bda16afdef68",
+  "lockTx": "0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b",
+  "explorerSpend": "https://coston2.testnet.flarescan.com/tx/0x5f06e09889c0961389b8173e8d56ca533d51eeca1b31dad5c484bda16afdef68",
+  "explorerLock": "https://coston2.testnet.flarescan.com/tx/0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b",
+  "job": {
+    "job": {
+      "id": "b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+      "user_id": "5325a93b-31ec-4d9f-81ac-9140968a81ce",
+      "service_id": "coding",
+      "status": "FAILED",
+      "brief_text": "BEACON_E2E_GENERATION_FAIL Write a tiny TypeScript function add(a: number, b: number). Controlled refund probe — do not generate.",
+      "created_at": "2026-08-12T22:47:34.898Z",
+      "updated_at": "2026-08-12T22:47:54.865Z"
+    },
+    "recentEvents": [
+      {
+        "type": "status",
+        "payload": {
+          "to": "FAILED",
+          "from": "GENERATING",
+          "trigger": "generation_failed"
+        },
+        "ts": "2026-08-12T22:47:55.002Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "to": "GENERATING",
+          "from": "PREPARING",
+          "trigger": "stages_start"
+        },
+        "ts": "2026-08-12T22:47:53.870Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "to": "PREPARING",
+          "from": "AUTHORIZED",
+          "trigger": "orchestrator_prepare"
+        },
+        "ts": "2026-08-12T22:47:53.164Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "status": "AUTHORIZED"
+        },
+        "ts": "2026-08-12T22:47:50.107Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "status": "QUOTED"
+        },
+        "ts": "2026-08-12T22:47:38.631Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "status": "QUOTING"
+        },
+        "ts": "2026-08-12T22:47:35.186Z"
+      }
+    ],
+    "paymentRail": {
+      "mode": "safe",
+      "lockTxHash": "0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b",
+      "spendTxHash": "0x5f06e09889c0961389b8173e8d56ca533d51eeca1b31dad5c484bda16afdef68",
+      "payer": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+      "ownerWallet": "0x3bE57A5b65265D3704f846B93600308154fec794"
+    },
+    "acceptance": null
+  },
+  "onChainLock": {
+    "payer": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+    "amount": "8000",
+    "released": false,
+    "refunded": false
+  },
+  "redisSpend": {
+    "before": 0.32443199999999994,
+    "afterFail": 0.3326819999999999,
+    "netZeroVsBefore": false
+  },
+  "safeUsdt0": {
+    "before": "9.953033",
+    "afterFail": "9.945033"
+  },
+  "receipt": {
+    "jobId": "b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+    "receipt": null
+  },
+  "retestAfterClosed": {
+    "at": "2026-08-12T22:50:37.549Z",
+    "jobId": "b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+    "desk": "https://beacon-desk.vercel.app/flow/desk?job=b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+    "status": "CLOSED",
+    "paymentRail": {
+      "mode": "safe",
+      "lockTxHash": "0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b",
+      "spendTxHash": "0x5f06e09889c0961389b8173e8d56ca533d51eeca1b31dad5c484bda16afdef68",
+      "payer": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+      "ownerWallet": "0x3bE57A5b65265D3704f846B93600308154fec794"
+    },
+    "recentEvents": [
+      {
+        "type": "status",
+        "payload": {
+          "to": "FAILED",
+          "from": "GENERATING",
+          "trigger": "generation_failed"
+        },
+        "ts": "2026-08-12T22:47:55.002Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "to": "GENERATING",
+          "from": "PREPARING",
+          "trigger": "stages_start"
+        },
+        "ts": "2026-08-12T22:47:53.870Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "to": "PREPARING",
+          "from": "AUTHORIZED",
+          "trigger": "orchestrator_prepare"
+        },
+        "ts": "2026-08-12T22:47:53.164Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "status": "AUTHORIZED"
+        },
+        "ts": "2026-08-12T22:47:50.107Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "status": "QUOTED"
+        },
+        "ts": "2026-08-12T22:47:38.631Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "status": "QUOTING"
+        },
+        "ts": "2026-08-12T22:47:35.186Z"
+      }
+    ],
+    "onChainLock": {
+      "payer": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+      "amount": "8000",
+      "released": false,
+      "refunded": true
+    },
+    "redisSpend": {
+      "beforeThisJob": 0.32443199999999994,
+      "afterClosed": 0.32443199999999994,
+      "netZeroVsBefore": true
+    },
+    "safeUsdt0": {
+      "beforeThisJob": "9.953033",
+      "afterClosed": "9.953033",
+      "netZeroOnChain": true
+    },
+    "receipt": {
+      "jobId": "b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+      "receipt": {
+        "id": "f930b3bf-c83f-4291-904c-96f08d27bedf",
+        "txHash": "0xd5a853aabb40f0c756d0980f1d3eccd6a55838a48b9ae7c922ea1435b255967d",
+        "createdAt": "2026-08-12T22:48:07.036Z",
+        "jobId": "b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+        "offer": {
+          "offerId": "1f6d914f-910f-45d5-8142-d8168b594e18",
+          "briefHash": "0x9457cbc49718c8f1b45f2d640627ffd7493952723d6dc7d51aa1d1d5947d2580",
+          "priceUsdt0": "8250",
+          "rubricHash": "0xbaa4d25268b1ba87e2bf6f2563de50eb34b8249020163d2d181bf1f8afef19c9"
+        },
+        "accept": {
+          "result": "FAIL",
+          "summary": "Job did not pass — escrow refunded.",
+          "acceptId": "5fe17104-3475-49ab-bca6-a781bb549288",
+          "confidence": 0
+        },
+        "display": {
+          "title": "Coding job",
+          "statusLabel": "Not charged",
+          "priceDisplay": "$0.00"
+        },
+        "payment": {
+          "txHash": "0xd5a853aabb40f0c756d0980f1d3eccd6a55838a48b9ae7c922ea1435b255967d",
+          "settled": false,
+          "paymentId": "5faeab8e-64f2-4027-80f2-2b215a421e77",
+          "amountUsdt0": "0"
+        },
+        "version": "1.0",
+        "artifacts": [],
+        "serviceId": "coding"
+      }
+    }
+  }
+}

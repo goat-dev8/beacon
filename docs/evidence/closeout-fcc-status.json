@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "mode": "verified",
+  "status": "REAL",
+  "simulatedTee": false,
+  "localMode": false,
+  "proxyReachable": true,
+  "extensionId": "0x0000000000000000000000000000000000000000000000000000000000010185",
+  "extProxyConfigured": true,
+  "teeId": "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d",
+  "teeProduction": true,
+  "teeMachineStatus": 2,
+  "platformAscii": "GCP_AMD_SEV",
+  "codeHash": "0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806",
+  "attestationKind": "hardware",
+  "canMoveFunds": false,
+  "shadowOnly": true,
+  "hardwareClaim": true,
+  "honesty": "FCC path uses hardware-backed GCP Confidential Space (AMD SEV) on Coston2. Beacon Safe remains the spend boundary; FCC cannot move funds (canMoveFunds: false).",
+  "docs": [
+    "https://dev.flare.network/fcc/overview",
+    "https://dev.flare.network/fcc/guides"
+  ]
+}

@@ -2,7 +2,7 @@
 
 **Single source of truth for Beacon (Flare AI OS).**  
 **Network:** Flare Testnet Coston2 (chain ID **114**)  
-**Last aligned with:** `history.md` (2026-08-12 production hardware FCC live on Render + Vercel), `docs/evidence/hardware-fcc/prod-status.json`  
+**Last aligned with:** `history.md` (2026-08-12/13 closeout: LZ dest OFTReceived + Jobs Redis refund net-zero; hardware signed DENY still unavailable), `docs/evidence/final-production-verification.json`  
 **Rule:** Do not invent facts. Mark unknowns as TODO. No secrets in this file.
 
 ---
@@ -473,6 +473,7 @@ Companion audit: `ARCHITECTURE_AUDIT.md`. Living engineering log: `history.md`.
 - [ ] Confirm live Vercel env SHA matches latest `main` after any billing/deploy gaps noted in older audits.
 - [ ] Video pipeline production readiness beyond "Coming Soon" UI.
 - Hardware FCC is live (`GCP_AMD_SEV`, TEE `0xA5E9…646d`, status 2). Do not revert `SIMULATED_TEE=false`. Amount-cap DENY is Beacon policy before FCC submit; TEE signed status-0 for amount-cap would require a new measured image.
+- LayerZero FXRP OFT destination fill is proven this closeout (`docs/evidence/closeout-lz-fresh-dest.json`). Bridge remains FXRP, not USDT0.
 
 ---
 

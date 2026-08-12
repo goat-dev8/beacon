@@ -1,3 +1,42 @@
+## 2026-08-12/13 - Closeout: hardware DENY diagnosis, Jobs Redis refund, LayerZero dest
+
+### Timestamp
+2026-08-12 ~22:20–22:55 UTC (local 2026-08-13 ~01:20–02:00 UTC+3)
+
+### Change
+- Diagnosed hardware TEE signed status-0 DENY: measured image `processFit` signs status 1 for well-formed EVALUATE (including 100 vs cap 10). Did **not** rebuild Confidential Space (would change codeHash / teeId).
+- Persisted `authorization.ownerWallet` on job approve and reversed Redis spend on both owner + payer keys (`88bd79c`).
+- Added controlled `BEACON_E2E_GENERATION_FAIL` token (`c27f310`) so live USDT0 Jobs can hit `generation_failed` without malformed input.
+- Fresh FXRP OFT Coston2→Sepolia waited until destination OFTReceived (not source-only).
+
+### Reason
+Close the three remaining verification gaps without new integrations or architecture changes.
+
+### Test
+- Hardware ALLOW instruction `0x7f0613d0…536e` tx `0x3cb3248e…bdf5` status 1. Policy DENY 100 vs 10 with `onChainInstruction: null`. Over-cap evaluate FIT still TEE status 1 (`0x419dcf01…0725`).
+- Fail job `b0c09470-bee8-4318-8054-7bf3ec8aed4e` after `88bd79c` live: lock `0x28fed1c9…fd2b` refund `0xd5a853aa…967d`; Safe 9.953033→9.953033; Redis 0.324432→0.324432 net-zero; receipt Not charged $0.00.
+- Success job after refund `1b1f5448-5c41-46f0-80a1-fb737a0dde6f` settle `0x361c17c2…bc8c` Paid $0.00825 released=true.
+- LZ source `0xa0d9bb54…b657` dest Sepolia `0xafa0b7a0…c2de` received 50000 (0.05 FTestXRP) GUID `0xded96818…2d31`.
+- FTSO 62 block-latency feeds; FDC round 1423789 FINALIZED; FAssets explorer LIVE; TEE 65925 v0.1.2 GCP_AMD_SEV.
+- vitest 125/125, forge 52/52, typecheck, web:build. Chrome: Landing, Get Started 01–11, Safe, Flow, Jobs, MCP, FCC status, explorers, reload.
+- Render `88bd79c` live (`dep-d9ufckbm8hqs738err30`). Vercel unchanged (no web code).
+
+### Result
+Jobs Redis refund accounting is fixed on production. LayerZero destination is proven. Hardware signed DENY remains unavailable on the current measured image.
+
+### Remaining issue
+- Hardware TEE signed status-0 for amount-cap DENY requires a new measured image (ops-accepted codeHash/teeId change).
+- x402 settle not re-run this closeout (prior same-day `0x19435960…`).
+- Jobs fail desk copy can still say “quality checks passed” while amount is $0.00 — receipt API is source of truth.
+- Historical Flow chat titles still mention MockUSDT0.
+- FDC new AddressValidity submit not re-broadcast this closeout; round 1423789 remains FINALIZED and attestation-request is live.
+- Smart Accounts STUB; FAssets mint remains XRPL/Xaman handoff.
+
+### Evidence
+`docs/evidence/final-production-verification.json` · `closeout-fcc-allow.json` · `closeout-fcc-deny.json` · `closeout-fcc-overcap-evaluate.json` · `closeout-jobs-fail-retest.json` · `closeout-jobs-success.json` · `closeout-lz-fresh-source.json` · `closeout-lz-fresh-dest.json` · `chrome-e2e-closeout.json`
+
+---
+
 ## 2026-08-12 - REAL USDT0 Chrome E2E + refund + FDC this-pass
 
 ### Timestamp

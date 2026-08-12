@@ -1,0 +1,19 @@
+{
+  "ok": true,
+  "kind": "diagnostic-overcap-evaluate-fit",
+  "notClaimedAsSignedDeny": true,
+  "instructionId": "0xaaa282e9a636ef47ac96b0b63de54a49aad16491f073d933dfd430ed1cba776e",
+  "txHash": "0x419dcf01f9a58cfb3d8573722fede05d785105e7c1678c8719cf8684fcbc0725",
+  "explorer": "https://coston2-explorer.flare.network/tx/0x419dcf01f9a58cfb3d8573722fede05d785105e7c1678c8719cf8684fcbc0725",
+  "teeSignedStatus": 1,
+  "data": {
+    "capability": "FIT",
+    "serviceId": "desk"
+  },
+  "log": "ok",
+  "extensionId": 65925,
+  "teeId": "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d",
+  "attestationKind": "hardware",
+  "honesty": "Measured image signed status != 0 for a well-formed over-cap EVALUATE. processFit does not enforce amount caps. Empty-name SAY_HELLO was not used.",
+  "timestamp": "2026-08-12T22:22:04.743Z"
+}

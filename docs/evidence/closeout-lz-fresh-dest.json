@@ -1,0 +1,163 @@
+{
+  "sourceTx": "0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+  "destinationTx": "0xafa0b7a0f33a1e56b16b346ba298251a040030b7e17887708bd4e7879d1fc2de",
+  "guid": "0xded96818fcfb6bfa15e0b7f0254f8c05898bd7ca5f3c8bbe3941fafd24652d31",
+  "layerZeroScan": "https://testnet.layerzeroscan.com/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+  "sepoliaExplorer": "https://sepolia.etherscan.io/tx/0xafa0b7a0f33a1e56b16b346ba298251a040030b7e17887708bd4e7879d1fc2de",
+  "coston2Explorer": "https://coston2-explorer.flare.network/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+  "amountFxrp": "0.05",
+  "amountReceivedLD": "50000",
+  "sepoliaTransfer": "Transfer 0.05 FTestXRP to 0x3bE57A5b65265D3704f846B93600308154fec794",
+  "sepoliaStatus": "Success",
+  "packetDelivered": true,
+  "oftReceivedOnChain": true,
+  "recipient": "0x3bE57A5b65265D3704f846B93600308154fec794",
+  "dstEid": 40161,
+  "peer": "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+  "scan": {
+    "pathway": {
+      "srcEid": 40294,
+      "dstEid": 40161,
+      "sender": {
+        "address": "0xcd3d2127935ae82af54fc31ccd9d3440dbf46639",
+        "chain": "flare-testnet"
+      },
+      "receiver": {
+        "address": "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+        "chain": "sepolia"
+      },
+      "id": "40294-40161-0xcd3d2127935ae82af54fc31ccd9d3440dbf46639-0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+      "nonce": 269
+    },
+    "source": {
+      "status": "SUCCEEDED",
+      "tx": {
+        "txHash": "0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+        "blockHash": "0x1605fa0a14be419ef52ddfd5713e724300c9434fd244007ae7594fcf36a13ea5",
+        "blockNumber": "33983835",
+        "blockTimestamp": 1786573337,
+        "from": "0xbdfcee82bd42fefa58ee850b3709636a8b6b0034",
+        "payload": "0x0000000000000000000000003be57a5b65265d3704f846b93600308154fec794000000000000c350",
+        "readinessTimestamp": 1786573339,
+        "options": {
+          "lzReceive": {
+            "gas": "500000",
+            "value": "0"
+          },
+          "ordered": false
+        }
+      }
+    },
+    "destination": {
+      "nativeDrop": {
+        "status": "N/A"
+      },
+      "lzCompose": {
+        "status": "N/A"
+      },
+      "status": "WAITING"
+    },
+    "verification": {
+      "dvn": {
+        "dvns": {
+          "0x8eebf8b423b73bfca51a1db4b7354aa0bfca9193": {
+            "txHash": "0x1993361f47b3c9394f761416e116645844423b6a38a40ff00009ddacfa785ebd",
+            "blockHash": "0x22d538e14c672805036586b65e4fce3a19deb97f0bafaaf849a606a215fd127c",
+            "blockNumber": 11476086,
+            "blockTimestamp": 1786573356,
+            "proof": {
+              "packetHeader": "0x01000000000000010d00009d66000000000000000000000000cd3d2127935ae82af54fc31ccd9d3440dbf4663900009ce100000000000000000000000081672c5d42f3573ad95a0bdfbe824faac547d4e6",
+              "payloadHash": "0x7219ad644e3266602079192c5fbf7b4b4bed991b3debae13318fe85c2275f36d"
+            },
+            "optional": false,
+            "status": "SUCCEEDED"
+          }
+        },
+        "status": "SUCCEEDED"
+      },
+      "sealer": {
+        "tx": {
+          "txHash": "0x7413f88a60b8cfcb365073084f281a8f2aea214c1e3c2c8e263e4a876e7cc056",
+          "blockHash": "0xb3cc56ee8cb5b6d707eef5d8db5052ae3eb230c3376c1e6f78a7a27b3c319488",
+          "blockNumber": 11476091,
+          "blockTimestamp": 1786573428
+        },
+        "status": "SUCCEEDED"
+      }
+    },
+    "guid": "0xded96818fcfb6bfa15e0b7f0254f8c05898bd7ca5f3c8bbe3941fafd24652d31",
+    "config": {
+      "error": false,
+      "receiveLibrary": "0xdAf00F5eE2158dD58E0d3857851c432E34A3A851",
+      "sendLibrary": "0x00C5C0B8e0f75aB862CbAaeCfff499dB555FBDD2",
+      "inboundConfig": {
+        "confirmations": 2,
+        "requiredDVNCount": 1,
+        "optionalDVNCount": 0,
+        "optionalDVNThreshold": 0,
+        "requiredDVNs": [
+          "0x8eebf8b423b73bfca51a1db4b7354aa0bfca9193"
+        ],
+        "requiredDVNNames": [
+          "LayerZero Labs"
+        ],
+        "optionalDVNs": [],
+        "optionalDVNNames": []
+      },
+      "outboundConfig": {
+        "confirmations": 2,
+        "requiredDVNCount": 1,
+        "optionalDVNCount": 0,
+        "optionalDVNThreshold": 0,
+        "requiredDVNs": [
+          "0x12523de19dc41c91f7d2093e0cfbb76b17012c8d"
+        ],
+        "requiredDVNNames": [
+          "LayerZero Labs"
+        ],
+        "optionalDVNs": [],
+        "optionalDVNNames": []
+      },
+      "ulnSendVersion": "V302",
+      "ulnReceiveVersion": "V302"
+    },
+    "status": {
+      "name": "INFLIGHT",
+      "message": "Verification committed"
+    },
+    "created": "2026-08-12T22:22:30.000Z",
+    "updated": "2026-08-12T22:24:43.000Z"
+  },
+  "track": {
+    "phase": "dest_confirmed",
+    "sourceTxHash": "0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+    "guid": "0xded96818fcfb6bfa15e0b7f0254f8c05898bd7ca5f3c8bbe3941fafd24652d31",
+    "dstEid": 40161,
+    "destination": "Sepolia",
+    "destPeer": "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+    "destTxHash": "0xafa0b7a0f33a1e56b16b346ba298251a040030b7e17887708bd4e7879d1fc2de",
+    "amountReceivedLD": "50000",
+    "layerZeroScanUrl": "https://testnet.layerzeroscan.com/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+    "explorerUrl": "https://coston2-explorer.flare.network/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+    "destExplorerUrl": "https://sepolia.etherscan.io/tx/0xafa0b7a0f33a1e56b16b346ba298251a040030b7e17887708bd4e7879d1fc2de",
+    "note": "Destination OFTReceived found on-chain. Bridge fill confirmed.",
+    "uiPhases": [
+      {
+        "id": "source",
+        "label": "Source tx",
+        "status": "done"
+      },
+      {
+        "id": "protocol",
+        "label": "Protocol observe",
+        "status": "done"
+      },
+      {
+        "id": "dest",
+        "label": "Dest receipt",
+        "status": "done"
+      }
+    ]
+  },
+  "timestamp": "2026-08-12T22:25:15.951Z"
+}

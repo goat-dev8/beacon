@@ -1,0 +1,12 @@
+{
+  "ok": true,
+  "approveHash": "0x0d60dcf01902223946999b28cac2bcf78e6099c52dc945ca49084fd4fca6a4b1",
+  "sendHash": "0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+  "explorerSend": "https://coston2-explorer.flare.network/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+  "layerZeroScanUrl": "https://testnet.layerzeroscan.com/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+  "amountDisplay": "0.05",
+  "destination": "Sepolia",
+  "dstEid": 40161,
+  "peer": "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+  "honesty": "Executed by Beacon agent executor on Coston2 — no MetaMask. LayerZero delivery is tracked separately."
+}

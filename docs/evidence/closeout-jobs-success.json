@@ -1,0 +1,169 @@
+{
+  "at": "2026-08-12T22:52:38.926Z",
+  "jobId": "1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
+  "desk": "https://beacon-desk.vercel.app/flow/desk?job=1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
+  "quote": {
+    "quoteId": "72955fce-2b82-42d7-8cad-cc517cb56b3d",
+    "priceDisplay": "$0.008",
+    "etaSeconds": 480,
+    "includes": [
+      "Implementation",
+      "Review summary",
+      "Docs snippet"
+    ],
+    "expiresAt": "2026-08-12T23:06:57.096Z",
+    "capability": "FIT",
+    "breakdown": {
+      "model": "gpt-5.6-sol",
+      "inputTokens": 80,
+      "outputTokens": 700,
+      "modelCostUsdt0": "0.002304",
+      "infraCostUsdt0": "0.004000",
+      "platformFeeUsdt0": "0.000946",
+      "networkFeeUsdt0": "0.001000",
+      "totalUsdt0": "0.008250"
+    }
+  },
+  "spendTx": "0x325f5374fecf4b665cc2cbcb7ad39461f3adeb3296fd0f8ed5d5fb5a7143bcb6",
+  "lockTx": "0x85ad5be2bc69b4e000219918341015406768ef7b3a31b1bb31ac055a6cea2feb",
+  "explorerSpend": "https://coston2.testnet.flarescan.com/tx/0x325f5374fecf4b665cc2cbcb7ad39461f3adeb3296fd0f8ed5d5fb5a7143bcb6",
+  "explorerLock": "https://coston2.testnet.flarescan.com/tx/0x85ad5be2bc69b4e000219918341015406768ef7b3a31b1bb31ac055a6cea2feb",
+  "job": {
+    "job": {
+      "id": "1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
+      "user_id": "5325a93b-31ec-4d9f-81ac-9140968a81ce",
+      "service_id": "coding",
+      "status": "CLOSED",
+      "brief_text": "Write a tiny TypeScript function add(a: number, b: number): number that returns a+b, with a one-line comment. No extra files.",
+      "created_at": "2026-08-12T22:51:53.368Z",
+      "updated_at": "2026-08-12T22:52:31.832Z"
+    },
+    "recentEvents": [
+      {
+        "type": "status",
+        "payload": {
+          "to": "PASSED",
+          "from": "ACCEPTING",
+          "trigger": "accept_report"
+        },
+        "ts": "2026-08-12T22:52:23.887Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "to": "ACCEPTING",
+          "from": "COMPOSING",
+          "trigger": "artifacts_ready"
+        },
+        "ts": "2026-08-12T22:52:18.904Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "to": "COMPOSING",
+          "from": "GENERATING",
+          "trigger": "generation_done"
+        },
+        "ts": "2026-08-12T22:52:18.188Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "to": "GENERATING",
+          "from": "PREPARING",
+          "trigger": "stages_start"
+        },
+        "ts": "2026-08-12T22:52:12.033Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "to": "PREPARING",
+          "from": "AUTHORIZED",
+          "trigger": "orchestrator_prepare"
+        },
+        "ts": "2026-08-12T22:52:11.317Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "status": "AUTHORIZED"
+        },
+        "ts": "2026-08-12T22:52:09.172Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "status": "QUOTED"
+        },
+        "ts": "2026-08-12T22:51:57.445Z"
+      },
+      {
+        "type": "status",
+        "payload": {
+          "status": "QUOTING"
+        },
+        "ts": "2026-08-12T22:51:53.645Z"
+      }
+    ],
+    "paymentRail": {
+      "mode": "safe",
+      "lockTxHash": "0x85ad5be2bc69b4e000219918341015406768ef7b3a31b1bb31ac055a6cea2feb",
+      "spendTxHash": "0x325f5374fecf4b665cc2cbcb7ad39461f3adeb3296fd0f8ed5d5fb5a7143bcb6",
+      "payer": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+      "ownerWallet": "0x3bE57A5b65265D3704f846B93600308154fec794"
+    },
+    "acceptance": {
+      "result": "PASS",
+      "confidence": 0.92,
+      "summary": "All quality checks passed.",
+      "notes": [
+        "Objective checks passed.",
+        "Brand rules passed.",
+        "Judge unavailable (AI temporarily unavailable (405). Please try again.). Objective and brand checks still apply."
+      ]
+    }
+  },
+  "onChainLock": {
+    "payer": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+    "amount": "8000",
+    "released": true,
+    "refunded": false
+  },
+  "redisSpendAfter": 0.3326819999999999,
+  "receipt": {
+    "jobId": "1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
+    "receipt": {
+      "id": "478e58eb-c9c4-4cdc-a0bc-2e797ebec17e",
+      "txHash": "0x361c17c2db161b7d38f18755ef9d1aa0a154f43c948b56dc1aec91957154bc8c",
+      "createdAt": "2026-08-12T22:52:32.046Z",
+      "jobId": "1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
+      "offer": {
+        "offerId": "72955fce-2b82-42d7-8cad-cc517cb56b3d",
+        "briefHash": "0x2ce34b8149e9ab7d99975c1c80ee33a8e2a1cd51847a04452c4d68ee79a67a54",
+        "priceUsdt0": "8250",
+        "rubricHash": "0xbaa4d25268b1ba87e2bf6f2563de50eb34b8249020163d2d181bf1f8afef19c9"
+      },
+      "accept": {
+        "result": "PASS",
+        "summary": "All quality checks passed.",
+        "acceptId": "ace98541-3def-4794-aeb2-e5077094b659",
+        "confidence": 0.92
+      },
+      "display": {
+        "title": "Coding job",
+        "statusLabel": "Paid",
+        "priceDisplay": "$0.00825"
+      },
+      "payment": {
+        "txHash": "0x361c17c2db161b7d38f18755ef9d1aa0a154f43c948b56dc1aec91957154bc8c",
+        "settled": true,
+        "paymentId": "28ebbda7-1720-4ea7-a666-967cbce88188",
+        "amountUsdt0": "8250"
+      },
+      "version": "1.0",
+      "artifacts": [],
+      "serviceId": "coding"
+    }
+  }
+}

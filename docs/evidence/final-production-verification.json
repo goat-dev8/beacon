@@ -1,0 +1,304 @@
+{
+  "title": "Beacon closeout production verification — hardware DENY gap + Jobs Redis refund + LayerZero dest",
+  "timestamp": "2026-08-12T22:55:00.000Z",
+  "timezoneNote": "Local session UTC+3 (2026-08-13 ~01:10–02:00). UTC timestamps below.",
+  "finalStatus": "PASS_WITH_LIMITATIONS",
+  "finalStatusReason": "Hardware TEE signed status-0 DENY is FAILED on measured image 0x2813e4ec…5806. All other closeout gates that were tested passed. x402 settle was not re-run this closeout.",
+  "network": {
+    "name": "Flare Testnet Coston2",
+    "chainId": 114,
+    "rpc": "https://coston2-api.flare.network/ext/C/rpc",
+    "explorer": "https://coston2-explorer.flare.network"
+  },
+  "productionUrls": {
+    "desk": "https://beacon-desk.vercel.app",
+    "api": "https://beacon-api-97gl.onrender.com",
+    "mcpPage": "https://beacon-desk.vercel.app/flow/mcp",
+    "mcpEndpoint": "https://beacon-api-97gl.onrender.com/mcp",
+    "extProxy": "https://policy-handful-outlast.ngrok-free.dev",
+    "teeExtensionExplorer": "https://coston2-systems-explorer.flare.network/tee/extensions/65925"
+  },
+  "walletObserved": "0x3bE57A5b65265D3704f846B93600308154fec794",
+  "personalSafe": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+  "executor": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+  "liveToken": {
+    "symbol": "USDT0 test",
+    "address": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+    "decimals": 6,
+    "faucet": "https://faucet.flare.network/coston2",
+    "notMainnetUsdt0": true,
+    "notMockUsdt0": true
+  },
+  "secrets": "none included",
+  "productionCommit": {
+    "redisRefundFix": "88bd79c",
+    "generationFailToken": "c27f310",
+    "renderService": "srv-d9ojf9tbedkc73d1k6jg",
+    "renderDeployLiveAtFix": "dep-d9ufckbm8hqs738err30",
+    "vercel": "no web code change this closeout — desk already on production"
+  },
+  "acceptanceGate": {
+    "Hardware FCC": "PASS",
+    "GCP_AMD_SEV": "PASS",
+    "measured codeHash": "PASS",
+    "TEE status 2": "PASS",
+    "fresh availability": "PASS",
+    "Hardware ALLOW": "PASS",
+    "Hardware signed DENY": "FAILED",
+    "REAL USDT0 Jobs success": "PASS",
+    "REAL USDT0 Jobs failure": "PASS",
+    "REAL USDT0 refund": "PASS",
+    "refund accounting net-zero": "PASS",
+    "successful Job after refund": "PASS",
+    "fresh LayerZero source": "PASS",
+    "fresh LayerZero destination": "PASS",
+    "FTSO current": "PASS",
+    "FDC current": "PASS",
+    "FAssets current": "PASS",
+    "Safe": "PASS",
+    "Chat": "PASS",
+    "x402 fresh evidence": "NOT_TESTED",
+    "MCP smoke": "PASS",
+    "Chrome production E2E": "PASS",
+    "unit tests": "PASS",
+    "contract tests": "PASS",
+    "typecheck": "PASS",
+    "web build": "PASS",
+    "README complete": "PASS",
+    "history updated": "PASS",
+    "evidence pack updated": "PASS",
+    "production deployment verified": "PASS"
+  },
+  "fccHardware": {
+    "result": "PASS",
+    "simulatedTee": false,
+    "fccMode": "verified",
+    "hardwareClaim": true,
+    "attestationKind": "hardware",
+    "teeMachineStatus": 2,
+    "teeMachineStatusLabel": "PRODUCTION",
+    "teeId": "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d",
+    "flareTeeManager": "0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE",
+    "instructionSender": "0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46",
+    "extensionIdDecimal": 65925,
+    "extensionIdHex": "0x0000000000000000000000000000000000000000000000000000000000010185",
+    "registeredUrl": "https://policy-handful-outlast.ngrok-free.dev",
+    "platformAscii": "GCP_AMD_SEV",
+    "codeHash": "0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806",
+    "canMoveFunds": false,
+    "explorerExtension": "https://coston2-systems-explorer.flare.network/tee/extensions/65925",
+    "explorerObserved": "v0.1.2 codeHash 0x2813…b75806 GCP_AMD_SEV; owner 0xBDfC…0034; InstructionSender 0x11bF…1c46",
+    "teeOverview": "https://coston2-systems-explorer.flare.network/tee — 390 Production machines",
+    "evidenceFiles": [
+      "docs/evidence/closeout-fcc-status.json",
+      "docs/evidence/hardware-fcc/STATUS.json"
+    ]
+  },
+  "allow": {
+    "result": "PASS",
+    "kind": "Beacon policy ALLOW then FCC instruction submit + TEE signed result",
+    "instructionId": "0x7f0613d075ef6f337695b3942a885636c8e8d18455ad47f6acf329508c67536e",
+    "txHash": "0x3cb3248e2b8a5cb454f4e82a0af8e0881a9bbaf8bf9a10b72c333923b3cebdf5",
+    "explorer": "https://coston2-explorer.flare.network/tx/0x3cb3248e2b8a5cb454f4e82a0af8e0881a9bbaf8bf9a10b72c333923b3cebdf5",
+    "teeSignedStatus": 1,
+    "extension": 65925,
+    "attestationKind": "hardware",
+    "canMoveFunds": false,
+    "evidenceFile": "docs/evidence/closeout-fcc-allow.json"
+  },
+  "deny": {
+    "beaconPolicyDeny": {
+      "result": "PASS",
+      "kind": "genuine Beacon policy DENY (100 USDT0 vs cap 10)",
+      "decision": "DENY",
+      "onChainInstruction": null,
+      "fundsMoved": false,
+      "evidenceFile": "docs/evidence/closeout-fcc-deny.json"
+    },
+    "hardwareSignedStatus0": {
+      "result": "FAILED",
+      "reason": "Measured Go image processFit returns status 1 for well-formed EVALUATE, including over-cap amount 100 vs 10. Status 0 is only produced by empty-name / unknown JSON (forbidden this gate). Rebuilding the image would change codeHash and likely teeId — not done.",
+      "diagnosticOvercapEvaluate": {
+        "instructionId": "0xaaa282e9a636ef47ac96b0b63de54a49aad16491f073d933dfd430ed1cba776e",
+        "txHash": "0x419dcf01f9a58cfb3d8573722fede05d785105e7c1678c8719cf8684fcbc0725",
+        "teeSignedStatus": 1,
+        "notClaimedAsSignedDeny": true,
+        "evidenceFile": "docs/evidence/closeout-fcc-overcap-evaluate.json"
+      }
+    }
+  },
+  "jobsFailureRefund": {
+    "result": "PASS",
+    "note": "First fail job 92773b00… proved on-chain refund but Redis window was not reversed (ownerWallet stripped). Fix 88bd79c persisted ownerWallet and reversed both keys. Retest below is the Redis net-zero proof.",
+    "priorFailOnChainOnly": {
+      "jobId": "92773b00-e82a-4f0d-8fb9-a63d4324e19d",
+      "lockTx": "0x0299988be8925098a0401dc31bec144b8a8d1423113e7cfaef7ba160c2a0c748",
+      "refundTx": "0xe9f1b805812e6eecdfec72139bc4f98c8a344725a9a2d1c6858db8d8adbce51e",
+      "redisNetZero": false,
+      "evidenceFile": "docs/evidence/closeout-jobs-fail.json"
+    },
+    "retestAfterFix": {
+      "jobId": "b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+      "service": "coding",
+      "briefToken": "BEACON_E2E_GENERATION_FAIL",
+      "status": "CLOSED",
+      "trigger": "generation_failed",
+      "spendTx": "0x5f06e09889c0961389b8173e8d56ca533d51eeca1b31dad5c484bda16afdef68",
+      "lockTx": "0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b",
+      "refundTx": "0xd5a853aabb40f0c756d0980f1d3eccd6a55838a48b9ae7c922ea1435b255967d",
+      "explorerLock": "https://coston2-explorer.flare.network/tx/0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b",
+      "explorerRefund": "https://coston2-explorer.flare.network/tx/0xd5a853aabb40f0c756d0980f1d3eccd6a55838a48b9ae7c922ea1435b255967d",
+      "onChainLock": {
+        "payer": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+        "amount": "8000",
+        "released": false,
+        "refunded": true
+      },
+      "safeUsdt0": { "before": "9.953033", "after": "9.953033", "netZero": true },
+      "redisSpend": { "before": 0.32443199999999994, "afterClosed": 0.32443199999999994, "netZero": true },
+      "receipt": { "statusLabel": "Not charged", "priceDisplay": "$0.00", "settled": false },
+      "ownerWalletPersisted": "0x3bE57A5b65265D3704f846B93600308154fec794",
+      "desk": "https://beacon-desk.vercel.app/flow/desk?job=b0c09470-bee8-4318-8054-7bf3ec8aed4e",
+      "evidenceFile": "docs/evidence/closeout-jobs-fail-retest.json"
+    }
+  },
+  "jobsSuccessAfterRefund": {
+    "result": "PASS",
+    "jobId": "1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
+    "service": "coding",
+    "status": "CLOSED",
+    "acceptance": "PASS",
+    "spendTx": "0x325f5374fecf4b665cc2cbcb7ad39461f3adeb3296fd0f8ed5d5fb5a7143bcb6",
+    "lockTx": "0x85ad5be2bc69b4e000219918341015406768ef7b3a31b1bb31ac055a6cea2feb",
+    "settleTx": "0x361c17c2db161b7d38f18755ef9d1aa0a154f43c948b56dc1aec91957154bc8c",
+    "explorerSettle": "https://coston2-explorer.flare.network/tx/0x361c17c2db161b7d38f18755ef9d1aa0a154f43c948b56dc1aec91957154bc8c",
+    "onChainLock": { "released": true, "refunded": false, "amount": "8000" },
+    "receipt": { "statusLabel": "Paid", "priceDisplay": "$0.00825", "settled": true },
+    "desk": "https://beacon-desk.vercel.app/flow/desk?job=1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
+    "evidenceFile": "docs/evidence/closeout-jobs-success.json"
+  },
+  "layerZero": {
+    "result": "PASS",
+    "asset": "FXRP / FTestXRP",
+    "notUsdt0": true,
+    "amount": "0.05",
+    "dstEid": 40161,
+    "destination": "Sepolia",
+    "peer": "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+    "sourceTx": "0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+    "guid": "0xded96818fcfb6bfa15e0b7f0254f8c05898bd7ca5f3c8bbe3941fafd24652d31",
+    "destinationTx": "0xafa0b7a0f33a1e56b16b346ba298251a040030b7e17887708bd4e7879d1fc2de",
+    "amountReceivedLD": "50000",
+    "recipient": "0x3bE57A5b65265D3704f846B93600308154fec794",
+    "oftReceivedOnChain": true,
+    "packetDelivered": true,
+    "layerZeroScan": "https://testnet.layerzeroscan.com/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+    "sourceExplorer": "https://coston2-explorer.flare.network/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
+    "destExplorer": "https://sepolia.etherscan.io/tx/0xafa0b7a0f33a1e56b16b346ba298251a040030b7e17887708bd4e7879d1fc2de",
+    "priorInFlightNowDelivered": {
+      "sourceTx": "0x954228b00a6b6cffb886e09e9e766c5d8cdb397026796bbf7fe6fa895fe45d6e",
+      "destTx": "0xb81d0aec70c8c72da661705b7d814c32755d204cff2e545be62d101fbbe43b38",
+      "evidenceFile": "docs/evidence/closeout-lz-prior-dest.json"
+    },
+    "evidenceFiles": [
+      "docs/evidence/closeout-lz-fresh-source.json",
+      "docs/evidence/closeout-lz-fresh-dest.json"
+    ]
+  },
+  "ftso": {
+    "result": "PASS",
+    "api": "GET /v1/ftso/guard status=REAL",
+    "xrpUsd": 1.005,
+    "feedAgeSeconds": 16,
+    "explorer": "https://coston2-systems-explorer.flare.network/price-feeds?tab=block-latency",
+    "explorerObserved": "62 block-latency feeds; BTC/USD ~63345 live"
+  },
+  "fdc": {
+    "result": "PASS",
+    "api": "GET /v1/fdc/status status=REAL da=https://ctn2-data-availability.flare.network",
+    "newSubmitThisCloseout": "NOT_TESTED",
+    "thisPassRoundStillFinalized": {
+      "txHash": "0xd6f792c8b15e35debb63060579484b6109405a2f779f2275f9948a6ef3bb12e1",
+      "roundId": 1423789,
+      "explorer": "https://coston2-systems-explorer.flare.network/voting-round/1423789?tab=fdc",
+      "finalized": true,
+      "addressValidity": "1X testXRP 100%"
+    },
+    "attestationRequestLive": {
+      "url": "https://coston2-systems-explorer.flare.network/attestation-request",
+      "observed": "live PENDING + PROVEN requests on rounds 1423832–1423836"
+    }
+  },
+  "fassets": {
+    "result": "PASS",
+    "api": "FTestXRP live, 4 agents, mint=docs_handoff, redeem=prepare",
+    "explorer": "https://coston2-systems-explorer.flare.network/fassets",
+    "explorerObserved": "LIVE DIRECT MINT / REDEEM (2026-08-13 local)",
+    "smartAccounts": "STUB",
+    "inAppMint": false
+  },
+  "x402": {
+    "result": "NOT_TESTED",
+    "thisCloseoutNewSettle": false,
+    "priorSameCalendarDay": {
+      "settleTx": "0x1943596070e8709b00ea536190ffe40f409f8c2c8639fd6bcde5d1f7ee734fc5",
+      "explorer": "https://coston2-explorer.flare.network/tx/0x1943596070e8709b00ea536190ffe40f409f8c2c8639fd6bcde5d1f7ee734fc5",
+      "evidenceFile": "docs/evidence/usdt0-x402-settle.json"
+    }
+  },
+  "mcp": {
+    "result": "PASS",
+    "health": "GET /v1/mcp/health ok redis=true",
+    "endpoint": "https://beacon-api-97gl.onrender.com/mcp",
+    "ui": "MCP LIVE, Safe linked 0x9687…A0A6, no private key to agent"
+  },
+  "safe": {
+    "result": "PASS",
+    "address": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+    "token": "official Coston2 USDT0 0xC1A5…E71F",
+    "balanceAfterCloseoutJobs": "9.945033",
+    "maxSpendPerTx": "10.0",
+    "rollingWindowBudget": "50.0",
+    "sessionActive": true,
+    "uiBadge": "CONFIDENTIAL POLICY (HARDWARE TEE)"
+  },
+  "chromeE2E": {
+    "result": "PASS",
+    "evidenceFile": "docs/evidence/chrome-e2e-closeout.json",
+    "limitations": [
+      "Swap/Bridge execute not re-clicked in Chrome this closeout (prior Chrome swap + this-pass LZ script dest fill)",
+      "Jobs fail desk copy still says quality checks passed while amount is $0.000000 — receipt API is Not charged"
+    ]
+  },
+  "automatedTests": {
+    "vitest": "125/125",
+    "forge": "52/52",
+    "typecheck": "PASS",
+    "webBuild": "PASS",
+    "simulatedTeeInWebDist": 0
+  },
+  "mockUsdt0Audit": {
+    "liveProductionPath": 0,
+    "allowed": [
+      "packages/contracts/src/mocks/MockUSDT0.sol (fixture tests)",
+      "packages/contracts/test/MockUSDT0.t.sol",
+      "historical history.md / evidence / chat titles",
+      "comments labeling faucet USDT0 as not MockUSDT0"
+    ]
+  },
+  "simulatedTeeProduction": {
+    "SIMULATED_TEE": false,
+    "FCC_MODE": "verified",
+    "hardwareClaim": true
+  },
+  "health": {
+    "ok": true,
+    "chainId": 114,
+    "simulatedTee": false,
+    "fccMode": "verified",
+    "x402Token": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+    "escrow": "0x59F9E2471BE3747b00fD53E0Cea828227345399C",
+    "ready": true,
+    "smartAccounts": "STUB"
+  }
+}
