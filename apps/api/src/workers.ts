@@ -386,15 +386,21 @@ async function refuseJob(db: pg.Pool, redis: Redis, jobId: string): Promise<void
           const payload = auth.rows[0]?.eip3009_payload as
             | { ownerWallet?: string; payer?: string }
             | undefined;
-          const wallet = payload?.ownerWallet || payload?.payer;
+          const wallets = [...new Set(
+            [payload?.ownerWallet, payload?.payer]
+              .filter((w): w is string => Boolean(w && /^0x[a-fA-F0-9]{40}$/i.test(w)))
+              .map((w) => w.toLowerCase()),
+          )];
           const priceRaw = row?.price_usdt0;
           const amountUsdt0 =
             typeof priceRaw === "bigint" || typeof priceRaw === "number" || /^\d+$/.test(String(priceRaw ?? ""))
               ? Number(priceRaw) / 1e6
               : Number(String(priceRaw ?? "0").replace(/[^0-9.]/g, "")) || 0;
-          if (wallet && amountUsdt0 > 0) {
-            await reverseSpendUsdt0(redis, wallet, amountUsdt0);
-            console.log("[workers] reversed Redis spend window", jobId, wallet, amountUsdt0);
+          if (amountUsdt0 > 0) {
+            for (const wallet of wallets) {
+              await reverseSpendUsdt0(redis, wallet, amountUsdt0);
+              console.log("[workers] reversed Redis spend window", jobId, wallet, amountUsdt0);
+            }
           }
         } catch (revErr) {
           console.error("[workers] spend reverse error", jobId, revErr);

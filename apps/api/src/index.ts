@@ -574,6 +574,7 @@ const eip3009AuthSchema = z.object({
   signature: z.string().optional(),
   mode: z.string().optional(),
   lockTxHash: z.string().optional(),
+  ownerWallet: z.string().regex(/^0x[a-fA-F0-9]{40}$/i).optional(),
 });
 
 const approveSchema = z.object({
@@ -701,6 +702,7 @@ app.post("/v1/jobs/:id/approve", async (req) => {
       userId,
       JSON.stringify({
         ...authPayload,
+        ownerWallet: body.ownerWallet ?? authPayload.ownerWallet,
         lockTxHash,
         spendTxHash,
         chainId: env.CHAIN_ID,
