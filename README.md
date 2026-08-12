@@ -268,6 +268,7 @@ Evidence: [`docs/evidence/usdt0-rails-deploy.json`](./docs/evidence/usdt0-rails-
 | BeaconSafeFactory | `0x8250e3946fFAD7C3306E7286Cf82131E79038106` | [`0x40d00ab8…3638`](https://coston2-explorer.flare.network/tx/0x40d00ab8c82c4ca1afa7ca99d7aeccc2073ab4ee8bec222f1db3c512db273638) |
 | BeaconCoston2SwapDesk | `0xD926f5Bce2F89CD279aCa3648807607f6125986F` | [`0x4f0278fe…5b01`](https://coston2-explorer.flare.network/tx/0x4f0278feae293b79a2adecc362a166ecba71f8547885cea9555677f4abdd5b01) |
 | FXRP seed (5 FXRP → desk) | — | [`0x4fa9353f…d76d`](https://coston2-explorer.flare.network/tx/0x4fa9353f36a8c4e0908a4cb477e1f7a004bdb8ea737c301ec9a58515007fd76d) |
+| Real USDT0 Safe swap (0.01 → 0.009892 FXRP) | Safe `0x96875f3F4346e2183A3ee0d156cAe6871551A0A6` | spend [`0x3d051304…0af8`](https://coston2-explorer.flare.network/tx/0x3d051304c6f7687932dc82b279338ea8cdcebda1c255c64c4b43883c32b30af8) · fulfill [`0xcc449c20…39d3`](https://coston2-explorer.flare.network/tx/0xcc449c200ca3d7a6684d31ce92d0341360a4e30ce986d9563f50697ad08639d3) |
 | Executor / escrow owner / payee | `0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034` | — |
 | Job registry | `0x100a3E24909DE25B9CAe75Ba665Be6F893b98889` | unchanged |
 | FXRP (FTestXRP) | `0x0b6A3645c240605887a5532109323A3E12273dc7` | FAsset |

@@ -1,3 +1,35 @@
+## 2026-08-12 - Safe swap execute used personal USDT0 Safe (fix)
+
+### Timestamp
+2026-08-12 ~21:08 UTC
+
+### Change
+Flow Confirm / Safe swap execute no longer looks up the deleted Mock-era `BEACON_AGENT_VAULT_ADDRESS`. `prepareBeaconSafeSwap` / `executeBeaconSafeSwap` resolve the personal factory Safe via `resolveVaultForWallet`. Agent OFT Safe top-up uses the user wallet the same way. `ensureSafeSwapPolicy` does not call owner-only setters unless the signer is the Safe owner (personal Safes are user-owned).
+
+### Reason
+Quote worked (passed `address: vaultAddr`) but Confirm dropped the address and failed with “Beacon Safe not configured.” Production had deleted the legacy shared vault env key on purpose.
+
+### Test
+- vitest 125/125, forge 52/52, typecheck, web:build
+- Local execute 0.01 official Coston2 USDT0 → 0.009892 FXRP from personal Safe `0x96875…A0A6` (token `0xC1A5…E71F`)
+- Safe 10.0 → 9.99 USDT0; SwapDesk 5.0 → 4.990108 FXRP
+- Live FTSO XRP/USD ~1.00793, feed age 5s
+
+### Result
+- spend `0x3d051304c6f7687932dc82b279338ea8cdcebda1c255c64c4b43883c32b30af8`
+- fulfill `0xcc449c200ca3d7a6684d31ce92d0341360a4e30ce986d9563f50697ad08639d3`
+- Explorer: https://coston2-explorer.flare.network/tx/0x3d051304c6f7687932dc82b279338ea8cdcebda1c255c64c4b43883c32b30af8
+- Evidence: `docs/evidence/usdt0-safe-swap.json`
+
+### Remaining issue
+- Production API still needs this commit deployed before Flow Confirm works on the desk
+- Agent Jobs / refund / fresh x402 / Chrome Confirm still required after Render deploy
+- Hardware TEE signed status-0 for amount-cap DENY still not available without a new measured image
+- FAssets mint remains XRPL Core Vault handoff; Xaman optional FAssets-only
+- Historical Flow activity titles still say MockUSDT0→FXRP (stored receipts)
+
+---
+
 ## 2026-08-12 - REAL Coston2 faucet USDT0 rails (implementation)
 
 ### Timestamp

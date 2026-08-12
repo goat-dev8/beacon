@@ -24,6 +24,7 @@ import {
   COSTON2_EXPLORER_VAULT,
   readAgentVaultStatus,
   resolveAgentVaultAddress,
+  resolveVaultForWallet,
 } from "./vaultClient.js";
 
 export const ERC20_TRANSFER_SELECTOR = id("transfer(address,uint256)").slice(0, 10);
@@ -48,6 +49,7 @@ const VAULT_EXEC_ABI = [
   "function setAllowedTarget(address,bool)",
   "function setAllowedSelector(bytes4,bool)",
   "function token() view returns (address)",
+  "function owner() view returns (address)",
   "function maxSpendPerTx() view returns (uint256)",
   "function rollingWindowBudget() view returns (uint256)",
   "function allowedTargets(address) view returns (bool)",
@@ -133,11 +135,18 @@ export async function prepareBeaconSafeSwap(
     recipient: string;
     slippageBps?: number;
     address?: string | null;
+    wallet?: string | null;
   },
   env: BeaconEnv = loadEnv(),
 ): Promise<SafeSwapQuote> {
   const deskAddr = resolveSwapDeskAddress(env);
-  const vaultAddr = resolveAgentVaultAddress(env, params.address);
+  const resolved = await resolveVaultForWallet({
+    wallet: params.wallet || params.recipient,
+    address: params.address,
+    env,
+    personalOnly: true,
+  });
+  const vaultAddr = resolved.address;
   const honesty =
     "Coston2 Safe swap via BeaconCoston2SwapDesk (FTSO-synced rate). SparkDEX bytecode is Mainnet-only — no MetaMask Mainnet switch for this path.";
 
@@ -309,13 +318,15 @@ export async function ensureSafeSwapPolicy(
   const wallet = new Wallet(key, provider);
   const vault = new Contract(vaultAddr, VAULT_EXEC_ABI, wallet);
   const token = (await vault.token()) as string;
+  const vaultOwner = String(await vault.owner()).toLowerCase();
+  const signerIsOwner = wallet.address.toLowerCase() === vaultOwner;
 
   const [maxTx, window] = await Promise.all([
     vault.maxSpendPerTx() as Promise<bigint>,
     vault.rollingWindowBudget() as Promise<bigint>,
   ]);
 
-  if (maxTx === 0n || window === 0n) {
+  if (signerIsOwner && (maxTx === 0n || window === 0n)) {
     // 10 per tx / 50 rolling / 7d window / no session expiry
     const tx = await vault.setPolicy(parseUnits("10", 6), parseUnits("50", 6), 7 * 24 * 3600, 0);
     await tx.wait();
@@ -323,17 +334,27 @@ export async function ensureSafeSwapPolicy(
   }
 
   const targetOk = (await vault.allowedTargets(token)) as boolean;
-  if (!targetOk) {
+  if (signerIsOwner && !targetOk) {
     const tx = await vault.setAllowedTarget(token, true);
     await tx.wait();
     txs.push(tx.hash);
   }
 
   const selOk = (await vault.allowedSelectors(ERC20_TRANSFER_SELECTOR)) as boolean;
-  if (!selOk) {
+  if (signerIsOwner && !selOk) {
     const tx = await vault.setAllowedSelector(ERC20_TRANSFER_SELECTOR, true);
     await tx.wait();
     txs.push(tx.hash);
+  }
+
+  if (!targetOk || !selOk || maxTx === 0n || window === 0n) {
+    return {
+      ready: false,
+      note: signerIsOwner
+        ? "Safe policy/allowlist still incomplete after owner sync."
+        : "Personal Safe policy/allowlist is incomplete. Factory seeds these on createSafe; owner must set them if missing.",
+      txs,
+    };
   }
 
   // Sync desk rate from FTSO
@@ -358,6 +379,7 @@ export async function executeBeaconSafeSwap(
     recipient: string;
     slippageBps?: number;
     address?: string | null;
+    wallet?: string | null;
   },
   env: BeaconEnv = loadEnv(),
 ): Promise<SafeSwapExecuteResult> {

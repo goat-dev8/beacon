@@ -18,7 +18,7 @@ import {
 } from "./oftBridge.js";
 import { resolveFxrpAddress } from "./ftso.js";
 import { executeBeaconSafeSwap, prepareBeaconSafeSwap, resolveSwapDeskAddress } from "./safeSwap.js";
-import { resolveAgentVaultAddress, readAgentVaultStatus } from "./vaultClient.js";
+import { resolveSafeFactoryAddress } from "./vaultClient.js";
 
 const COSTON2_EXPLORER = "https://coston2-explorer.flare.network";
 
@@ -107,15 +107,18 @@ export async function prepareBeaconAgentBridge(
   let fromSafe = false;
   let safeSpendUsdt0: string | undefined;
 
-  const vaultAddr = resolveAgentVaultAddress(env);
   const deskAddr = resolveSwapDeskAddress(env);
-  const preferSafe = params.preferSafeFunding !== false && Boolean(vaultAddr && deskAddr);
+  const preferSafe = params.preferSafeFunding !== false && Boolean(deskAddr);
 
   if (execFxrp < amount && preferSafe) {
     // Rough 1:1 USDT0→FXRP sizing with buffer for fee/slippage
     const needUsdt0 = (Number(params.amountFxrpUnits) * 1.05).toFixed(4);
     const safeQ = await prepareBeaconSafeSwap(
-      { amountInUnits: needUsdt0, recipient: exec },
+      {
+        amountInUnits: needUsdt0,
+        recipient: exec,
+        wallet: params.recipient,
+      },
       env,
     );
     if (safeQ.ok) {
@@ -222,7 +225,11 @@ export async function executeBeaconAgentBridge(
 
   if (quote.fromSafe && quote.safeSpendUsdt0) {
     const swap = await executeBeaconSafeSwap(
-      { amountInUnits: quote.safeSpendUsdt0, recipient: quote.executor },
+      {
+        amountInUnits: quote.safeSpendUsdt0,
+        recipient: quote.executor,
+        wallet: params.recipient,
+      },
       env,
     );
     if (!swap.ok) {
@@ -318,13 +325,12 @@ export async function agentBridgeReadiness(env: BeaconEnv = loadEnv()): Promise<
   const fxrpBal = await new Contract(fxrpAddr, ["function balanceOf(address) view returns (uint256)"], provider).balanceOf(
     exec,
   );
-  const vault = await readAgentVaultStatus({ env }).catch(() => null);
   return {
     executor: exec,
     fxrp: formatUnits(fxrpBal as bigint, 6),
     c2flr: formatEther(await provider.getBalance(exec)),
-    safeConfigured: Boolean(vault && vault.configured),
-    safeBalance: vault && vault.configured ? vault.balanceDisplay : "0",
+    safeConfigured: Boolean(resolveSafeFactoryAddress(env)),
+    safeBalance: "per-wallet",
     honesty,
   };
 }

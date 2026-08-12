@@ -1,0 +1,28 @@
+{
+  "at": "2026-08-12T21:08:00.000Z",
+  "network": "Flare Testnet Coston2",
+  "chainId": 114,
+  "wallet": "0x3bE57A5b65265D3704f846B93600308154fec794",
+  "safe": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+  "tokenIn": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+  "tokenInName": "USDT0 test (official Coston2 faucet USDT0)",
+  "tokenOut": "0x0b6A3645c240605887a5532109323A3E12273dc7",
+  "tokenOutName": "FXRP / FTestXRP",
+  "desk": "0xD926f5Bce2F89CD279aCa3648807607f6125986F",
+  "amountIn": "0.01",
+  "amountOut": "0.009892",
+  "ftso": {
+    "xrpUsd": 1.007927,
+    "feedAgeSeconds": 5,
+    "quoteSource": "FTSO+SwapDesk"
+  },
+  "spendHash": "0x3d051304c6f7687932dc82b279338ea8cdcebda1c255c64c4b43883c32b30af8",
+  "fulfillHash": "0xcc449c200ca3d7a6684d31ce92d0341360a4e30ce986d9563f50697ad08639d3",
+  "explorerSpend": "https://coston2-explorer.flare.network/tx/0x3d051304c6f7687932dc82b279338ea8cdcebda1c255c64c4b43883c32b30af8",
+  "explorerFulfill": "https://coston2-explorer.flare.network/tx/0xcc449c200ca3d7a6684d31ce92d0341360a4e30ce986d9563f50697ad08639d3",
+  "after": {
+    "safeUsdt0": "9.99",
+    "deskFxrp": "4.990108"
+  },
+  "note": "Real faucet USDT0 left the personal Beacon Safe via vault.execute(transfer) then SwapDesk.fulfill. Not MockUSDT0. SparkDEX Coston2 router bytecode is empty — desk is the Coston2 rail. Safe 10.0 → 9.99 USDT0; desk 5.0 → 4.990108 FXRP."
+}

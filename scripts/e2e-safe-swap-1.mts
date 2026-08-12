@@ -1,5 +1,5 @@
 ﻿import { config } from "dotenv";
-config({ path: ".env" });
+config({ path: ".env", override: true });
 import { loadEnv } from "../packages/shared/src/env.ts";
 import { executeBeaconSafeSwap } from "../packages/shared/src/safeSwap.ts";
 

@@ -1179,7 +1179,7 @@ export async function runBeaconAgentChat(opts: {
 
         const finalAmount = amount || state.amountInUnits || "1";
         const safePrep = await prepareBeaconSafeSwap(
-          { amountInUnits: finalAmount, recipient: wallet },
+          { amountInUnits: finalAmount, recipient: wallet, address: vaultAddr, wallet },
           env,
         );
         if (!safePrep.ok) {

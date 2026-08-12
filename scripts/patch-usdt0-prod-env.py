@@ -55,7 +55,6 @@ def main() -> None:
         "BEACON_SAFE_FACTORY_ADDRESS": FACTORY,
         "BEACON_SWAP_DESK_ADDRESS": SWAP_DESK,
         "BEACON_JOB_REGISTRY": JOB_REGISTRY,
-        "BEACON_AGENT_VAULT_ADDRESS": "",
     }
     forbidden = {
         "SIMULATED_TEE",
@@ -79,6 +78,16 @@ def main() -> None:
         )
         print(f"Render PUT {key}: {status}")
 
+    try:
+        status, _ = req(
+            "DELETE",
+            f"https://api.render.com/v1/services/{SERVICE_ID}/env-vars/BEACON_AGENT_VAULT_ADDRESS",
+            RENDER_KEY,
+        )
+        print(f"Render DELETE BEACON_AGENT_VAULT_ADDRESS: {status}")
+    except SystemExit as exc:
+        print(f"Render DELETE BEACON_AGENT_VAULT_ADDRESS skipped: {exc}")
+
     status, deploy = req(
         "POST",
         f"https://api.render.com/v1/services/{SERVICE_ID}/deploys",
@@ -95,7 +104,6 @@ def main() -> None:
         "VITE_BEACON_ESCROW": ESCROW,
         "VITE_BEACON_SAFE_FACTORY_ADDRESS": FACTORY,
         "VITE_BEACON_JOB_REGISTRY": JOB_REGISTRY,
-        "VITE_BEACON_AGENT_VAULT_ADDRESS": "",
     }
     for key, value in vercel_updates.items():
         status, _ = req(
