@@ -1,0 +1,43 @@
+{
+  "at": "2026-08-12T21:44:06.748Z",
+  "path": "executor lockFrom → escrow.refund on official Coston2 faucet USDT0",
+  "token": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+  "tokenName": "USDT0 test",
+  "decimals": 6,
+  "escrow": "0x59F9E2471BE3747b00fD53E0Cea828227345399C",
+  "payer": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+  "jobId": "refund-usdt0-1786571031339",
+  "jobHash": "0x20d2ff65975811094e52e9c6a6aab81a9d82b8514a229c9d85a15a60458e63ef",
+  "amountRaw": "10000",
+  "amountUsdt0": "0.01",
+  "balances": {
+    "payerBefore": "10.268967",
+    "payerAfterLock": "10.258967",
+    "payerAfterRefund": "10.268967",
+    "escrowBefore": "0.0",
+    "escrowAfterLock": "0.01",
+    "escrowAfterRefund": "0.0"
+  },
+  "lock": {
+    "tx": "0xaa2d27082201ea5c1a24ffbea00d39024757c2612866e7a96a2130ed2c6096f2",
+    "explorer": "https://coston2-explorer.flare.network/tx/0xaa2d27082201ea5c1a24ffbea00d39024757c2612866e7a96a2130ed2c6096f2",
+    "payer": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+    "amount": "10000"
+  },
+  "refund": {
+    "tx": "0xec7a52c5fa06c266b26aee1e79eb83bb01faecf700816a225f4d5474af347ade",
+    "explorer": "https://coston2-explorer.flare.network/tx/0xec7a52c5fa06c266b26aee1e79eb83bb01faecf700816a225f4d5474af347ade",
+    "released": false,
+    "refunded": true
+  },
+  "redisSpendWindow": {
+    "skipped": false,
+    "beforeSpend": 0,
+    "afterRecord": 0.01,
+    "reversedTo": 0,
+    "afterReverse": 0,
+    "netZero": true,
+    "recordIncreased": true
+  },
+  "note": "Real USDT0 left the payer into BeaconEscrow then returned on refund. Not MockUSDT0. Jobs UI FAIL/NEEDS_LOOK reject uses this same escrow.refund + reverseSpendUsdt0 path."
+}

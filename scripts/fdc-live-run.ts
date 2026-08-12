@@ -1,4 +1,5 @@
-import "dotenv/config";
+import { config } from "dotenv";
+config({ path: ".env", override: true });
 import { resetEnvCache, loadEnv } from "@beacon/shared";
 import {
   fdcClientFromEnv,

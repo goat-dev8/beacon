@@ -1,0 +1,20 @@
+{
+  "at": "2026-08-12T21:25:09.437Z",
+  "jobId": "10c72805-c22f-4553-ac09-bc03fcccdb17",
+  "serviceId": "image",
+  "result": "PASS",
+  "priceUsdt0": "0.010697",
+  "token": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+  "safe": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+  "ownerWallet": "0x3bE57A5b65265D3704f846B93600308154fec794",
+  "paymentRail": "safe",
+  "spendTxHash": "0x220428312b22b68057ee9cf4e499480620269900923ae0024f6dc3888a024684",
+  "lockTxHash": "0x8de1c4fcce6d277f265ecec5dce3fbfdbe7d67b8fc4774f4ea7bffbb9e1c1153",
+  "settleTxHash": "0x5b994db141748842e6e04f039024c0d0c74d27920130801a005e07920d5c2080",
+  "explorerSpend": "https://coston2-explorer.flare.network/tx/0x220428312b22b68057ee9cf4e499480620269900923ae0024f6dc3888a024684",
+  "explorerLock": "https://coston2-explorer.flare.network/tx/0x8de1c4fcce6d277f265ecec5dce3fbfdbe7d67b8fc4774f4ea7bffbb9e1c1153",
+  "explorerSettle": "https://coston2-explorer.flare.network/tx/0x5b994db141748842e6e04f039024c0d0c74d27920130801a005e07920d5c2080",
+  "artifactRaw": "https://beacon-api-97gl.onrender.com/v1/jobs/10c72805-c22f-4553-ac09-bc03fcccdb17/artifacts/c02f299e-5f49-4084-952b-4d89d4dc303d/raw",
+  "ui": "Paid $0.010697 · IMAGE · LIVE · MICRO PRICE · USDT0",
+  "safeBalanceAfter": "9.971033"
+}

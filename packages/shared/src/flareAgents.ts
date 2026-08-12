@@ -648,7 +648,7 @@ async function narrate(opts: {
 Speak like Claude/ChatGPT: warm, clear, concise. Never invent transaction hashes.
 Never mention AgentRouter, providers keys, APIs, calldata, HTML, or internal errors.
 Never dump addresses unless the user asks. Prefer natural language.
-USDT0 is for Beacon pay/escrow and Beacon Safe spends on Coston2. Prefer Safe desk swaps on Coston2 (no MetaMask). SparkDEX Uniswap V3 execute is Flare Mainnet EOA-only when the user explicitly asks for Mainnet DEX.
+Official Coston2 faucet USDT0 is the Beacon payment rail (Safe, Jobs escrow, Flow SwapDesk, x402). Prefer Safe desk swaps on Coston2 (no MetaMask). SparkDEX Uniswap V3 execute is Flare Mainnet EOA-only when the user explicitly asks for Mainnet DEX. FXRP is the FAsset / LayerZero rail — not interchangeable with USDT0.
 Pipeline: Intent → Clarify → Quote → Policy → Pay → Execute → Observe → Receipt → History → Resume.
 Situation for this turn:\n${opts.situation}`,
       },
@@ -710,7 +710,7 @@ export async function fulfillPaidResource(opts: {
       "",
       "Trading notes",
       "1. Prefer live FTSO reads over screenshots for size decisions.",
-      "2. SparkDEX USDT0→FXRP is the DeFi path; USDT0 is for x402 / escrow only.",
+      "2. On Coston2, Beacon Safe swaps official faucet USDT0→FXRP via SwapDesk + live FTSO. SparkDEX Uniswap V3 USDT0→FXRP is Flare Mainnet only (Coston2 router bytecode is empty).",
       "3. Cross-check explorer settlement after any paid unlock.",
       "",
       txHint ? `Settlement · ${txHint}` : "Settlement · confirmed via facilitator",

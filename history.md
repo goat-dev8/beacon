@@ -1,3 +1,48 @@
+## 2026-08-12 - REAL USDT0 Chrome E2E + refund + FDC this-pass
+
+### Timestamp
+2026-08-12 ~21:48 UTC
+
+### Change
+Paid-pack / research copy no longer says Coston2 USDT0 is “x402 / escrow only.” Official faucet USDT0 is the Safe / Jobs / Flow SwapDesk / x402 rail; SparkDEX Uniswap V3 remains Mainnet-only; FXRP remains the FAsset / OFT rail.
+
+### Reason
+Live product already swapped USDT0→FXRP from Beacon Safe. Stale copy contradicted the rail.
+
+### Test
+Chrome (wallet `0x3bE57A5b65265D3704f846B93600308154fec794`, personal Safe `0x96875f3F4346e2183A3ee0d156cAe6871551A0A6`, token `USDT0 test` `0xC1A5…E71F`):
+- Official faucet UI: 100 C2FLR / 10 USDT0 / 10 FXRP per 24h — https://faucet.flare.network/coston2
+- Landing shows official USDT0 `0xC1A5…E71F` and escrow `0x59F9…399C`
+- Get Started: Coston2 114, wallet connected
+- Safe: **9.961033 USD₮0** on-chain (not DB-copied mock); wallet 19.75 USDT0 / 31.304082 FXRP; caps 10 / 50; hardware TEE; faucet card
+- Jobs Coding PASS `1dedb119-…` $0.008270 settle `0x5605be29…5f47`
+- Jobs Images PASS `10c72805-…` $0.010697 settle `0x5b994db1…2080`
+- Flow Confirm+Execute 0.01 USDT0→FXRP spend `0xdbac957f…efb8` fulfill `0xede05e68…7cce` (FTSO age 13s)
+- x402 $0.25 settle `0x19435960…4fc5` (wallet 20.00 → 19.75)
+- Hardware FCC ALLOW instruction `0xce2aff58…41c5` tx `0xf24fddd9…dc4a4`; DENY 100 vs cap 10 with `onChainInstruction: null`
+- FTSO systems explorer: 62 block-latency feeds; `/v1/ftso/guard` REAL XRP/USD 1.005313 age 5s
+- FDC this-pass AddressValidity tx `0xd6f792c8…12e1` round **1423789 FINALIZED** DA proof AVAILABLE — https://coston2-systems-explorer.flare.network/voting-round/1423789?tab=fdc · request 6569551
+- FAssets explorer LIVE (DIRECT MINT / REDEEM). Flow FAssets: mint = docs_handoff, Xaman optional, not a USDT0 mint
+- TEE extension 65925 v0.1.2 codeHash `0x2813…b75806` GCP_AMD_SEV matches measured image
+- MCP LIVE, Safe linked, no private-key copy
+- On-chain refund: lock `0xaa2d2708…96f2` refund `0xec7a52c5…7ade` (0.01 USDT0 returned; Redis reverse net-zero)
+
+### Result
+MockUSDT0 is gone from the LIVE UI/API path. Real Coston2 faucet USDT0 moves on Safe, Jobs, Flow, x402, and escrow refund.
+
+### Remaining issue
+- Jobs UI FAIL/NEEDS_LOOK reject not re-run in Chrome this pass (both live jobs PASSed). Refund proven on the same live escrow + Redis reverse.
+- Hardware TEE signed status-0 for amount-cap DENY still not available without a new measured image
+- LayerZero dest OFTReceived not re-claimed this pass (source `0x954228b0…5d6e` FXRP, not USDT0)
+- Historical Flow history titles still say MockUSDT0 (stored receipts)
+- Paid FTSO pack body from this session still shows pre-fix “x402 / escrow only” text until a new pay after this deploy
+- Faucet claim in Chrome blocked by reCAPTCHA; wallet already held faucet USDT0
+
+### Evidence
+`docs/evidence/usdt0-e2e-this-pass.json` · `usdt0-refund.json` · `usdt0-fdc-this-pass.json` · `usdt0-job-coding.json` · `usdt0-job-images.json` · `usdt0-flow-chrome-swap.json` · `usdt0-x402-settle.json` · `usdt0-fcc-allow.json` · `usdt0-fcc-deny.json`
+
+---
+
 ## 2026-08-12 - Safe swap execute used personal USDT0 Safe (fix)
 
 ### Timestamp

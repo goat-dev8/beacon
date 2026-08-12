@@ -1,0 +1,18 @@
+{
+  "at": "2026-08-12T21:29:00.000Z",
+  "path": "Chrome Flow Confirm + Execute after Render 7cd4595",
+  "wallet": "0x3bE57A5b65265D3704f846B93600308154fec794",
+  "safe": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+  "token": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+  "amountIn": "0.01 USDT0",
+  "estimatedOut": "0.009923 FXRP",
+  "ftsoAgeSeconds": 13,
+  "xrpUsd": 1.00441,
+  "activityTitle": "Beacon Safe USDT0→FXRP · 0.01",
+  "spendHash": "0xdbac957f242bf0bca42b2dd7e15cca04cb65f2a2c7c96270b75856e7e6acefb8",
+  "fulfillHash": "0xede05e68cbe508fb3af32338058d4f13c49d7ea031c8b1ef2c3f2f0121587cce",
+  "explorerSpend": "https://coston2-explorer.flare.network/tx/0xdbac957f242bf0bca42b2dd7e15cca04cb65f2a2c7c96270b75856e7e6acefb8",
+  "explorerFulfill": "https://coston2-explorer.flare.network/tx/0xede05e68cbe508fb3af32338058d4f13c49d7ea031c8b1ef2c3f2f0121587cce",
+  "walletFxrpAfter": "31.304082",
+  "note": "Production Confirm no longer says Beacon Safe not configured. Activity label is USDT0 not MockUSDT0."
+}

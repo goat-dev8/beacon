@@ -1,0 +1,63 @@
+{
+  "at": "2026-08-12T21:48:00.000Z",
+  "wallet": "0x3bE57A5b65265D3704f846B93600308154fec794",
+  "safe": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+  "token": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+  "tokenName": "USDT0 test",
+  "decimals": 6,
+  "faucet": "https://faucet.flare.network/coston2",
+  "faucetOffers": "100 C2FLR + 10 USDT0 + 10 FXRP per address / 24h (Coston2 testnet, not mainnet)",
+  "safeUi": {
+    "availableUsdt0": "9.961033",
+    "walletUsdt0": "19.75",
+    "walletFxrp": "31.304082",
+    "perTrade": "10.0",
+    "rolling": "0.038967 / 50.0",
+    "hardwareTee": true,
+    "session": "Active"
+  },
+  "systemsExplorer": {
+    "ftso": {
+      "url": "https://coston2-systems-explorer.flare.network/price-feeds?tab=block-latency",
+      "blockLatencyFeeds": 62,
+      "btcUsd": "63418.84",
+      "ethUsd": "1876.891",
+      "beaconGuard": {
+        "status": "REAL",
+        "xrpUsd": 1.005313,
+        "feedAgeSeconds": 5,
+        "ftsoV2": "0xC4e9c78EA53db782E28f28Fdf80BaF59336B304d"
+      }
+    },
+    "fdc": {
+      "attestationList": "https://coston2-systems-explorer.flare.network/attestation-request",
+      "thisPassRound": 1423789,
+      "thisPassTx": "0xd6f792c8b15e35debb63060579484b6109405a2f779f2275f9948a6ef3bb12e1",
+      "roundExplorer": "https://coston2-systems-explorer.flare.network/voting-round/1423789?tab=fdc",
+      "addressValidityTestXrp": "https://coston2-systems-explorer.flare.network/attestation-request/6569551",
+      "finalized": true,
+      "daProof": "AVAILABLE proofLen=3"
+    },
+    "fassets": {
+      "url": "https://coston2-systems-explorer.flare.network/fassets",
+      "heading": "FAssets LIVE",
+      "observed": "DIRECT MINT EXECUTED and REDEEM PERFORMED rows (XRPL Core Vault / agent flow)",
+      "beacon": "USDT0 is not an FAsset. Mint remains XRPL docs handoff. Xaman optional FAssets-only."
+    },
+    "tee": {
+      "url": "https://coston2-systems-explorer.flare.network/tee/extensions/65925",
+      "extensionId": 65925,
+      "owner": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+      "instructionSender": "0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46",
+      "v012CodeHashPrefix": "0x2813…b75806",
+      "platform": "GCP_AMD_SEV",
+      "matchesMeasured": true
+    }
+  },
+  "layerZero": {
+    "route": "FXRP OFT Coston2 → Sepolia (not USDT0)",
+    "sourceTx": "0x954228b00a6b6cffb886e09e9e766c5d8cdb397026796bbf7fe6fa895fe45d6e",
+    "thisPassRerun": false
+  },
+  "jobsUiRefund": "Not a Chrome FAIL/NEEDS_LOOK this pass (Coding + Images both PASS). On-chain escrow.refund of real USDT0 + Redis reverseSpendUsdt0 proven in usdt0-refund.json."
+}

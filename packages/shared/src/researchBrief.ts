@@ -35,7 +35,7 @@ function localResearchBrief(topic: string, ftsoLine: string): string {
     ``,
     `Key points`,
     `1. FTSO V2 feeds are the signal layer for pricing and bias. Prefer live reads over static screenshots.`,
-    `2. SparkDEX USDT0→FXRP is the DeFi path on Flare Mainnet. Beacon Coston2 USDT0 is the faucet ERC-20 for x402 / Agent Jobs escrow — not SparkDEX liquidity.`,
+    `2. Official Coston2 faucet USDT0 is the Beacon EVM payment rail (Safe, Jobs, Flow SwapDesk, x402). SparkDEX Uniswap V3 USDT0→FXRP is Flare Mainnet only — Coston2 router bytecode is empty. FXRP is the FAsset / OFT rail, not a USDT0 substitute.`,
     `3. LayerZero OFT moves FXRP off Coston2. Quote messaging fees with quoteSend, then approve + send. Destination fill is confirmed on LayerZero Scan, not invented by Beacon.`,
     `4. x402 micropays unlock small resources (signals pack, logo still, research brief). Larger creative jobs should use Bound Work escrow.`,
     `5. Security Center spend limits are server-enforced when Redis is configured. Pause anytime.`,

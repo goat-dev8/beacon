@@ -1,0 +1,25 @@
+{
+  "at": "2026-08-12T21:20:11.078Z",
+  "jobId": "1dedb119-89f2-4acf-91d6-9f3091ef8acb",
+  "serviceId": "coding",
+  "result": "PASS",
+  "priceUsdt0": "0.008270",
+  "token": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+  "safe": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+  "ownerWallet": "0x3bE57A5b65265D3704f846B93600308154fec794",
+  "paymentRail": "safe",
+  "spendTxHash": "0x11dc2751fcd064b40dd84fd8cbf913205f06d9c7d16d41e35473badcb5592cf7",
+  "lockTxHash": "0xfee09b23c3abcfccfae9ba14db7f30a6dd48b332c8b793ed1643820ebebb66e6",
+  "settleTxHash": "0x5605be29eb3f16029174d1aeb0df194dd6b96c52fe808911211ecf402f015f47",
+  "explorerSpend": "https://coston2-explorer.flare.network/tx/0x11dc2751fcd064b40dd84fd8cbf913205f06d9c7d16d41e35473badcb5592cf7",
+  "explorerLock": "https://coston2-explorer.flare.network/tx/0xfee09b23c3abcfccfae9ba14db7f30a6dd48b332c8b793ed1643820ebebb66e6",
+  "explorerSettle": "https://coston2-explorer.flare.network/tx/0x5605be29eb3f16029174d1aeb0df194dd6b96c52fe808911211ecf402f015f47",
+  "escrow": "0x59F9E2471BE3747b00fD53E0Cea828227345399C",
+  "ui": "Paid $0.008270 · quality checks passed · MICRO PRICE · USDT0 · no MockUSDT0",
+  "acceptance": {
+    "result": "PASS",
+    "confidence": 0.92,
+    "l2": "Judge unavailable 405 — L1+L3 still applied"
+  },
+  "safeBalanceAfter": "9.98173"
+}

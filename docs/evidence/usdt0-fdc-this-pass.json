@@ -1,0 +1,21 @@
+{
+  "at": "2026-08-12T21:48:11.597Z",
+  "attestationType": "AddressValidity",
+  "sourceId": "testXRP",
+  "addressStr": "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe",
+  "txHash": "0xd6f792c8b15e35debb63060579484b6109405a2f779f2275f9948a6ef3bb12e1",
+  "roundId": 1423789,
+  "explorer": "https://coston2-systems-explorer.flare.network/voting-round/1423789?tab=fdc",
+  "attestationExplorer": "https://coston2-systems-explorer.flare.network/attestation-request",
+  "coston2Tx": "https://coston2-explorer.flare.network/tx/0xd6f792c8b15e35debb63060579484b6109405a2f779f2275f9948a6ef3bb12e1",
+  "finalized": true,
+  "proof": {
+    "ok": true,
+    "status": "AVAILABLE",
+    "proofLen": 3,
+    "hasResponse": true,
+    "urlTried": "https://ctn2-data-availability.flare.network/api/v1/fdc/proof-by-request-round-raw",
+    "error": null
+  },
+  "honesty": "This-pass FDC AddressValidity submitted from Beacon keys, round finalized, DA proof retrieved."
+}
