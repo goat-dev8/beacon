@@ -1,7 +1,7 @@
 {
   "timestampUtc": "2026-08-12T17:50:00Z",
   "status": "HARDWARE_TEE_PRODUCTION_ALLOW_DENY_PROVEN",
-  "productionSwitch": "code+env pending deploy; do not claim production UI until Render SIMULATED_TEE=false is live",
+  "productionSwitch": "LIVE — Render SIMULATED_TEE=false FCC_MODE=verified; /v1/fcc/status hardwareClaim=true",
   "extProxy": "https://policy-handful-outlast.ngrok-free.dev",
   "extProxyKind": "reserved ngrok-free.dev (stable hostname, not trycloudflare)",
   "teeId": "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d",

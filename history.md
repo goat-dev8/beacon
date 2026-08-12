@@ -1,4 +1,24 @@
+## 2026-08-12 - Production FCC switched off simulated mode
+
+### Deploy
+- Git `3f13b1b` on `origin/main`.
+- Render `beacon-api` (`srv-d9ojf9tbedkc73d1k6jg`) env updated via API: `SIMULATED_TEE=false`, `FCC_MODE=verified`, reserved ngrok `EXT_PROXY_URL`, hardware `TEE_ID`. Deploy `dep-d9ubf1a9e6cs73aslpag` **live**.
+- Vercel `beacon-desk` production `dpl_3T7MzyWqYHFz4bqiNUK8PG4SrpF5` **READY** on `beacon-desk.vercel.app`.
+
+### Production proof
+- `GET /v1/fcc/status`: `simulatedTee=false`, `mode=verified`, `hardwareClaim=true`, `platformAscii=GCP_AMD_SEV`, measured codeHash, TEE status 2.
+- `/health` + `/ready` ok. MCP health ok.
+- Policy evaluate ALLOW + DENY with `attestationKind=hardware` and `canMoveFunds=false`.
+- Desk JS bundle has 0 `SIMULATED_TEE` strings; landing/Safe show hardware TEE / GCP Confidential Space.
+- Chrome: landing, start (wallet connected), Flow FTSO signals, Safe LIVE + hardware badge, Agent Jobs (Coding/Images present), MCP LIVE.
+
+### Not claimed
+FCC still cannot move funds. Full paid Agent Jobs / swap / bridge / x402 execution was not re-run in this deploy pass (existing explorer receipts remain). GCP Confidential Space VMs left running for judging.
+
+---
+
 ## 2026-08-12 - Hardware FCC: GCP Confidential Space PRODUCTION (ALLOW+DENY)
+
 
 ### Goal
 Finish Beacon FCC as a real hardware-backed Confidential Space deployment. Keep the old simulated path as documented history only; do not leave simulated mode as production.

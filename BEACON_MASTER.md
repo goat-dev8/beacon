@@ -2,7 +2,7 @@
 
 **Single source of truth for Beacon (Flare AI OS).**  
 **Network:** Flare Testnet Coston2 (chain ID **114**)  
-**Last aligned with:** `history.md` (2026-08-12 hardware FCC GCP Confidential Space PRODUCTION), `docs/evidence/hardware-fcc/STATUS.json`  
+**Last aligned with:** `history.md` (2026-08-12 production hardware FCC live on Render + Vercel), `docs/evidence/hardware-fcc/prod-status.json`  
 **Rule:** Do not invent facts. Mark unknowns as TODO. No secrets in this file.
 
 ---
