@@ -87,6 +87,11 @@ async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promi
     if (status === JobStatus.GENERATING) {
       const outputDir = path.join(os.tmpdir(), "beacon", job.id);
       try {
+        // Controlled refund-path probe. Exact token only — not a user feature.
+        // Lets a real USDT0 lock reach generation_failed → escrow.refund + Redis reverse.
+        if (/\bBEACON_E2E_GENERATION_FAIL\b/.test(job.brief_text ?? "")) {
+          throw new Error("Controlled E2E generation_failed — no deliverable produced.");
+        }
         const result = await Promise.race([
           runPipeline({
             jobId: job.id,
