@@ -1,4 +1,4 @@
-import { chatCompletion, isAiConfigured } from "./ai.js";
+import { chatCompletion, isAiConfigured, routingLayerForVia } from "./ai.js";
 import { loadEnv, type BeaconEnv } from "./env.js";
 
 export type MediaKind = "image" | "video";
@@ -11,7 +11,7 @@ export interface EngineeredPrompt {
   shotList?: Array<{ beat: string; prompt: string; seconds: number }>;
   model: string;
   latencyMs: number;
-  source: "agentrouter" | "local-heuristic";
+  source: "agentrouter" | "vercel-ai-gateway" | "pollinations" | "local-heuristic";
 }
 
 function heuristicImagePrompt(brief: string): EngineeredPrompt {
@@ -152,7 +152,7 @@ No markdown fences.`;
         aspectHint: String(parsed.aspectHint ?? (kind === "video" ? "9:16" : "1:1")),
         model: result.model,
         latencyMs: Date.now() - started,
-        source: "agentrouter",
+        source: routingLayerForVia(result.via),
       };
       if (kind === "video") {
         const shots = Array.isArray(parsed.shotList) ? parsed.shotList : [];

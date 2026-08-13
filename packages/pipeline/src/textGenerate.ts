@@ -1,6 +1,12 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { chatForRole, isAiConfigured, loadEnv } from "@beacon/shared";
+import {
+  chatForRole,
+  gatherResearchGrounding,
+  isAiConfigured,
+  loadEnv,
+  routingLayerForVia,
+} from "@beacon/shared";
 
 export interface TextJob {
   jobId: string;
@@ -29,6 +35,34 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
 
   let body = "";
   let providerMeta: Record<string, unknown> = { provider: "pending" };
+  let retrievalMeta: Record<string, unknown> | undefined;
+  let groundingBlock = "";
+
+  if (sidEarly === "research") {
+    try {
+      const grounding = await gatherResearchGrounding(job.briefText, env);
+      groundingBlock = `\n\n${grounding.modelContext}`;
+      retrievalMeta = {
+        retrievedAt: grounding.retrievedAt,
+        sourceCount: grounding.sources.filter((s) => s.ok).length,
+        sourceUrls: grounding.sources.filter((s) => s.ok).map((s) => s.url),
+        fetchFailures: grounding.sources
+          .filter((s) => !s.ok)
+          .map((s) => ({ title: s.title, url: s.url, error: s.error })),
+        liveNotes: grounding.liveNotes,
+      };
+      console.log(
+        "[textGenerate] research grounding",
+        job.jobId,
+        retrievalMeta.sourceCount,
+        Array.isArray(retrievalMeta.sourceUrls) ? retrievalMeta.sourceUrls : [],
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      groundingBlock = `\n\nRetrieval layer failed (${message}). Do not invent URLs. Label unverified claims.`;
+      retrievalMeta = { error: message };
+    }
+  }
 
   if (!isAiConfigured(env)) {
     if (env.AI_REQUIRE_REAL || textService) {
@@ -57,7 +91,7 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
             },
             {
               role: "user",
-              content: `Service: ${job.serviceId}\nModel: gpt-5.6-sol\n\nBrief:\n${job.briefText}`,
+              content: `Service: ${job.serviceId}\nRequested generator: gpt-5.6-sol (fallback gpt-5.6-luna if Sol is unavailable)\n\nBrief:\n${job.briefText}${groundingBlock}`,
             },
           ],
           { temperature: attempt === 1 ? 0.25 : 0.15, maxTokens, env },
@@ -73,11 +107,14 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
         body = trimmed;
         const actualModel = normalizeGeneratedModel(result.model);
         providerMeta = {
-          provider: actualModel,
+          provider: routingLayerForVia(result.via),
           model: actualModel,
+          requestedModel: result.requestedModel,
+          via: result.via,
           latencyMs: result.latencyMs,
           role: "generator",
           attempt,
+          retrieval: retrievalMeta,
         };
         break;
       } catch (err) {
@@ -140,7 +177,7 @@ function normalizeGeneratedModel(model: string): string {
 
 function maxTokensForService(serviceId: string): number {
   if (serviceId === "coding") return 900;
-  if (serviceId === "research" || serviceId === "analysis") return 2000;
+  if (serviceId === "research" || serviceId === "analysis") return 2400;
   if (
     serviceId === "presentations" ||
     serviceId === "documents" ||
@@ -180,12 +217,13 @@ export function generatorSystemPrompt(serviceId: string): string {
   if (serviceId === "research") {
     return [
       "You are Beacon Research for Agent Jobs.",
+      "You receive retrieved excerpts from official pages that were actually fetched at runtime, plus optional on-chain / FTSO notes.",
       "Research the user's topic: protocols, products, competitors, markets, projects, or a specific question.",
-      "Structure with headings: What was researched, Key findings, Conclusions, Caveats, Source checklist.",
-      "Source checklist = search queries / official doc or product names only. Never invent URLs, paper titles, TVL, or audit scores.",
-      "If the topic is SparkDEX or a Flare DEX, include the honest Coston2 vs Mainnet caveat:",
-      "SparkDEX is Flare Mainnet; Coston2 SparkDEX SwapRouter is empty; Beacon Coston2 swaps use SwapDesk + FTSO.",
-      "Do not hijack unrelated topics into a Beacon product pitch. If unknown, say so.",
+      "Structure with headings: What was researched, Key findings, Conclusions, Caveats, Sources used.",
+      "Sources used = only URLs that appear in the retrieved context. Never invent URLs, paper titles, TVL, or audit scores.",
+      "If a claim is not in the retrieved excerpts, label it unverified or omit it.",
+      "Use Beacon/Flare notes only when they are relevant to the topic. Do not hijack unrelated topics into a Beacon pitch.",
+      "If SparkDEX / Coston2 vs Mainnet honesty appears in live checks, include it. Do not invent bytecode status.",
       common,
     ].join(" ");
   }

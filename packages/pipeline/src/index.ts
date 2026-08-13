@@ -18,7 +18,7 @@ export type PipelineStage = "plan" | "generate" | "compose" | "normalize";
 
 /** Bumped when deliverable composers change — exposed via /health for deploy proof. */
 export const PIPELINE_CAPS = {
-  version: "2026-08-13-jobs-research",
+  version: "2026-08-14-jobs-research-retrieval",
   imageSvg: true,
   imagePollinations: true,
   imageComfy: true,
@@ -184,7 +184,13 @@ async function composeMarkdownPack(
       kind: "document",
       uri: packPath,
       mimeType: "text/markdown",
-      meta: { provider: draftMeta.provider, model: draftMeta.model },
+      meta: {
+        provider: draftMeta.provider,
+        model: draftMeta.model,
+        via: draftMeta.via,
+        requestedModel: draftMeta.requestedModel,
+        retrieval: draftMeta.retrieval,
+      },
     },
   ];
   for (const a of inputs) {

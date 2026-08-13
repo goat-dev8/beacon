@@ -186,7 +186,12 @@ export function ResultExperience({
     const draft = artifacts.find((a) => a.kind === "draft");
     const doc = artifacts.find((a) => a.kind === "document");
     const hit = code ?? draft ?? doc;
-    return (hit?.meta ?? null) as { provider?: string; model?: string; language?: string } | null;
+    return (hit?.meta ?? null) as {
+      provider?: string;
+      model?: string;
+      language?: string;
+      via?: string;
+    } | null;
   }, [artifacts]);
   const liveModel =
     (typeof draftMeta?.model === "string" && draftMeta.model) ||
@@ -214,6 +219,7 @@ export function ResultExperience({
           {liveModel && (
             <p className="mt-1 font-mono text-[11px] text-ink-faint">
               {liveModel}
+              {draftMeta?.provider ? ` · ${draftMeta.provider}` : ""}
               {draftMeta?.language ? ` · ${draftMeta.language}` : ""}
             </p>
           )}

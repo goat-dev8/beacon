@@ -1,6 +1,6 @@
 import { chatForRole, displayModelName, isAiConfigured } from "./ai.js";
 import type { BeaconEnv } from "./env.js";
-import { readFtsoFeeds } from "./ftso.js";
+import { gatherResearchGrounding } from "./researchGrounding.js";
 
 export type ResearchBriefResult = {
   topic: string;
@@ -121,19 +121,19 @@ Write so a reader immediately understands:
 4. Important caveats
 
 Hard rules:
-- Structure with these plain headings (markdown ## is fine): What was researched, Key findings, Conclusions, Caveats, Source checklist.
+- Structure with these plain headings (markdown ## is fine): What was researched, Key findings, Conclusions, Caveats, Sources used.
 - Research the named topic. Protocols, products, competitors, markets, projects, and specific questions are all in scope.
-- Source checklist must be search queries / official product or doc names only. Never invent URLs, paper titles, TVL, audit scores, or citations.
-- If you are not sure, say so. Do not guess live prices, pool depth, or security reviews.
-- SparkDEX / Flare DEX caveat only when relevant: SparkDEX is Flare Mainnet; Coston2 SparkDEX SwapRouter bytecode is empty; Beacon Coston2 swaps use SwapDesk + FTSO; Coston2 faucet USDT0 is not mainnet USD₮0.
-- Do not hijack unrelated topics into FTSO / Safe / x402 marketing.
-- If live FTSO context is provided, use it only when prices help. Do not invent feed values.
+- Sources used = only URLs that appear in the retrieved context. Never invent URLs, paper titles, TVL, audit scores, or citations.
+- If a claim is not in the retrieved excerpts, label it unverified or omit it.
+- Use Beacon/Flare notes only when relevant. Do not hijack unrelated topics into FTSO / Safe / x402 marketing.
+- If live checks include SparkDEX bytecode or FTSO values, use those. Do not invent bytecode status or prices.
 - Warm, clear, concise. No API keys, AgentRouter, or internal errors.`;
 }
 
 /**
  * Paid x402 research delivery. Always returns usable structured content.
- * Prefers the configured generator model; falls back to a topic-grounded local brief (never a stub line).
+ * Prefers the configured generator model + live retrieval;
+ * falls back to a topic-grounded local brief if the model is unreachable.
  */
 export async function generateResearchBrief(opts: {
   topic: string;
@@ -141,17 +141,14 @@ export async function generateResearchBrief(opts: {
   settlementTxHash?: string;
 }): Promise<ResearchBriefResult> {
   const topic = normalizeResearchTopic(opts.topic);
+  let retrievalBlock = "";
   let ftsoLine = "";
   try {
-    const snap = await readFtsoFeeds(opts.env);
-    if (snap.feeds.length) {
-      ftsoLine = snap.feeds
-        .slice(0, 6)
-        .map((f) => `${f.symbol}=${Number(f.value).toPrecision(6)}`)
-        .join(" · ");
-    }
-  } catch {
-    /* FTSO optional enrichment */
+    const grounding = await gatherResearchGrounding(topic, opts.env);
+    retrievalBlock = grounding.modelContext;
+    ftsoLine = grounding.liveNotes.find((n) => /FTSO/i.test(n)) ?? "";
+  } catch (err) {
+    retrievalBlock = `Retrieval layer failed (${err instanceof Error ? err.message : String(err)}). Do not invent URLs.`;
   }
 
   const local = localResearchBrief(topic, ftsoLine);
@@ -179,17 +176,17 @@ export async function generateResearchBrief(opts: {
           role: "user",
           content: [
             `Topic: ${topic}`,
-            ftsoLine ? `Live FTSO (Coston2, optional): ${ftsoLine}` : null,
             opts.settlementTxHash
               ? `Settlement tx (mention once, truncated): ${opts.settlementTxHash.slice(0, 10)}…`
               : null,
+            retrievalBlock,
             `Write the full brief now. Lead with what was researched, then findings, conclusions, caveats.`,
           ]
             .filter(Boolean)
-            .join("\n"),
+            .join("\n\n"),
         },
       ],
-      { temperature: 0.3, maxTokens: 2200, env: opts.env },
+      { temperature: 0.3, maxTokens: 2400, env: opts.env },
     );
 
     const content = result.content.trim();

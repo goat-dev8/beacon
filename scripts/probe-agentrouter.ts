@@ -4,7 +4,7 @@ import { probeModels, resetEnvCache, loadEnv } from "@beacon/shared";
 async function main(): Promise<void> {
   resetEnvCache();
   const env = loadEnv();
-  const models = ["claude-opus-5", "claude-opus-4-8", "gpt-5.6-sol"];
+  const models = ["gpt-5.6-sol", "gpt-5.6-luna", "claude-opus-4-8"];
   const results = await probeModels(models, env);
 
   console.log("Model | Base URL | Status | Latency | Error | Works?");

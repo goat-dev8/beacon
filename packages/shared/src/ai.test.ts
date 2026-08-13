@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildAgentRouterHeaders, extractJsonObject, resolveModelForRole } from "./ai.js";
+import {
+  buildAgentRouterHeaders,
+  extractJsonObject,
+  mapVercelGatewayModel,
+  resolveModelForRole,
+  routingLayerForVia,
+} from "./ai.js";
 import { loadEnv, resetEnvCache } from "./env.js";
 
 function normalizeOpenAiBase(baseUrl: string): string {
@@ -46,5 +52,20 @@ describe("model role defaults", () => {
     expect(resolveModelForRole("judge", env)).toBe("gpt-5.6-sol");
     expect(resolveModelForRole("quote", env)).toBe("gpt-5.6-sol");
     expect(resolveModelForRole("acceptance", env)).toBe("claude-opus-4-8");
+  });
+});
+
+describe("routing honesty", () => {
+  it("maps Claude ids to anthropic/ on Vercel AI Gateway", () => {
+    expect(mapVercelGatewayModel("gpt-5.6-sol")).toBe("openai/gpt-5.6-sol");
+    expect(mapVercelGatewayModel("gpt-5.6-luna")).toBe("openai/gpt-5.6-luna");
+    expect(mapVercelGatewayModel("claude-opus-4-8")).toBe("anthropic/claude-opus-4-8");
+    expect(mapVercelGatewayModel("openai/gpt-5.6-sol")).toBe("openai/gpt-5.6-sol");
+  });
+
+  it("labels hops without calling the proxy AgentRouter", () => {
+    expect(routingLayerForVia("proxy")).toBe("vercel-ai-gateway");
+    expect(routingLayerForVia("pollinations")).toBe("pollinations");
+    expect(routingLayerForVia("direct")).toBe("agentrouter");
   });
 });

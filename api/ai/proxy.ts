@@ -2,7 +2,8 @@
  * Production AI proxy — Vercel Node.js serverless (NOT Edge).
  *
  * Primary: Vercel AI Gateway via deployment OIDC (no static model key).
- * Model: openai/gpt-5.6-sol.
+ * GPT models: openai/gpt-5.6-sol. Claude models: anthropic/<id>.
+ * This hop is Vercel AI Gateway — not AgentRouter.
  *
  * Auth from Render: x-beacon-proxy-secret or Bearer <AI_PROXY_SECRET>.
  * Never expose provider credentials to the browser.
@@ -66,7 +67,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const requested = String(body.model || "gpt-5.6-sol");
-  const gatewayModel = requested.includes("/") ? requested : `openai/${requested}`;
+  const gatewayModel = requested.includes("/")
+    ? requested
+    : /^claude/i.test(requested)
+      ? `anthropic/${requested}`
+      : `openai/${requested}`;
   const upstream = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
     method: "POST",
     headers: {

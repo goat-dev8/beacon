@@ -14,9 +14,13 @@ export interface ChatCompletionRequest {
   maxTokens?: number;
 }
 
+export type AiHopVia = "proxy" | "direct" | "pollinations";
+
 export interface ChatCompletionResult {
   content: string;
   model: string;
+  requestedModel: string;
+  via: AiHopVia;
   latencyMs: number;
   raw: unknown;
 }
@@ -125,6 +129,22 @@ export function displayModelName(model: string, opts?: { fallback?: boolean }): 
   return m;
 }
 
+/** Vercel AI Gateway model id. Claude must not be prefixed openai/. */
+export function mapVercelGatewayModel(requested: string): string {
+  const r = (requested || "").trim() || "gpt-5.6-sol";
+  if (r.includes("/")) return r;
+  if (/^claude/i.test(r)) return `anthropic/${r}`;
+  return `openai/${r}`;
+}
+
+export function routingLayerForVia(
+  via: AiHopVia,
+): "vercel-ai-gateway" | "pollinations" | "agentrouter" {
+  if (via === "proxy") return "vercel-ai-gateway";
+  if (via === "pollinations") return "pollinations";
+  return "agentrouter";
+}
+
 function normalizeOpenAiBase(baseUrl: string): string {
   const trimmed = baseUrl.replace(/\/$/, "");
   if (trimmed.endsWith("/v1")) return trimmed;
@@ -143,7 +163,7 @@ type CompletionPayload = {
 type CompletionHop = {
   response: Response;
   text: string;
-  via: "proxy" | "direct" | "pollinations";
+  via: AiHopVia;
 };
 
 function isWafOrHtmlBody(text: string): boolean {
@@ -177,9 +197,9 @@ function resolvePollinationsChatUrl(_env: BeaconEnv): string {
 
 /**
  * Production hops (no laptop):
- * 1) Optional Vercel Node proxy → AgentRouter
- * 2) Direct AgentRouter (works only if egress ASN allowed)
- * 3) Pollinations OpenAI-compatible (cloud-reachable 24/7)
+ * 1) Optional Vercel Node proxy → Vercel AI Gateway (NOT AgentRouter)
+ * 2) Pollinations OpenAI-compatible
+ * 3) Direct AgentRouter last — WAF often rejects Render/Vercel ASNs
  */
 async function postChatCompletions(
   payload: CompletionPayload,
@@ -293,7 +313,7 @@ export async function chatCompletion(
   const started = Date.now();
   let response: Response | null = null;
   let text = "";
-  let via: "proxy" | "direct" | "pollinations" = "direct";
+  let via: AiHopVia = "direct";
   for (let attempt = 1; attempt <= 3; attempt++) {
     const result = await postChatCompletions(
       {
@@ -346,6 +366,8 @@ export async function chatCompletion(
   return {
     content,
     model: returnedModel,
+    requestedModel: req.model,
+    via,
     latencyMs,
     raw: { ...(typeof raw === "object" && raw ? raw : { body: raw }), _via: via },
   };
@@ -369,7 +391,7 @@ export async function chatForRole(
             (m, i, a) => a.indexOf(m) === i,
           )
         : role === "acceptance"
-          ? [primary, "gpt-5.6-sol"]
+          ? [primary, "gpt-5.6-sol", "gpt-5.6-luna"].filter((m, i, a) => a.indexOf(m) === i)
           : [primary, "gpt-5.6-sol"];
 
   const tried = new Set<string>();
@@ -378,7 +400,7 @@ export async function chatForRole(
     if (tried.has(model)) continue;
     tried.add(model);
     try {
-      return await chatCompletion(
+      const result = await chatCompletion(
         {
           model,
           messages,
@@ -387,6 +409,14 @@ export async function chatForRole(
         },
         env,
       );
+      return {
+        ...result,
+        raw: {
+          ...(typeof result.raw === "object" && result.raw ? result.raw : { body: result.raw }),
+          _primary: primary,
+          _fallbackUsed: result.requestedModel !== primary,
+        },
+      };
     } catch (err) {
       lastErr = err;
       const message = err instanceof Error ? err.message : String(err);

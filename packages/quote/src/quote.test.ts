@@ -39,9 +39,18 @@ describe("quote", () => {
     expect(verdict.capability).toBe("FIT");
   }, 30_000);
 
-  it("describes Research as protocols/products/markets — not a vague pack", () => {
+  it("describes Research as live retrieval — not a vague pack", () => {
     const research = SERVICE_CATALOG.find((s) => s.id === "research");
-    expect(research?.description.toLowerCase()).toContain("protocol");
+    expect(research?.description.toLowerCase()).toContain("live retrieval");
     expect(research?.description.toLowerCase()).not.toContain("competitor and market packs");
+  });
+
+  it("quotes research/analysis as gpt-5.6-sol, not a fake Opus generator", () => {
+    expect(estimateCost({ serviceId: "research", briefText: "Research SparkDEX" }).model).toBe(
+      "gpt-5.6-sol",
+    );
+    expect(estimateCost({ serviceId: "analysis", briefText: "Analyze agent spend risk" }).model).toBe(
+      "gpt-5.6-sol",
+    );
   });
 });

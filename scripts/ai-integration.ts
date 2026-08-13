@@ -40,10 +40,16 @@ async function main(): Promise<void> {
   const draft = pipeline.artifacts.find((a) => a.kind === "draft");
   if (!draft) throw new Error("missing draft");
   const draftBody = await readFile(draft.uri, "utf8");
-  console.log("  provider:", draft.meta?.provider, draft.meta?.model);
+  console.log("  provider:", draft.meta?.provider, draft.meta?.model, draft.meta?.via);
   console.log("  draft chars:", draftBody.length);
-  if (draft.meta?.provider !== "agentrouter") {
-    throw new Error(`expected real AgentRouter generation, got ${JSON.stringify(draft.meta)}`);
+  const realHop =
+    draft.meta?.provider === "agentrouter" ||
+    draft.meta?.provider === "vercel-ai-gateway" ||
+    draft.meta?.provider === "pollinations";
+  const realModel =
+    typeof draft.meta?.model === "string" && /gpt-5\.6-(sol|luna)|claude/i.test(draft.meta.model);
+  if (!realHop || !realModel) {
+    throw new Error(`expected live generator hop, got ${JSON.stringify(draft.meta)}`);
   }
 
   console.log("3) Judge / Acceptance L2");
