@@ -1,0 +1,25 @@
+{
+  "at": "2026-08-12T23:57:01.208Z",
+  "source": {
+    "ok": true,
+    "approveHash": "0x2149c19540e85e1057e73b2ab330235087dd847a664183c9c503df0a44751a35",
+    "sendHash": "0x95b9b39da2f95772a16932ec03c9bf928cd66ef80ad27b93ab4991f7bef83d96",
+    "explorerSend": "https://coston2-explorer.flare.network/tx/0x95b9b39da2f95772a16932ec03c9bf928cd66ef80ad27b93ab4991f7bef83d96",
+    "layerZeroScanUrl": "https://testnet.layerzeroscan.com/tx/0x95b9b39da2f95772a16932ec03c9bf928cd66ef80ad27b93ab4991f7bef83d96",
+    "amountDisplay": "0.05",
+    "destination": "Sepolia",
+    "dstEid": 40161,
+    "peer": "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
+    "honesty": "Executed by Beacon agent executor on Coston2 — no MetaMask. LayerZero delivery is tracked separately."
+  },
+  "dest": {
+    "attempt": 9,
+    "guid": "0xb3e865b8591e09512a69cae797eeeb1674b39ba99af82dcc4198ba92249d888d",
+    "scanStatus": "INFLIGHT",
+    "destStatus": "WAITING",
+    "destTx": "0xe0b3c54cb0ce37863763ea50c92b1ec3d66491591d2a552f9f81566a9cdfb0ca",
+    "trackPhase": "dest_confirmed",
+    "layerZeroScan": "https://testnet.layerzeroscan.com/tx/0x95b9b39da2f95772a16932ec03c9bf928cd66ef80ad27b93ab4991f7bef83d96",
+    "sepoliaExplorer": "https://sepolia.etherscan.io/tx/0xe0b3c54cb0ce37863763ea50c92b1ec3d66491591d2a552f9f81566a9cdfb0ca"
+  }
+}

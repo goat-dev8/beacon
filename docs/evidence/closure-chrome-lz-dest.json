@@ -1,0 +1,10 @@
+{
+  "at": "2026-08-13T00:06:19Z",
+  "sourceTx": "0x994cb1353f2569c707c4b1cf15af6609a8ed847feae18949f103899997ffc39c",
+  "guid": "0x7fde9b3e9b73c0192749a19467261dc6b44da6995cd0d67f07990800b38059cf",
+  "status": "DELIVERED",
+  "destStatus": "SUCCEEDED",
+  "destTx": "0x39fb9c284c1460495753a6c346977336354ff1976d9129d8fa2d6a95af8c2a07",
+  "layerZeroScan": "https://testnet.layerzeroscan.com/tx/0x994cb1353f2569c707c4b1cf15af6609a8ed847feae18949f103899997ffc39c",
+  "sepoliaExplorer": "https://sepolia.etherscan.io/tx/0x39fb9c284c1460495753a6c346977336354ff1976d9129d8fa2d6a95af8c2a07"
+}

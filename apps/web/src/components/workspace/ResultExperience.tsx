@@ -77,15 +77,18 @@ export function ResultExperience({
     payMode?: "safe" | "wallet" | null;
   }>;
 }) {
-  const passed = status === "PASSED" || status === "CLOSED" || status === "SETTLING";
-  const failed = status === "FAILED" || status === "REFUSING";
-  const needsLook = status === "NEEDS_LOOK";
   const genFailed = recentEvents.some((e) => {
     const p = e.payload as { trigger?: string } | null | undefined;
     return e.type === "status" && p?.trigger === "generation_failed";
   });
+  const acceptFail = acceptance?.result === "FAIL";
+  const failed =
+    status === "FAILED" || status === "REFUSING" || acceptFail || genFailed;
+  const passed =
+    !failed && (status === "PASSED" || status === "SETTLING" || status === "CLOSED");
+  const needsLook = status === "NEEDS_LOOK";
   const failBlurb = genFailed
-    ? "gpt-5.6-sol did not finish a real deliverable. Escrow was refunded — try again."
+    ? "Generation failed. You were not charged."
     : acceptance?.summary ??
       "This job did not pass. You were not charged; escrow is refunded.";
 
@@ -119,6 +122,12 @@ export function ResultExperience({
     queryFn: () => api.jobReceipt(jobId),
     enabled: passed || failed,
   });
+  const receipt = receiptQuery.data?.receipt;
+  const receiptNotCharged =
+    receipt?.display?.statusLabel === "Not charged" || receipt?.accept?.result === "FAIL";
+  const receiptPaid = receipt?.display?.statusLabel === "Paid" && receipt?.accept?.result === "PASS";
+  const outcomeFailed = failed || receiptNotCharged;
+  const outcomePassed = (passed || receiptPaid) && !outcomeFailed;
 
   const settleTx =
     receiptQuery.data?.receipt?.txHash ??
@@ -200,7 +209,7 @@ export function ResultExperience({
             {liveModel ? " · live" : ""}
           </p>
           <p className="mt-0.5 font-display text-lg font-semibold tracking-tight text-ink">
-            Beacon finished this for you
+            {outcomeFailed ? "Generation failed. You were not charged." : "Beacon finished this for you"}
           </p>
           {liveModel && (
             <p className="mt-1 font-mono text-[11px] text-ink-faint">
@@ -347,17 +356,17 @@ export function ResultExperience({
       <h1 className="font-display text-3xl font-semibold tracking-tight md:text-4xl">
         {needsLook
           ? "Needs a quick look"
-          : passed
+          : outcomePassed
             ? "Done"
-            : failed
-              ? "Not charged"
+            : outcomeFailed
+              ? "Generation failed"
               : statusLabel(status)}
       </h1>
       <p className="mt-2 max-w-[65ch] text-ink-muted">
         {needsLook && "Quality is uncertain. Accept to settle, or reject with no charge."}
-        {passed && paidDisplay && `Paid ${paidDisplay} · quality checks passed`}
-        {passed && !paidDisplay && "Quality checks passed"}
-        {failed && failBlurb}
+        {outcomePassed && paidDisplay && `Paid ${paidDisplay} · quality checks passed`}
+        {outcomePassed && !paidDisplay && "Quality checks passed"}
+        {outcomeFailed && failBlurb}
       </p>
 
       {(meta || quote) && (
@@ -374,7 +383,9 @@ export function ResultExperience({
         </dl>
       )}
 
-      {(passed || needsLook || (failed && sorted.length > 0)) && <div className="mt-6">{panel}</div>}
+      {(outcomePassed || needsLook || (outcomeFailed && sorted.length > 0)) && (
+        <div className="mt-6">{panel}</div>
+      )}
 
       {acceptance?.notes && acceptance.notes.length > 0 && (
         <ul className="mt-4 space-y-1 rounded-xl border border-dashed border-line bg-paper px-4 py-3 font-mono text-xs text-ink-muted">
@@ -401,8 +412,19 @@ export function ResultExperience({
         <p className="font-mono text-[11px] uppercase tracking-widest text-ink-faint">Receipt</p>
         <dl className="mt-3 space-y-2 text-sm">
           <Row label="Job" value={`${jobId.slice(0, 8)}…`} mono />
-          {paidDisplay && <Row label="Amount" value={failed ? "$0.00" : paidDisplay} />}
-          <Row label="Status" value={statusLabel(status)} />
+          {paidDisplay && (
+            <Row label="Amount" value={outcomeFailed ? "$0.00" : paidDisplay} />
+          )}
+          <Row
+            label="Status"
+            value={
+              outcomeFailed
+                ? (receipt?.display?.statusLabel ?? "Not charged")
+                : outcomePassed
+                  ? (receipt?.display?.statusLabel ?? "Paid")
+                  : statusLabel(status)
+            }
+          />
           {lockTx && (
             <Row
               label="Lock tx"

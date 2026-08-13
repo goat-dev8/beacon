@@ -1,0 +1,31 @@
+{
+  "at": "2026-08-12T23:38:16.220Z",
+  "attestationType": "AddressValidity",
+  "sourceId": "testXRP",
+  "addressStr": "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe",
+  "txHash": "0x8a4fedfbc4c7642b295befddf87b12b31fd0e4980358877e215591a9f3cb1d5e",
+  "roundId": 1423862,
+  "explorer": "https://coston2-systems-explorer.flare.network/voting-round/1423862?tab=fdc",
+  "attestationExplorer": "https://coston2-systems-explorer.flare.network/attestation-request",
+  "coston2Tx": "https://coston2-explorer.flare.network/tx/0x8a4fedfbc4c7642b295befddf87b12b31fd0e4980358877e215591a9f3cb1d5e",
+  "finalized": true,
+  "proof": {
+    "ok": true,
+    "status": "AVAILABLE",
+    "proofLen": 2,
+    "hasResponse": true,
+    "urlTried": "https://ctn2-data-availability.flare.network/api/v1/fdc/proof-by-request-round-raw",
+    "error": null
+  },
+  "onChainVerify": {
+    "ok": true,
+    "verified": true,
+    "fdcVerificationAddress": "0x906507E0B64bcD494Db73bd0459d1C667e14B933",
+    "callKind": "staticCall",
+    "responseBody": {
+      "isValid": true,
+      "standardAddress": "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe",
+      "standardAddressHash": "0x7f5b4967a9fbe9b447fed6d4e3699051516b6afe5f94db2e77ccf86470bfd74d"
+    }
+  }
+}

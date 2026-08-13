@@ -1,0 +1,13 @@
+{
+  "at": "2026-08-12T23:54:37.736Z",
+  "ok": true,
+  "spendHash": "0x6ad86e383dfd5dc85ec8bb80998956344a9e2669ef8d3b4cc515eb3d5a1d7783",
+  "fulfillHash": "0xaf9e5be266e64cc48b7cc135542e4608ca822d19ade66358a5bb161f39994e8a",
+  "amountIn": "0.1",
+  "amountOut": "0.099271",
+  "recipient": "0x3bE57A5b65265D3704f846B93600308154fec794",
+  "explorerSpend": "https://coston2.testnet.flarescan.com/tx/0x6ad86e383dfd5dc85ec8bb80998956344a9e2669ef8d3b4cc515eb3d5a1d7783",
+  "explorerFulfill": "https://coston2.testnet.flarescan.com/tx/0xaf9e5be266e64cc48b7cc135542e4608ca822d19ade66358a5bb161f39994e8a",
+  "chainId": 114,
+  "honesty": "Executed on Coston2 from Beacon Safe by the allowlisted executor — no MetaMask, no Mainnet switch."
+}

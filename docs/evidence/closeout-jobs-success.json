@@ -1,9 +1,9 @@
 {
-  "at": "2026-08-12T22:52:38.926Z",
-  "jobId": "1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
-  "desk": "https://beacon-desk.vercel.app/flow/desk?job=1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
+  "at": "2026-08-13T00:04:34.696Z",
+  "jobId": "7ad705e0-550c-44d3-9a83-60a0995eea43",
+  "desk": "https://beacon-desk.vercel.app/flow/desk?job=7ad705e0-550c-44d3-9a83-60a0995eea43",
   "quote": {
-    "quoteId": "72955fce-2b82-42d7-8cad-cc517cb56b3d",
+    "quoteId": "0da9388c-b1e0-4ad6-9a45-ab65446b254b",
     "priceDisplay": "$0.008",
     "etaSeconds": 480,
     "includes": [
@@ -11,7 +11,7 @@
       "Review summary",
       "Docs snippet"
     ],
-    "expiresAt": "2026-08-12T23:06:57.096Z",
+    "expiresAt": "2026-08-13T00:18:54.379Z",
     "capability": "FIT",
     "breakdown": {
       "model": "gpt-5.6-sol",
@@ -24,19 +24,19 @@
       "totalUsdt0": "0.008250"
     }
   },
-  "spendTx": "0x325f5374fecf4b665cc2cbcb7ad39461f3adeb3296fd0f8ed5d5fb5a7143bcb6",
-  "lockTx": "0x85ad5be2bc69b4e000219918341015406768ef7b3a31b1bb31ac055a6cea2feb",
-  "explorerSpend": "https://coston2.testnet.flarescan.com/tx/0x325f5374fecf4b665cc2cbcb7ad39461f3adeb3296fd0f8ed5d5fb5a7143bcb6",
-  "explorerLock": "https://coston2.testnet.flarescan.com/tx/0x85ad5be2bc69b4e000219918341015406768ef7b3a31b1bb31ac055a6cea2feb",
+  "spendTx": "0x394ac513233e3012eaf639212da2e389d9a4228e9de0bb9f2cd7373541b0d599",
+  "lockTx": "0x41c602e38147aee0ca1f401deb7e3ef2cfe71247ede4824456aac6b27d219b25",
+  "explorerSpend": "https://coston2.testnet.flarescan.com/tx/0x394ac513233e3012eaf639212da2e389d9a4228e9de0bb9f2cd7373541b0d599",
+  "explorerLock": "https://coston2.testnet.flarescan.com/tx/0x41c602e38147aee0ca1f401deb7e3ef2cfe71247ede4824456aac6b27d219b25",
   "job": {
     "job": {
-      "id": "1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
+      "id": "7ad705e0-550c-44d3-9a83-60a0995eea43",
       "user_id": "5325a93b-31ec-4d9f-81ac-9140968a81ce",
       "service_id": "coding",
       "status": "CLOSED",
       "brief_text": "Write a tiny TypeScript function add(a: number, b: number): number that returns a+b, with a one-line comment. No extra files.",
-      "created_at": "2026-08-12T22:51:53.368Z",
-      "updated_at": "2026-08-12T22:52:31.832Z"
+      "created_at": "2026-08-13T00:03:51.137Z",
+      "updated_at": "2026-08-13T00:04:31.873Z"
     },
     "recentEvents": [
       {
@@ -46,7 +46,7 @@
           "from": "ACCEPTING",
           "trigger": "accept_report"
         },
-        "ts": "2026-08-12T22:52:23.887Z"
+        "ts": "2026-08-13T00:04:24.038Z"
       },
       {
         "type": "status",
@@ -55,7 +55,7 @@
           "from": "COMPOSING",
           "trigger": "artifacts_ready"
         },
-        "ts": "2026-08-12T22:52:18.904Z"
+        "ts": "2026-08-13T00:04:18.234Z"
       },
       {
         "type": "status",
@@ -64,7 +64,7 @@
           "from": "GENERATING",
           "trigger": "generation_done"
         },
-        "ts": "2026-08-12T22:52:18.188Z"
+        "ts": "2026-08-13T00:04:17.516Z"
       },
       {
         "type": "status",
@@ -73,7 +73,7 @@
           "from": "PREPARING",
           "trigger": "stages_start"
         },
-        "ts": "2026-08-12T22:52:12.033Z"
+        "ts": "2026-08-13T00:04:11.928Z"
       },
       {
         "type": "status",
@@ -82,34 +82,34 @@
           "from": "AUTHORIZED",
           "trigger": "orchestrator_prepare"
         },
-        "ts": "2026-08-12T22:52:11.317Z"
+        "ts": "2026-08-13T00:04:11.211Z"
       },
       {
         "type": "status",
         "payload": {
           "status": "AUTHORIZED"
         },
-        "ts": "2026-08-12T22:52:09.172Z"
+        "ts": "2026-08-13T00:04:10.303Z"
       },
       {
         "type": "status",
         "payload": {
           "status": "QUOTED"
         },
-        "ts": "2026-08-12T22:51:57.445Z"
+        "ts": "2026-08-13T00:03:54.742Z"
       },
       {
         "type": "status",
         "payload": {
           "status": "QUOTING"
         },
-        "ts": "2026-08-12T22:51:53.645Z"
+        "ts": "2026-08-13T00:03:51.441Z"
       }
     ],
     "paymentRail": {
       "mode": "safe",
-      "lockTxHash": "0x85ad5be2bc69b4e000219918341015406768ef7b3a31b1bb31ac055a6cea2feb",
-      "spendTxHash": "0x325f5374fecf4b665cc2cbcb7ad39461f3adeb3296fd0f8ed5d5fb5a7143bcb6",
+      "lockTxHash": "0x41c602e38147aee0ca1f401deb7e3ef2cfe71247ede4824456aac6b27d219b25",
+      "spendTxHash": "0x394ac513233e3012eaf639212da2e389d9a4228e9de0bb9f2cd7373541b0d599",
       "payer": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
       "ownerWallet": "0x3bE57A5b65265D3704f846B93600308154fec794"
     },
@@ -130,16 +130,16 @@
     "released": true,
     "refunded": false
   },
-  "redisSpendAfter": 0.3326819999999999,
+  "redisSpendAfter": 0.00825,
   "receipt": {
-    "jobId": "1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
+    "jobId": "7ad705e0-550c-44d3-9a83-60a0995eea43",
     "receipt": {
-      "id": "478e58eb-c9c4-4cdc-a0bc-2e797ebec17e",
-      "txHash": "0x361c17c2db161b7d38f18755ef9d1aa0a154f43c948b56dc1aec91957154bc8c",
-      "createdAt": "2026-08-12T22:52:32.046Z",
-      "jobId": "1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
+      "id": "593ef4ab-fb92-418f-9ca4-575a343d5781",
+      "txHash": "0x175d13e2a4c07fa15b0e51c71e1102d2886a3e62734868172730f8d62b755379",
+      "createdAt": "2026-08-13T00:04:32.078Z",
+      "jobId": "7ad705e0-550c-44d3-9a83-60a0995eea43",
       "offer": {
-        "offerId": "72955fce-2b82-42d7-8cad-cc517cb56b3d",
+        "offerId": "0da9388c-b1e0-4ad6-9a45-ab65446b254b",
         "briefHash": "0x2ce34b8149e9ab7d99975c1c80ee33a8e2a1cd51847a04452c4d68ee79a67a54",
         "priceUsdt0": "8250",
         "rubricHash": "0xbaa4d25268b1ba87e2bf6f2563de50eb34b8249020163d2d181bf1f8afef19c9"
@@ -147,7 +147,7 @@
       "accept": {
         "result": "PASS",
         "summary": "All quality checks passed.",
-        "acceptId": "ace98541-3def-4794-aeb2-e5077094b659",
+        "acceptId": "2f47a881-c1df-489c-a6b9-04c3a148edf2",
         "confidence": 0.92
       },
       "display": {
@@ -156,9 +156,9 @@
         "priceDisplay": "$0.00825"
       },
       "payment": {
-        "txHash": "0x361c17c2db161b7d38f18755ef9d1aa0a154f43c948b56dc1aec91957154bc8c",
+        "txHash": "0x175d13e2a4c07fa15b0e51c71e1102d2886a3e62734868172730f8d62b755379",
         "settled": true,
-        "paymentId": "28ebbda7-1720-4ea7-a666-967cbce88188",
+        "paymentId": "259d409e-a294-4050-88cd-f507a568ee91",
         "amountUsdt0": "8250"
       },
       "version": "1.0",

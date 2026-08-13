@@ -19,4 +19,6 @@ Coston2 faucet USDT0 (`0xC1A5…E71F`) is the live Beacon payment token (ERC-20,
 
 AgentRouter 401: generation/judge AI is skipped until auth works; L1/L3 and on-chain escrow still real.
 
-Evidence: `docs/evidence/hardware-fcc/STATUS.json`.
+Live TEE `0x2ebC…6506` (v0.1.3, codeHash `0xb112…9333be`, status 2). Previous `0xA5E9…646d` is paused. Hardware signs ALLOW (status 1) and over-cap DENY (status 0).
+
+Evidence: `docs/evidence/hardware-fcc/STATUS.json` (historical v0.1.2) and `docs/evidence/closure-fcc-hardware-allow.json` / `docs/evidence/closure-fcc-hardware-deny.json` (v0.1.3).

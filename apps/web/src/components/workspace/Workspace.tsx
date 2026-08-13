@@ -737,7 +737,16 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                   transition={{ type: "spring", stiffness: 80, damping: 20 }}
                 />
               </div>
-              <Timeline status={status} />
+              <Timeline
+                status={status}
+                refunded={
+                  jobQuery.data?.acceptance?.result === "FAIL" ||
+                  (jobQuery.data?.recentEvents ?? []).some((e) => {
+                    const p = e.payload as { trigger?: string } | null | undefined;
+                    return e.type === "status" && p?.trigger === "generation_failed";
+                  })
+                }
+              />
               <FlareRails status={status} lockTx={lockTx} payMode={payMode} />
             </motion.div>
           )}
@@ -799,7 +808,7 @@ function StepRail({ step }: { step: Step }) {
   );
 }
 
-function Timeline({ status }: { status?: JobStatus }) {
+function Timeline({ status, refunded = false }: { status?: JobStatus; refunded?: boolean }) {
   const stages: JobStatus[] = [
     "AUTHORIZED",
     "PREPARING",
@@ -810,7 +819,7 @@ function Timeline({ status }: { status?: JobStatus }) {
     "CLOSED",
   ];
   const current = status ? stages.indexOf(status) : -1;
-  const failed = status === "FAILED" || status === "REFUSING";
+  const failed = status === "FAILED" || status === "REFUSING" || refunded;
   return (
     <ul className="relative mt-8 space-y-0">
       <span

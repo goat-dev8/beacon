@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"extension-scaffold/internal/config"
@@ -175,14 +176,61 @@ func (e *Extension) processFit(action teetypes.Action, df *instruction.DataFixed
 	if brief == "" {
 		capability = "NO_FIT"
 	}
+
+	amount, hasAmount := jsonFloat(req["amountUsdt0"])
+	cap, hasCap := jsonFloat(req["amountCapUsdt0"])
+	if hasAmount && hasCap && amount > cap {
+		resp := map[string]any{
+			"capability":     capability,
+			"serviceId":      req["serviceId"],
+			"allow":          false,
+			"decision":       "DENY",
+			"amountUsdt0":    amount,
+			"amountCapUsdt0": cap,
+		}
+		data, _ := json.Marshal(resp)
+		ar := buildResult(action, df, data, 0, fmt.Errorf("amount %.6g USDT0 exceeds cap %.6g USDT0", amount, cap))
+		b, _ := json.Marshal(ar)
+		return http.StatusOK, b
+	}
+
 	resp := map[string]any{
 		"capability": capability,
 		"serviceId":  req["serviceId"],
+		"allow":      true,
+		"decision":   "ALLOW",
 	}
 	data, _ := json.Marshal(resp)
 	ar := buildResult(action, df, data, 1, nil)
 	b, _ := json.Marshal(ar)
 	return http.StatusOK, b
+}
+
+func jsonFloat(v any) (float64, bool) {
+	if v == nil {
+		return 0, false
+	}
+	switch t := v.(type) {
+	case float64:
+		return t, true
+	case float32:
+		return float64(t), true
+	case int:
+		return float64(t), true
+	case int64:
+		return float64(t), true
+	case json.Number:
+		f, err := t.Float64()
+		return f, err == nil
+	case string:
+		if t == "" {
+			return 0, false
+		}
+		f, err := strconv.ParseFloat(t, 64)
+		return f, err == nil
+	default:
+		return 0, false
+	}
 }
 
 func (e *Extension) processJob(action teetypes.Action, df *instruction.DataFixed) (int, []byte) {

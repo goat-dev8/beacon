@@ -1,0 +1,21 @@
+{
+  "at": "2026-08-12T23:49:21.074Z",
+  "kind": "hardware-signed-deny-overcap",
+  "teeId": "0x2ebCFD562A24BDf0ea7b47F351f97d2140376506",
+  "codeHash": "0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be",
+  "extensionId": 65925,
+  "instructionId": "0x79d8399401e62e2d8b34d38dc7225b6839ab859751dd5ae68658790dbe6f57cc",
+  "txHash": "0xb3736564d2c254eace45c954a00dd6d5b2c628f839a5e8559f13e0a4344c2c5d",
+  "explorer": "https://coston2-explorer.flare.network/tx/0xb3736564d2c254eace45c954a00dd6d5b2c628f839a5e8559f13e0a4344c2c5d",
+  "teeSignedStatus": 0,
+  "log": "error: amount 100 USDT0 exceeds cap 10 USDT0",
+  "data": {
+    "allow": false,
+    "amountCapUsdt0": 10,
+    "amountUsdt0": 100,
+    "capability": "FIT",
+    "decision": "DENY",
+    "serviceId": "desk"
+  },
+  "pass": true
+}

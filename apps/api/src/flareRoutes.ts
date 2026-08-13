@@ -225,6 +225,8 @@ export function registerFlareNativeRoutes(
       txHash: string;
       instructionId: string;
       status: string;
+      teeSignedStatus?: number;
+      log?: string | null;
       partial: boolean;
       resultPolled: boolean;
       resultVerified: false;
@@ -234,7 +236,6 @@ export function registerFlareNativeRoutes(
 
     if (
       body.submitInstruction &&
-      valueProtectionDecision === "ALLOW" &&
       fccLifecycle.extProxyConfigured &&
       fccLifecycle.instructionSenderHasBytecode
     ) {
@@ -253,22 +254,24 @@ export function registerFlareNativeRoutes(
             recipient: body.recipient ?? null,
             expiresAt: body.expiresAt ?? null,
             agentId: body.agentId ?? "unknown",
-            serverPolicyAllowed: serverPolicy.allowed,
-            valueProtectionDecision,
+            brief: "Beacon policy evaluate — amount cap",
+            serviceId: "desk",
             timestamp: Date.now(),
           };
 
           try {
             const result = await fccClient.sendEvaluateFit(payload);
-            // sendAndWait polls result — if we got here, poll succeeded
-            teeResultVerified = result.status === 0;
+            // TEE status 1 = signed ALLOW, 0 = signed DENY/error. Never treat as spend authority.
+            teeResultVerified = false;
             onChainInstruction = {
               txHash: result.txHash,
               instructionId: result.instructionId,
-              status: result.status === 0 ? "success" : `status_${result.status}`,
+              status: `status_${result.status}`,
+              teeSignedStatus: result.status,
+              log: result.log ?? null,
               partial: !caps.hasSendEvaluateFit,
               resultPolled: true,
-              resultVerified: false, // Beacon still does not claim TEE-verified fund authority
+              resultVerified: false,
             };
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);

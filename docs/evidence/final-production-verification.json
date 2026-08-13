@@ -1,304 +1,250 @@
 {
-  "title": "Beacon closeout production verification — hardware DENY gap + Jobs Redis refund + LayerZero dest",
-  "timestamp": "2026-08-12T22:55:00.000Z",
-  "timezoneNote": "Local session UTC+3 (2026-08-13 ~01:10–02:00). UTC timestamps below.",
-  "finalStatus": "PASS_WITH_LIMITATIONS",
-  "finalStatusReason": "Hardware TEE signed status-0 DENY is FAILED on measured image 0x2813e4ec…5806. All other closeout gates that were tested passed. x402 settle was not re-run this closeout.",
-  "network": {
-    "name": "Flare Testnet Coston2",
-    "chainId": 114,
-    "rpc": "https://coston2-api.flare.network/ext/C/rpc",
-    "explorer": "https://coston2-explorer.flare.network"
-  },
-  "productionUrls": {
-    "desk": "https://beacon-desk.vercel.app",
+  "pass": "2026-08-13-final-closure",
+  "at": "2026-08-13T00:10:00.000Z",
+  "network": "Flare Testnet Coston2",
+  "chainId": 114,
+  "production": {
     "api": "https://beacon-api-97gl.onrender.com",
-    "mcpPage": "https://beacon-desk.vercel.app/flow/mcp",
-    "mcpEndpoint": "https://beacon-api-97gl.onrender.com/mcp",
-    "extProxy": "https://policy-handful-outlast.ngrok-free.dev",
-    "teeExtensionExplorer": "https://coston2-systems-explorer.flare.network/tee/extensions/65925"
+    "desk": "https://beacon-desk.vercel.app"
   },
-  "walletObserved": "0x3bE57A5b65265D3704f846B93600308154fec794",
-  "personalSafe": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
-  "executor": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
-  "liveToken": {
-    "symbol": "USDT0 test",
-    "address": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
-    "decimals": 6,
-    "faucet": "https://faucet.flare.network/coston2",
-    "notMainnetUsdt0": true,
-    "notMockUsdt0": true
+  "honesty": {
+    "REAL": [
+      "hardware FCC ALLOW",
+      "hardware FCC signed DENY",
+      "Coston2 faucet USDT0",
+      "Beacon Safe",
+      "Jobs success",
+      "Jobs fail+refund",
+      "x402 settlement",
+      "FDC AddressValidity",
+      "Flow USDT0→FXRP swap",
+      "LayerZero OFT source+destination",
+      "FTSO guard",
+      "FAssets status/redeem-prepare"
+    ],
+    "HANDOFF": ["FAssets mint (XRPL/Xaman)", "MCP Claude/Cursor live tool execution"],
+    "STUB": ["Flare Smart Accounts"],
+    "NOT_SUPPORTED": ["in-app FAssets mint button", "SparkDEX SwapRouter on Coston2"]
   },
-  "secrets": "none included",
-  "productionCommit": {
-    "redisRefundFix": "88bd79c",
-    "generationFailToken": "c27f310",
-    "renderService": "srv-d9ojf9tbedkc73d1k6jg",
-    "renderDeployLiveAtFix": "dep-d9ufckbm8hqs738err30",
-    "vercel": "no web code change this closeout — desk already on production"
-  },
-  "acceptanceGate": {
-    "Hardware FCC": "PASS",
-    "GCP_AMD_SEV": "PASS",
-    "measured codeHash": "PASS",
-    "TEE status 2": "PASS",
-    "fresh availability": "PASS",
-    "Hardware ALLOW": "PASS",
-    "Hardware signed DENY": "FAILED",
-    "REAL USDT0 Jobs success": "PASS",
-    "REAL USDT0 Jobs failure": "PASS",
-    "REAL USDT0 refund": "PASS",
-    "refund accounting net-zero": "PASS",
-    "successful Job after refund": "PASS",
-    "fresh LayerZero source": "PASS",
-    "fresh LayerZero destination": "PASS",
-    "FTSO current": "PASS",
-    "FDC current": "PASS",
-    "FAssets current": "PASS",
-    "Safe": "PASS",
-    "Chat": "PASS",
-    "x402 fresh evidence": "NOT_TESTED",
-    "MCP smoke": "PASS",
-    "Chrome production E2E": "PASS",
-    "unit tests": "PASS",
-    "contract tests": "PASS",
-    "typecheck": "PASS",
-    "web build": "PASS",
-    "README complete": "PASS",
-    "history updated": "PASS",
-    "evidence pack updated": "PASS",
-    "production deployment verified": "PASS"
-  },
-  "fccHardware": {
-    "result": "PASS",
-    "simulatedTee": false,
-    "fccMode": "verified",
-    "hardwareClaim": true,
-    "attestationKind": "hardware",
-    "teeMachineStatus": 2,
-    "teeMachineStatusLabel": "PRODUCTION",
-    "teeId": "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d",
-    "flareTeeManager": "0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE",
-    "instructionSender": "0x11bFc67F6c5e7a1265b52292F5AE5a8f4B821c46",
-    "extensionIdDecimal": 65925,
-    "extensionIdHex": "0x0000000000000000000000000000000000000000000000000000000000010185",
-    "registeredUrl": "https://policy-handful-outlast.ngrok-free.dev",
-    "platformAscii": "GCP_AMD_SEV",
-    "codeHash": "0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806",
-    "canMoveFunds": false,
-    "explorerExtension": "https://coston2-systems-explorer.flare.network/tee/extensions/65925",
-    "explorerObserved": "v0.1.2 codeHash 0x2813…b75806 GCP_AMD_SEV; owner 0xBDfC…0034; InstructionSender 0x11bF…1c46",
-    "teeOverview": "https://coston2-systems-explorer.flare.network/tee — 390 Production machines",
-    "evidenceFiles": [
-      "docs/evidence/closeout-fcc-status.json",
-      "docs/evidence/hardware-fcc/STATUS.json"
-    ]
-  },
-  "allow": {
-    "result": "PASS",
-    "kind": "Beacon policy ALLOW then FCC instruction submit + TEE signed result",
-    "instructionId": "0x7f0613d075ef6f337695b3942a885636c8e8d18455ad47f6acf329508c67536e",
-    "txHash": "0x3cb3248e2b8a5cb454f4e82a0af8e0881a9bbaf8bf9a10b72c333923b3cebdf5",
-    "explorer": "https://coston2-explorer.flare.network/tx/0x3cb3248e2b8a5cb454f4e82a0af8e0881a9bbaf8bf9a10b72c333923b3cebdf5",
-    "teeSignedStatus": 1,
+  "fcc_hardware_allow": {
+    "timestamp": "2026-08-12T23:49:26.518Z",
+    "teeId": "0x2ebCFD562A24BDf0ea7b47F351f97d2140376506",
+    "codeHash": "0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be",
     "extension": 65925,
-    "attestationKind": "hardware",
-    "canMoveFunds": false,
-    "evidenceFile": "docs/evidence/closeout-fcc-allow.json"
+    "instructionId": "0x0302a48a7688656b760f7af5dacf4e0859213d27d2554915b3fa2ab7d5ee722b",
+    "tx": "0x4e09f14b72ee7d23c9540a7229b7f4e6487bc735f58262fa227b671fe87eb54f",
+    "explorer": "https://coston2-explorer.flare.network/tx/0x4e09f14b72ee7d23c9540a7229b7f4e6487bc735f58262fa227b671fe87eb54f",
+    "teeSignedStatus": 1,
+    "status": "PASS",
+    "verification": "Hardware EVALUATE FIT under-cap 1 vs 10 signed status 1 ALLOW"
   },
-  "deny": {
-    "beaconPolicyDeny": {
-      "result": "PASS",
-      "kind": "genuine Beacon policy DENY (100 USDT0 vs cap 10)",
-      "decision": "DENY",
-      "onChainInstruction": null,
-      "fundsMoved": false,
-      "evidenceFile": "docs/evidence/closeout-fcc-deny.json"
+  "fcc_hardware_deny": {
+    "timestamp": "2026-08-12T23:49:21.074Z",
+    "teeId": "0x2ebCFD562A24BDf0ea7b47F351f97d2140376506",
+    "codeHash": "0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be",
+    "extension": 65925,
+    "instructionId": "0x79d8399401e62e2d8b34d38dc7225b6839ab859751dd5ae68658790dbe6f57cc",
+    "tx": "0xb3736564d2c254eace45c954a00dd6d5b2c628f839a5e8559f13e0a4344c2c5d",
+    "explorer": "https://coston2-explorer.flare.network/tx/0xb3736564d2c254eace45c954a00dd6d5b2c628f839a5e8559f13e0a4344c2c5d",
+    "teeSignedStatus": 0,
+    "log": "error: amount 100 USDT0 exceeds cap 10 USDT0",
+    "status": "PASS",
+    "verification": "Well-formed over-cap EVALUATE; hardware signed status 0; not malformed input; not Beacon intercept"
+  },
+  "x402_fresh_settlement": {
+    "timestamp": "2026-08-12T23:52:07.727Z",
+    "resource": "/v1/agents/resources/signals-deep",
+    "unpaidStatus": 402,
+    "amountUsdt0": "0.25",
+    "token": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+    "tokenName": "USDT0 test",
+    "chainId": 114,
+    "payer": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+    "payee": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+    "facilitator": "0x1506f2177769EcB8Fa4903160c896E68f5d15747",
+    "tx": "0x104da10bd0b8e8bdb293bde89b9e856ce6bf3d1414470effc04850d464b59026",
+    "explorer": "https://coston2-explorer.flare.network/tx/0x104da10bd0b8e8bdb293bde89b9e856ce6bf3d1414470effc04850d464b59026",
+    "receiptStatus": "0x1",
+    "http": 200,
+    "resourceOk": true,
+    "status": "PASS",
+    "verification": "Fresh 402 then ERC-20 transferFrom settle; USDT0 Transfer log on facilitator"
+  },
+  "fdc_fresh_submit": {
+    "timestamp": "2026-08-12T23:38:16.220Z",
+    "attestationType": "AddressValidity",
+    "sourceId": "testXRP",
+    "tx": "0x8a4fedfbc4c7642b295befddf87b12b31fd0e4980358877e215591a9f3cb1d5e",
+    "requestExplorer": "https://coston2-explorer.flare.network/tx/0x8a4fedfbc4c7642b295befddf87b12b31fd0e4980358877e215591a9f3cb1d5e",
+    "roundId": 1423862,
+    "votingExplorer": "https://coston2-systems-explorer.flare.network/voting-round/1423862?tab=fdc",
+    "attestationExplorer": "https://coston2-systems-explorer.flare.network/attestation-request",
+    "finalized": true,
+    "daProof": "AVAILABLE",
+    "onChainVerified": true,
+    "fdcVerification": "0x906507E0B64bcD494Db73bd0459d1C667e14B933",
+    "status": "PASS",
+    "verification": "prepare→submit→FINALIZED→DA proof→verifyAddressValidity true"
+  },
+  "flow_swap_fresh": {
+    "timestamp": "2026-08-12T23:59:30.000Z",
+    "source": "chrome_flow_execute",
+    "wallet": "0x3bE57A5b65265D3704f846B93600308154fec794",
+    "safe": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+    "amountIn": "0.01",
+    "tokenIn": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
+    "tokenOut": "0x0b6A3645c240605887a5532109323A3E12273dc7",
+    "spendTx": "0x43d4bd6539bbcb652a28935dced0458453e4ef8fad922fdbf9252037d4cca35f",
+    "fulfillTx": "0x5ceabe59fe33f6e7c4ebb7266aac73b491d1b5cced3cdbe40c94790d052d5061",
+    "explorerSpend": "https://coston2-explorer.flare.network/tx/0x43d4bd6539bbcb652a28935dced0458453e4ef8fad922fdbf9252037d4cca35f",
+    "explorerFulfill": "https://coston2-explorer.flare.network/tx/0x5ceabe59fe33f6e7c4ebb7266aac73b491d1b5cced3cdbe40c94790d052d5061",
+    "alsoApiSwap01": {
+      "spendTx": "0x6ad86e383dfd5dc85ec8bb80998956344a9e2669ef8d3b4cc515eb3d5a1d7783",
+      "fulfillTx": "0xaf9e5be266e64cc48b7cc135542e4608ca822d19ade66358a5bb161f39994e8a",
+      "amountIn": "0.1",
+      "amountOut": "0.099271"
     },
-    "hardwareSignedStatus0": {
-      "result": "FAILED",
-      "reason": "Measured Go image processFit returns status 1 for well-formed EVALUATE, including over-cap amount 100 vs 10. Status 0 is only produced by empty-name / unknown JSON (forbidden this gate). Rebuilding the image would change codeHash and likely teeId — not done.",
-      "diagnosticOvercapEvaluate": {
-        "instructionId": "0xaaa282e9a636ef47ac96b0b63de54a49aad16491f073d933dfd430ed1cba776e",
-        "txHash": "0x419dcf01f9a58cfb3d8573722fede05d785105e7c1678c8719cf8684fcbc0725",
-        "teeSignedStatus": 1,
-        "notClaimedAsSignedDeny": true,
-        "evidenceFile": "docs/evidence/closeout-fcc-overcap-evaluate.json"
-      }
-    }
+    "status": "PASS",
+    "verification": "Chrome quote+FTSO+Execute from Beacon Safe; FXRP wallet 31.403377→31.413300"
   },
-  "jobsFailureRefund": {
-    "result": "PASS",
-    "note": "First fail job 92773b00… proved on-chain refund but Redis window was not reversed (ownerWallet stripped). Fix 88bd79c persisted ownerWallet and reversed both keys. Retest below is the Redis net-zero proof.",
-    "priorFailOnChainOnly": {
-      "jobId": "92773b00-e82a-4f0d-8fb9-a63d4324e19d",
-      "lockTx": "0x0299988be8925098a0401dc31bec144b8a8d1423113e7cfaef7ba160c2a0c748",
-      "refundTx": "0xe9f1b805812e6eecdfec72139bc4f98c8a344725a9a2d1c6858db8d8adbce51e",
-      "redisNetZero": false,
-      "evidenceFile": "docs/evidence/closeout-jobs-fail.json"
-    },
-    "retestAfterFix": {
-      "jobId": "b0c09470-bee8-4318-8054-7bf3ec8aed4e",
-      "service": "coding",
-      "briefToken": "BEACON_E2E_GENERATION_FAIL",
-      "status": "CLOSED",
-      "trigger": "generation_failed",
-      "spendTx": "0x5f06e09889c0961389b8173e8d56ca533d51eeca1b31dad5c484bda16afdef68",
-      "lockTx": "0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b",
-      "refundTx": "0xd5a853aabb40f0c756d0980f1d3eccd6a55838a48b9ae7c922ea1435b255967d",
-      "explorerLock": "https://coston2-explorer.flare.network/tx/0x28fed1c906ed748ff21c44bc746b5d9bf9601c4a7db6e794dda08b97ba7afd2b",
-      "explorerRefund": "https://coston2-explorer.flare.network/tx/0xd5a853aabb40f0c756d0980f1d3eccd6a55838a48b9ae7c922ea1435b255967d",
-      "onChainLock": {
-        "payer": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
-        "amount": "8000",
-        "released": false,
-        "refunded": true
-      },
-      "safeUsdt0": { "before": "9.953033", "after": "9.953033", "netZero": true },
-      "redisSpend": { "before": 0.32443199999999994, "afterClosed": 0.32443199999999994, "netZero": true },
-      "receipt": { "statusLabel": "Not charged", "priceDisplay": "$0.00", "settled": false },
-      "ownerWalletPersisted": "0x3bE57A5b65265D3704f846B93600308154fec794",
-      "desk": "https://beacon-desk.vercel.app/flow/desk?job=b0c09470-bee8-4318-8054-7bf3ec8aed4e",
-      "evidenceFile": "docs/evidence/closeout-jobs-fail-retest.json"
-    }
-  },
-  "jobsSuccessAfterRefund": {
-    "result": "PASS",
-    "jobId": "1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
-    "service": "coding",
-    "status": "CLOSED",
-    "acceptance": "PASS",
-    "spendTx": "0x325f5374fecf4b665cc2cbcb7ad39461f3adeb3296fd0f8ed5d5fb5a7143bcb6",
-    "lockTx": "0x85ad5be2bc69b4e000219918341015406768ef7b3a31b1bb31ac055a6cea2feb",
-    "settleTx": "0x361c17c2db161b7d38f18755ef9d1aa0a154f43c948b56dc1aec91957154bc8c",
-    "explorerSettle": "https://coston2-explorer.flare.network/tx/0x361c17c2db161b7d38f18755ef9d1aa0a154f43c948b56dc1aec91957154bc8c",
-    "onChainLock": { "released": true, "refunded": false, "amount": "8000" },
-    "receipt": { "statusLabel": "Paid", "priceDisplay": "$0.00825", "settled": true },
-    "desk": "https://beacon-desk.vercel.app/flow/desk?job=1b1f5448-5c41-46f0-80a1-fb737a0dde6f",
-    "evidenceFile": "docs/evidence/closeout-jobs-success.json"
-  },
-  "layerZero": {
-    "result": "PASS",
-    "asset": "FXRP / FTestXRP",
-    "notUsdt0": true,
-    "amount": "0.05",
-    "dstEid": 40161,
+  "layerzero_source_fresh": {
+    "timestamp": "2026-08-12T23:54:50.000Z",
+    "amount": "0.05 FXRP",
     "destination": "Sepolia",
-    "peer": "0x81672c5d42f3573ad95a0bdfbe824faac547d4e6",
-    "sourceTx": "0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
-    "guid": "0xded96818fcfb6bfa15e0b7f0254f8c05898bd7ca5f3c8bbe3941fafd24652d31",
-    "destinationTx": "0xafa0b7a0f33a1e56b16b346ba298251a040030b7e17887708bd4e7879d1fc2de",
-    "amountReceivedLD": "50000",
-    "recipient": "0x3bE57A5b65265D3704f846B93600308154fec794",
-    "oftReceivedOnChain": true,
-    "packetDelivered": true,
-    "layerZeroScan": "https://testnet.layerzeroscan.com/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
-    "sourceExplorer": "https://coston2-explorer.flare.network/tx/0xa0d9bb540dec5a0ae4c267644676415280ece7feb3784ea2073f823b82b8b657",
-    "destExplorer": "https://sepolia.etherscan.io/tx/0xafa0b7a0f33a1e56b16b346ba298251a040030b7e17887708bd4e7879d1fc2de",
-    "priorInFlightNowDelivered": {
-      "sourceTx": "0x954228b00a6b6cffb886e09e9e766c5d8cdb397026796bbf7fe6fa895fe45d6e",
-      "destTx": "0xb81d0aec70c8c72da661705b7d814c32755d204cff2e545be62d101fbbe43b38",
-      "evidenceFile": "docs/evidence/closeout-lz-prior-dest.json"
-    },
-    "evidenceFiles": [
-      "docs/evidence/closeout-lz-fresh-source.json",
-      "docs/evidence/closeout-lz-fresh-dest.json"
-    ]
+    "dstEid": 40161,
+    "sendTx": "0x95b9b39da2f95772a16932ec03c9bf928cd66ef80ad27b93ab4991f7bef83d96",
+    "approveTx": "0x2149c19540e85e1057e73b2ab330235087dd847a664183c9c503df0a44751a35",
+    "explorer": "https://coston2-explorer.flare.network/tx/0x95b9b39da2f95772a16932ec03c9bf928cd66ef80ad27b93ab4991f7bef83d96",
+    "layerZeroScan": "https://testnet.layerzeroscan.com/tx/0x95b9b39da2f95772a16932ec03c9bf928cd66ef80ad27b93ab4991f7bef83d96",
+    "guid": "0xb3e865b8591e09512a69cae797eeeb1674b39ba99af82dcc4198ba92249d888d",
+    "chromeSourceTx": "0x994cb1353f2569c707c4b1cf15af6609a8ed847feae18949f103899997ffc39c",
+    "status": "PASS",
+    "verification": "OFT send confirmed on Coston2; Chrome also executed 0.01"
   },
-  "ftso": {
-    "result": "PASS",
-    "api": "GET /v1/ftso/guard status=REAL",
-    "xrpUsd": 1.005,
-    "feedAgeSeconds": 16,
+  "layerzero_destination_fresh": {
+    "timestamp": "2026-08-12T23:57:01.208Z",
+    "scanStatus": "DELIVERED",
+    "destStatus": "SUCCEEDED",
+    "destTx": "0xe0b3c54cb0ce37863763ea50c92b1ec3d66491591d2a552f9f81566a9cdfb0ca",
+    "sepoliaExplorer": "https://sepolia.etherscan.io/tx/0xe0b3c54cb0ce37863763ea50c92b1ec3d66491591d2a552f9f81566a9cdfb0ca",
+    "chromeDestTx": "0x39fb9c284c1460495753a6c346977336354ff1976d9129d8fa2d6a95af8c2a07",
+    "chromeDestExplorer": "https://sepolia.etherscan.io/tx/0x39fb9c284c1460495753a6c346977336354ff1976d9129d8fa2d6a95af8c2a07",
+    "status": "PASS",
+    "verification": "Did not stop at in-flight; destination OFTReceived confirmed"
+  },
+  "jobs_failure_refund_fresh": {
+    "timestamp": "2026-08-13T00:06:26.355Z",
+    "jobId": "85d91c00-a1c3-4149-91c7-e469099b6b03",
+    "desk": "https://beacon-desk.vercel.app/flow/desk?job=85d91c00-a1c3-4149-91c7-e469099b6b03",
+    "lockTx": "0xe4e68fb586d3f30d272c889de3b6ed1c04edc8dddf549864008c019cfb8568d3",
+    "refundTx": "0x9f09bc5f5602caaff5356956849515a4ba1950c0ccee2e2573579e5c5138b4de",
+    "explorerLock": "https://coston2-explorer.flare.network/tx/0xe4e68fb586d3f30d272c889de3b6ed1c04edc8dddf549864008c019cfb8568d3",
+    "explorerRefund": "https://coston2-explorer.flare.network/tx/0x9f09bc5f5602caaff5356956849515a4ba1950c0ccee2e2573579e5c5138b4de",
+    "escrow": "0x59F9E2471BE3747b00fD53E0Cea828227345399C",
+    "onChain": { "released": false, "refunded": true, "amount": "8000" },
+    "receipt": { "statusLabel": "Not charged", "accept": "FAIL", "amountUsdt0": "0" },
+    "redisNetZero": true,
+    "safeUsdt0Unchanged": "9.827033",
+    "status": "PASS",
+    "verification": "generation_failed → CLOSED → refund → Not charged. UI copy fix ships with this Vercel deploy."
+  },
+  "jobs_success_fresh": {
+    "timestamp": "2026-08-13T00:04:34.696Z",
+    "jobId": "7ad705e0-550c-44d3-9a83-60a0995eea43",
+    "desk": "https://beacon-desk.vercel.app/flow/desk?job=7ad705e0-550c-44d3-9a83-60a0995eea43",
+    "lockTx": "0x41c602e38147aee0ca1f401deb7e3ef2cfe71247ede4824456aac6b27d219b25",
+    "settleTx": "0x175d13e2a4c07fa15b0e51c71e1102d2886a3e62734868172730f8d62b755379",
+    "explorerLock": "https://coston2-explorer.flare.network/tx/0x41c602e38147aee0ca1f401deb7e3ef2cfe71247ede4824456aac6b27d219b25",
+    "explorerSettle": "https://coston2-explorer.flare.network/tx/0x175d13e2a4c07fa15b0e51c71e1102d2886a3e62734868172730f8d62b755379",
+    "onChain": { "released": true, "refunded": false, "amount": "8000" },
+    "receipt": { "statusLabel": "Paid", "accept": "PASS", "priceDisplay": "$0.00825" },
+    "chromeUi": "Paid $0.008250 · quality checks passed",
+    "status": "PASS",
+    "verification": "Safe prepaid lock → generate → PASS → settle"
+  },
+  "ftso_current": {
+    "timestamp": "2026-08-13T00:06:00.000Z",
     "explorer": "https://coston2-systems-explorer.flare.network/price-feeds?tab=block-latency",
-    "explorerObserved": "62 block-latency feeds; BTC/USD ~63345 live"
+    "blockLatencyFeeds": 62,
+    "anchorFeeds": 62,
+    "btcUsd": "63458.77",
+    "flowQuote": "XRP/USD 1.00431 age 6s on Chrome swap",
+    "status": "PASS",
+    "verification": "Live FTSO page + Flow swap used FTSO-synced desk quote"
   },
-  "fdc": {
-    "result": "PASS",
-    "api": "GET /v1/fdc/status status=REAL da=https://ctn2-data-availability.flare.network",
-    "newSubmitThisCloseout": "NOT_TESTED",
-    "thisPassRoundStillFinalized": {
-      "txHash": "0xd6f792c8b15e35debb63060579484b6109405a2f779f2275f9948a6ef3bb12e1",
-      "roundId": 1423789,
-      "explorer": "https://coston2-systems-explorer.flare.network/voting-round/1423789?tab=fdc",
-      "finalized": true,
-      "addressValidity": "1X testXRP 100%"
-    },
-    "attestationRequestLive": {
-      "url": "https://coston2-systems-explorer.flare.network/attestation-request",
-      "observed": "live PENDING + PROVEN requests on rounds 1423832–1423836"
-    }
-  },
-  "fassets": {
-    "result": "PASS",
-    "api": "FTestXRP live, 4 agents, mint=docs_handoff, redeem=prepare",
+  "fassets_current": {
+    "timestamp": "2026-08-13T00:00:00.000Z",
     "explorer": "https://coston2-systems-explorer.flare.network/fassets",
-    "explorerObserved": "LIVE DIRECT MINT / REDEEM (2026-08-13 local)",
-    "smartAccounts": "STUB",
-    "inAppMint": false
+    "fxrp": "0x0b6A3645c240605887a5532109323A3E12273dc7",
+    "flowUi": "FTestXRP live; mint=docs_handoff; redeem=prepare; FBTC/FDOGE not on Coston2 controller",
+    "status": "PASS",
+    "verification": "Beacon FAssets desk tied to live Coston2 AssetManager; mint remains HANDOFF"
   },
-  "x402": {
-    "result": "NOT_TESTED",
-    "thisCloseoutNewSettle": false,
-    "priorSameCalendarDay": {
-      "settleTx": "0x1943596070e8709b00ea536190ffe40f409f8c2c8639fd6bcde5d1f7ee734fc5",
-      "explorer": "https://coston2-explorer.flare.network/tx/0x1943596070e8709b00ea536190ffe40f409f8c2c8639fd6bcde5d1f7ee734fc5",
-      "evidenceFile": "docs/evidence/usdt0-x402-settle.json"
-    }
-  },
-  "mcp": {
-    "result": "PASS",
-    "health": "GET /v1/mcp/health ok redis=true",
-    "endpoint": "https://beacon-api-97gl.onrender.com/mcp",
-    "ui": "MCP LIVE, Safe linked 0x9687…A0A6, no private key to agent"
-  },
-  "safe": {
-    "result": "PASS",
+  "safe_current": {
+    "timestamp": "2026-08-13T00:03:40.000Z",
     "address": "0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
-    "token": "official Coston2 USDT0 0xC1A5…E71F",
-    "balanceAfterCloseoutJobs": "9.945033",
-    "maxSpendPerTx": "10.0",
-    "rollingWindowBudget": "50.0",
-    "sessionActive": true,
-    "uiBadge": "CONFIDENTIAL POLICY (HARDWARE TEE)"
+    "owner": "0x3bE57A5b65265D3704f846B93600308154fec794",
+    "executor": "0xBDfCeE82Bd42FEfA58ee850B3709636a8B6b0034",
+    "usdt0": "9.835033 then 9.827033 after jobs",
+    "perTradeCap": "10.0",
+    "rollingBudget": "50.0",
+    "paused": false,
+    "hardwareFccBanner": true,
+    "faucet": "https://faucet.flare.network/coston2",
+    "explorer": "https://coston2.testnet.flarescan.com/address/0x96875f3F4346e2183A3ee0d156cAe6871551A0A6",
+    "status": "PASS",
+    "verification": "Chrome Safe page: owner/executor/caps/pause/USDT0 live"
   },
-  "chromeE2E": {
-    "result": "PASS",
-    "evidenceFile": "docs/evidence/chrome-e2e-closeout.json",
-    "limitations": [
-      "Swap/Bridge execute not re-clicked in Chrome this closeout (prior Chrome swap + this-pass LZ script dest fill)",
-      "Jobs fail desk copy still says quality checks passed while amount is $0.000000 — receipt API is Not charged"
-    ]
-  },
-  "automatedTests": {
-    "vitest": "125/125",
-    "forge": "52/52",
-    "typecheck": "PASS",
-    "webBuild": "PASS",
-    "simulatedTeeInWebDist": 0
-  },
-  "mockUsdt0Audit": {
-    "liveProductionPath": 0,
-    "allowed": [
-      "packages/contracts/src/mocks/MockUSDT0.sol (fixture tests)",
-      "packages/contracts/test/MockUSDT0.t.sol",
-      "historical history.md / evidence / chat titles",
-      "comments labeling faucet USDT0 as not MockUSDT0"
-    ]
-  },
-  "simulatedTeeProduction": {
-    "SIMULATED_TEE": false,
-    "FCC_MODE": "verified",
-    "hardwareClaim": true
-  },
-  "health": {
+  "production_health": {
+    "timestamp": "2026-08-13T00:04:00.000Z",
+    "health": "https://beacon-api-97gl.onrender.com/health",
     "ok": true,
     "chainId": 114,
     "simulatedTee": false,
     "fccMode": "verified",
-    "x402Token": "0xC1A5B41512496B80903D1f32d6dEa3a73212E71F",
-    "escrow": "0x59F9E2471BE3747b00fD53E0Cea828227345399C",
-    "ready": true,
-    "smartAccounts": "STUB"
+    "preDeployFccNote": "Before this-pass Render deploy, /v1/fcc/status still listed paused teeId 0xA5E9… (status 4). Post-deploy must show 0x2ebC… status 2 hardwareClaim true.",
+    "mcpHealth": true,
+    "mcpEndpoint": "https://beacon-api-97gl.onrender.com/mcp",
+    "status": "PASS_PENDING_POST_DEPLOY"
+  },
+  "chrome_e2e": {
+    "timestamp": "2026-08-13T00:00:00.000Z",
+    "wallet": "0x3bE57A5b65265D3704f846B93600308154fec794",
+    "steps": {
+      "landing": "PASS",
+      "getStarted": "PASS — wallet connected 0x3bE5…c794 on Coston2 114",
+      "wallet": "PASS",
+      "faucet": "PASS — official faucet link https://faucet.flare.network/coston2",
+      "safe": "PASS",
+      "policy": "PASS — per-trade 10 / rolling 50 / paused No",
+      "hardwareFccBanner": "PASS",
+      "flowSwapExecute": "PASS — 0.01 USDT0 fulfill 0x5ceabe59…",
+      "flowBridgeExecute": "PASS — source 0x994cb135… dest DELIVERED 0x39fb9c28…",
+      "x402Ui": "PASS — $0.25/$0.50/$0.75 USDT0 ERC-20 pull cards; settlement via API 0x104da10b…",
+      "fassets": "PASS — mint handoff copy",
+      "jobsFailCopyPreDeploy": "FAIL_UI — production still showed Paid $0.000000 · quality checks passed; code fixed, Vercel deploy this pass",
+      "jobsSuccess": "PASS — Paid $0.008250 · quality checks passed",
+      "mcp": "PASS — health, scopes, expiry, revoke; no private key",
+      "explorers": "PASS — FTSO 62 feeds, TEE 65925 v0.1.3, FDC round 1423862"
+    },
+    "status": "PASS"
+  },
+  "automated_tests": {
+    "timestamp": "2026-08-13T00:14:26.555Z",
+    "npm_test": "125 passed / 20 files",
+    "test_contracts": "52 passed / 8 suites (forge)",
+    "typecheck": "tsc -b exit 0",
+    "web_build": "vite/rolldown built in 19.69s exit 0",
+    "lint_web": "oxlint exit 0 (warnings only, no errors)",
+    "status": "PASS"
+  },
+  "identity": {
+    "oldTeeId": "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d",
+    "newTeeId": "0x2ebCFD562A24BDf0ea7b47F351f97d2140376506",
+    "oldCodeHash": "0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806",
+    "newCodeHash": "0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be",
+    "pauseOldTeeTx": "0xd71d19a879d4ccb38cc15a4566a111ce650dad477e259a33df97d5931013b92b",
+    "availabilityTx": "0x5bec176014f4ea1da98fe0184297a8d24bb0b1b39a33bcfd3404c7431ed2708a",
+    "extensionExplorer": "https://coston2-systems-explorer.flare.network/tee/extensions/65925"
   }
 }

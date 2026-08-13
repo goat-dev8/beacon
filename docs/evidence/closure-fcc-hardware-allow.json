@@ -1,0 +1,19 @@
+{
+  "at": "2026-08-12T23:49:26.518Z",
+  "kind": "hardware-signed-allow-undercap",
+  "teeId": "0x2ebCFD562A24BDf0ea7b47F351f97d2140376506",
+  "codeHash": "0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be",
+  "extensionId": 65925,
+  "instructionId": "0x0302a48a7688656b760f7af5dacf4e0859213d27d2554915b3fa2ab7d5ee722b",
+  "txHash": "0x4e09f14b72ee7d23c9540a7229b7f4e6487bc735f58262fa227b671fe87eb54f",
+  "explorer": "https://coston2-explorer.flare.network/tx/0x4e09f14b72ee7d23c9540a7229b7f4e6487bc735f58262fa227b671fe87eb54f",
+  "teeSignedStatus": 1,
+  "log": "ok",
+  "data": {
+    "allow": true,
+    "capability": "FIT",
+    "decision": "ALLOW",
+    "serviceId": "desk"
+  },
+  "pass": true
+}

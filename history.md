@@ -1,4 +1,46 @@
-## 2026-08-12/13 - Closeout: hardware DENY diagnosis, Jobs Redis refund, LayerZero dest
+## 2026-08-13 - Final closure: hardware signed DENY, fresh rails, Jobs UI
+
+### Timestamp
+2026-08-12 23:20 UTC → 2026-08-13 ~00:20 UTC (local 2026-08-13 ~02:20–03:20 UTC+3)
+
+### Change
+- TEE `processFit` now signs status 0 when well-formed `amountUsdt0` exceeds `amountCapUsdt0`. Image `beacon-fcc-hardware:v0.1.3`. Measured codeHash `0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be`.
+- Registered replacement TEE `0x2ebCFD562A24BDf0ea7b47F351f97d2140376506` (rRap, status 2). Paused old `0xA5E9a81044dd4d66384DE09CF95dB317fde5646d` (status 4) after ALLOW+DENY.
+- Beacon `POST /v1/fcc/policy/evaluate` submits FCC on DENY as well as ALLOW (`submitInstruction: true`).
+- Jobs ResultExperience: CLOSED fail / Not charged shows “Generation failed. You were not charged.” Timeline treats refunded CLOSED as failed.
+- Render merge now includes `TEE_ID`.
+
+### Reason
+Close every remaining verification gap. Old receipts cannot satisfy this pass.
+
+### Test
+- Hardware DENY instruction `0x79d83994…57cc` tx `0xb3736564…2c5d` teeSignedStatus 0. ALLOW `0x0302a48a…722b` tx `0x4e09f14b…b54f` status 1.
+- x402 settle `0x104da10b…9026` $0.25 USDT0 (not `0x19435960…`).
+- FDC AddressValidity tx `0x8a4fedfb…1d5e` round 1423862 FINALIZED + DA + on-chain verify (not 1423789).
+- Chrome swap 0.01 USDT0 spend `0x43d4bd65…` fulfill `0x5ceabe59…`. API swap 0.1 `0x6ad86e38…` / `0xaf9e5be2…`.
+- LZ 0.05 source `0x95b9b39d…` dest Sepolia `0xe0b3c54c…` DELIVERED. Chrome 0.01 source `0x994cb135…` dest `0x39fb9c28…` DELIVERED.
+- Jobs fail `85d91c00-…` refund `0x9f09bc5f…` Redis net-zero. Success `7ad705e0-…` settle `0x175d13e2…` Paid.
+- Production fail UI still showed “Paid $0.000000 · quality checks passed” until this Vercel deploy.
+- Chrome: Landing, Get Started, Safe, Flow swap execute, bridge execute, x402 cards, FAssets, Jobs, MCP, FTSO/TEE explorers.
+
+### Result
+Hardware signed DENY exists. Fresh x402/FDC/swap/LZ dest exist. Jobs refund accounting holds. UI copy fix ships with desk deploy.
+
+### Remaining issue
+- Beacon-mediated `/v1/fcc/policy/evaluate` DENY with `onChainInstruction.teeSignedStatus=0` must be rechecked after Render picks up `TEE_ID=0x2ebC…` (pre-deploy status still listed paused 0xA5E9…).
+- MCP Claude/Cursor live tool execution remains a user-independent HANDOFF.
+- Smart Accounts STUB. FAssets mint remains XRPL/Xaman HANDOFF.
+- Historical Flow chat titles still mention MockUSDT0.
+
+### Evidence
+`docs/evidence/final-production-verification.json` · `closure-fcc-hardware-allow.json` · `closure-fcc-hardware-deny.json` · `closure-x402-fresh.json` · `closure-fdc-fresh.json` · `closure-flow-swap.json` · `closure-chrome-swap.json` · `closure-lz-source.json` · `closure-lz-dest.json` · `closure-chrome-lz-dest.json` · `closeout-jobs-fail.json` · `closeout-jobs-success.json`
+
+### Deployment
+Pending this commit push → Render merge (`TEE_ID`) → Vercel desk.
+
+---
+
+
 
 ### Timestamp
 2026-08-12 ~22:20–22:55 UTC (local 2026-08-13 ~01:20–02:00 UTC+3)

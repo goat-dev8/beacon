@@ -1,0 +1,16 @@
+{
+  "at": "2026-08-12T23:59:30.000Z",
+  "source": "chrome_flow_execute",
+  "wallet": "0x3bE57A5b65265D3704f846B93600308154fec794",
+  "amountIn": "0.01",
+  "tokenIn": "USDT0",
+  "tokenOut": "FXRP",
+  "quote": "0.01 USDT0 ≈ 0.009928 FXRP",
+  "ftso": "XRP/USD 1.00431 age 6s",
+  "spendHash": "0x43d4bd6539bbcb652a28935dced0458453e4ef8fad922fdbf9252037d4cca35f",
+  "fulfillHash": "0x5ceabe59fe33f6e7c4ebb7266aac73b491d1b5cced3cdbe40c94790d052d5061",
+  "explorerSpend": "https://coston2-explorer.flare.network/tx/0x43d4bd6539bbcb652a28935dced0458453e4ef8fad922fdbf9252037d4cca35f",
+  "explorerFulfill": "https://coston2-explorer.flare.network/tx/0x5ceabe59fe33f6e7c4ebb7266aac73b491d1b5cced3cdbe40c94790d052d5061",
+  "ui": "Swap confirmed. Safe spend confirmed. Desk fulfill confirmed.",
+  "status": "PASS"
+}

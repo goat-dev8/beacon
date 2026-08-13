@@ -411,6 +411,86 @@ func TestProcessAction_InvalidDataMessage(t *testing.T) {
 	t.Logf("400 body: %s", bodyStr)
 }
 
+func decodeFitResult(t *testing.T, body []byte) (teetypes.ActionResult, map[string]any) {
+	t.Helper()
+	var result teetypes.ActionResult
+	if err := json.Unmarshal(body, &result); err != nil {
+		t.Fatalf("failed to unmarshal ActionResult: %v", err)
+	}
+	var data map[string]any
+	if len(result.Data) > 0 {
+		if err := json.Unmarshal(result.Data, &data); err != nil {
+			t.Fatalf("failed to unmarshal FIT data: %v", err)
+		}
+	}
+	return result, data
+}
+
+func TestProcessFit_OverCapSignedDeny(t *testing.T) {
+	e := &Extension{}
+	payload, _ := json.Marshal(map[string]any{
+		"brief":          "Beacon policy evaluate — amount cap",
+		"serviceId":      "desk",
+		"amountUsdt0":    100,
+		"amountCapUsdt0": 10,
+	})
+	action := buildTestAction(
+		toHash(config.OPTypeFit),
+		toHash(config.OPCommandEvaluate),
+		payload,
+	)
+
+	status, body := e.processAction(action)
+	if status != http.StatusOK {
+		t.Fatalf("expected HTTP 200, got %d: %s", status, body)
+	}
+
+	result, data := decodeFitResult(t, body)
+	if result.Status != 0 {
+		t.Fatalf("expected signed status 0 (DENY) for over-cap, got %d log=%q", result.Status, result.Log)
+	}
+	if !contains(result.Log, "exceeds cap") {
+		t.Errorf("expected policy error log, got %q", result.Log)
+	}
+	if data["decision"] != "DENY" {
+		t.Errorf("expected decision DENY, got %#v", data["decision"])
+	}
+	if data["allow"] != false {
+		t.Errorf("expected allow=false, got %#v", data["allow"])
+	}
+}
+
+func TestProcessFit_UnderCapSignedAllow(t *testing.T) {
+	e := &Extension{}
+	payload, _ := json.Marshal(map[string]any{
+		"brief":          "Beacon policy evaluate — amount cap",
+		"serviceId":      "desk",
+		"amountUsdt0":    1,
+		"amountCapUsdt0": 10,
+	})
+	action := buildTestAction(
+		toHash(config.OPTypeFit),
+		toHash(config.OPCommandEvaluate),
+		payload,
+	)
+
+	status, body := e.processAction(action)
+	if status != http.StatusOK {
+		t.Fatalf("expected HTTP 200, got %d: %s", status, body)
+	}
+
+	result, data := decodeFitResult(t, body)
+	if result.Status != 1 {
+		t.Fatalf("expected signed status 1 (ALLOW) for under-cap, got %d log=%q", result.Status, result.Log)
+	}
+	if data["decision"] != "ALLOW" {
+		t.Errorf("expected decision ALLOW, got %#v", data["decision"])
+	}
+	if data["capability"] != "FIT" {
+		t.Errorf("expected capability FIT, got %#v", data["capability"])
+	}
+}
+
 func contains(s, substr string) bool {
 	return strings.Contains(s, substr)
 }

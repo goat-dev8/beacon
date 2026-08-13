@@ -11,6 +11,7 @@ import {
   COSTON2_FLARE_TEE_MANAGER,
   COSTON2_EVIDENCE_TEE_ID,
   COSTON2_HARDWARE_TEE_ID,
+  COSTON2_PREVIOUS_HARDWARE_TEE_ID,
   COSTON2_HISTORICAL_SIMULATED_TEE_ID,
 } from "./fcc.js";
 
@@ -82,6 +83,9 @@ describe("Coston2 evidence constants", () => {
       COSTON2_HARDWARE_TEE_ID.toLowerCase(),
     );
     expect(COSTON2_HARDWARE_TEE_ID.toLowerCase()).toBe(
+      "0x2ebcfd562a24bdf0ea7b47f351f97d2140376506",
+    );
+    expect(COSTON2_PREVIOUS_HARDWARE_TEE_ID.toLowerCase()).toBe(
       "0xa5e9a81044dd4d66384de09cf95db317fde5646d",
     );
     expect(COSTON2_HISTORICAL_SIMULATED_TEE_ID.toLowerCase()).toBe(

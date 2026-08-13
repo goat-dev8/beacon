@@ -210,6 +210,8 @@ export const api = {
         id: string;
         txHash?: string | null;
         payment?: { txHash?: string; settled?: boolean; amountUsdt0?: string };
+        accept?: { result?: "PASS" | "FAIL" | "NEEDS_LOOK" };
+        display?: { statusLabel?: string; priceDisplay?: string };
       } | null;
     }>(`/v1/jobs/${jobId}/receipt`),
   look: (jobId: string, decision: "accept" | "reject") =>

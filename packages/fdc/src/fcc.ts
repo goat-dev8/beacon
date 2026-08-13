@@ -285,8 +285,11 @@ function extractInstructionId(receipt: {
 /** Known Coston2 FlareTeeManager diamond (evidence 2026-08-10). */
 export const COSTON2_FLARE_TEE_MANAGER = "0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE";
 
-/** Current Beacon hardware TEE on Coston2 (GCP Confidential Space, status 2). */
-export const COSTON2_HARDWARE_TEE_ID = "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d";
+/** Current Beacon hardware TEE on Coston2 (GCP Confidential Space v0.1.3, status 2). */
+export const COSTON2_HARDWARE_TEE_ID = "0x2ebCFD562A24BDf0ea7b47F351f97d2140376506";
+
+/** Previous hardware TEE (v0.1.2). Pause after replacement ALLOW+DENY. */
+export const COSTON2_PREVIOUS_HARDWARE_TEE_ID = "0xA5E9a81044dd4d66384DE09CF95dB317fde5646d";
 
 /** Historical simulated TEE (paused). Keep for development evidence only. */
 export const COSTON2_HISTORICAL_SIMULATED_TEE_ID = "0x6516cE58ae346fB4c438463f05B17B50EeB1c8ed";
@@ -294,9 +297,9 @@ export const COSTON2_HISTORICAL_SIMULATED_TEE_ID = "0x6516cE58ae346fB4c438463f05
 /** Known Beacon TEE machine used for current Coston2 PRODUCTION evidence. */
 export const COSTON2_EVIDENCE_TEE_ID = COSTON2_HARDWARE_TEE_ID;
 
-/** Measured codeHash of hardware image beacon-fcc-hardware:v0.1.2 (MODE=0). */
+/** Measured codeHash of hardware image beacon-fcc-hardware:v0.1.3 (MODE=0). */
 export const COSTON2_HARDWARE_CODE_HASH =
-  "0x2813e4ecd1478da4d997ddaf0cde8f33cc6f34d57b174dbae84b3ea56cb75806";
+  "0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be";
 
 const TEE_MANAGER_ABI = [
   "function getTeeMachineStatus(address) view returns (uint8)",

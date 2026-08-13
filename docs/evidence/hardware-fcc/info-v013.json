@@ -1,0 +1,23 @@
+{
+  "at": "now",
+  "machineData": {
+    "extensionId": "0x0000000000000000000000000000000000000000000000000000000000010185",
+    "initialOwner": "0xbdfcee82bd42fefa58ee850b3709636a8b6b0034",
+    "codeHash": "0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be",
+    "platform": "0x4743505f414d445f534556000000000000000000000000000000000000000000",
+    "publicKey": {
+      "x": "0x3620697f9c7ff48a005a85706524ca6a78942e02815c0a9fe5698791c8be838d",
+      "y": "0x3cd712231171e9c3a23424ff201474dd653a96ae09de1cfa508624bfb518d402"
+    },
+    "governanceHash": "0x2ce7a39fb65243420312436254f408bd5b4a3fa3ede73c294fae72a245068c74"
+  },
+  "teeInfoPublic": {
+    "chainId": 114,
+    "initialSigningPolicyId": 5931,
+    "lastSigningPolicyId": 5933,
+    "teeTimestamp": 1786578304
+  },
+  "attestationLen": 12316,
+  "hasProxySignature": true,
+  "hasDataSignature": true
+}
