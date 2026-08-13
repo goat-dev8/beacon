@@ -3,12 +3,32 @@ dist/
 build/
 out/
 cache/
-.env
-.env.local
-.env.*.local
-*.log
 coverage/
 .DS_Store
+*.log
+*.tsbuildinfo
+tmp/
+.tmp*
+tmp-*
+tmp-job.json
+data/*.json
+!data/.gitkeep
+
+# Secrets
+.env
+.env.*
+!.env.example
+!.env.example.*
+apps/web/.env
+apps/web/.env.local
+apps/web/.env.*.local
+
+# Local-only archive (research, films, historical evidence)
+.local/
+internal/
+debug/
+
+# FCC / Foundry local artifacts
 config/extension.env
 fce-beacon/config/extension.env
 fce-beacon/config/proxy/extension_proxy.coston2.docker.toml
@@ -17,24 +37,14 @@ fce-beacon-tmp/
 packages/contracts/out/
 packages/contracts/cache/
 packages/contracts/lib/
+packages/contracts/broadcast/
+
+# Optional media toolkits
 packages/remotion-pack/node_modules/
 packages/remotion-pack/dist/
 apps/web/node_modules/
 apps/web/dist/
-apps/web/.env
-apps/web/.env.local
-apps/web/.env.*.local
-*.tsbuildinfo
-tmp/
-.tmp*
-tmp-job.json
-data/*.json
-!data/.gitkeep
-
-tmp-*
 .vercel
-.env*
 
-# Hardware FCC image artifacts (local/build only)
+# Hardware image tarballs (rebuild locally)
 docs/evidence/hardware-fcc/*.tar
-
