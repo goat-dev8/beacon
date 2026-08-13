@@ -30,9 +30,20 @@ const headers = {
 };
 
 const TUNNEL_RE = /localhost|127\.0\.0\.1|trycloudflare\.com|ngrok|loca\.lt|cloudflare\.com\/tunnel/i;
+const RESERVED_EXT_PROXY_HOST = "policy-handful-outlast.ngrok-free.dev";
+
+function isReservedExtProxy(value) {
+  try {
+    return new URL(value).hostname === RESERVED_EXT_PROXY_HOST;
+  } catch {
+    return false;
+  }
+}
 
 function isForbiddenUrl(value) {
-  return typeof value === "string" && TUNNEL_RE.test(value);
+  if (typeof value !== "string") return false;
+  if (isReservedExtProxy(value)) return false;
+  return TUNNEL_RE.test(value);
 }
 
 async function render(pathname, { method = "GET", body } = {}) {
@@ -102,6 +113,7 @@ const MERGE_KEYS = [
   "INSTRUCTION_SENDER",
   "EXTENSION_ID",
   "TEE_ID",
+  "EXT_PROXY_URL",
   "NORMAL_PROXY_URL",
   "TEE_PROXY_URL",
   "FCC_MODE",
@@ -179,8 +191,8 @@ async function mergeEnvVars(serviceId, updates) {
     map.set(key, value);
   }
   for (const { key, value } of updates) {
-    if (key === "EXT_PROXY_URL") {
-      console.warn("never sync EXT_PROXY_URL from laptop — skip");
+    if (key === "EXT_PROXY_URL" && !isReservedExtProxy(value)) {
+      console.warn("skip EXT_PROXY_URL: only the reserved ngrok host may be synced");
       continue;
     }
     if (isForbiddenUrl(value)) {
@@ -189,7 +201,6 @@ async function mergeEnvVars(serviceId, updates) {
     }
     map.set(key, value);
   }
-  map.delete("EXT_PROXY_URL");
   return [...map.entries()].map(([key, value]) => ({ key, value }));
 }
 
