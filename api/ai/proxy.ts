@@ -107,17 +107,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const agentKey =
     process.env.AI_API_KEY || process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || "";
 
+  const pollenKey = process.env.POLLINATIONS_API_KEY || "";
+
   type Upstream = { status: number; text: string; route: string };
   const attempts: Upstream[] = [];
 
-  if (oidcToken) {
+  async function tryUpstream(
+    route: string,
+    fn: () => Promise<Response>,
+  ): Promise<boolean> {
+    try {
+      const upstream = await fn();
+      const text = await upstream.text();
+      attempts.push({ status: upstream.status, text, route });
+      return isRealCompletion(upstream.status, text);
+    } catch (err) {
+      attempts.push({
+        status: 503,
+        text: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
+        route: `${route}:error`,
+      });
+      return false;
+    }
+  }
+
+  if (agentKey) {
+    await tryUpstream(`agentrouter:${requested}`, () =>
+      fetch("https://agentrouter.org/v1/chat/completions", {
+        method: "POST",
+        headers: agentRouterHeaders(agentKey),
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(90_000),
+      }),
+    );
+  }
+
+  if (!attempts.some((a) => isRealCompletion(a.status, a.text)) && pollenKey) {
+    await tryUpstream(`pollinations:${requested}`, () =>
+      fetch("https://gen.pollinations.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${pollenKey}`,
+        },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(60_000),
+      }),
+    );
+  }
+
+  if (!attempts.some((a) => isRealCompletion(a.status, a.text)) && oidcToken) {
     const gatewayModel = requested.includes("/")
       ? requested
       : /^claude/i.test(requested)
         ? `anthropic/${requested}`
         : `openai/${requested}`;
-    try {
-      const upstream = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
+    await tryUpstream(`gateway:${gatewayModel}`, () =>
+      fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -125,36 +171,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         },
         body: JSON.stringify({ ...payload, model: gatewayModel }),
         signal: AbortSignal.timeout(40_000),
-      });
-      const text = await upstream.text();
-      attempts.push({ status: upstream.status, text, route: `gateway:${gatewayModel}` });
-    } catch (err) {
-      attempts.push({
-        status: 503,
-        text: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
-        route: "gateway:error",
-      });
-    }
-  }
-
-  const gatewayOk = attempts.some((a) => isRealCompletion(a.status, a.text));
-  if (!gatewayOk && agentKey) {
-    try {
-      const upstream = await fetch("https://agentrouter.org/v1/chat/completions", {
-        method: "POST",
-        headers: agentRouterHeaders(agentKey),
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(90_000),
-      });
-      const text = await upstream.text();
-      attempts.push({ status: upstream.status, text, route: `agentrouter:${requested}` });
-    } catch (err) {
-      attempts.push({
-        status: 503,
-        text: JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
-        route: "agentrouter:error",
-      });
-    }
+      }),
+    );
   }
 
   const winner =
@@ -162,12 +180,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!winner) {
     return res.status(503).json({
       error: "no_ai_upstream",
-      hint: "Gateway needs a card, or set AI_API_KEY on the Vercel proxy for AgentRouter.",
+      hint: "Set AI_API_KEY or POLLINATIONS_API_KEY on the Vercel proxy.",
     });
   }
 
   res.status(winner.status);
   res.setHeader("x-beacon-model-route", winner.route);
+  res.setHeader(
+    "x-beacon-ai-hops",
+    attempts.map((a) => `${a.route}:${a.status}`).join(","),
+  );
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   return res.send(winner.text);
 }
