@@ -197,8 +197,8 @@ function resolvePollinationsChatUrl(_env: BeaconEnv): string {
 
 /**
  * Production hops (no laptop):
- * 1) Optional Vercel Node proxy → Vercel AI Gateway (NOT AgentRouter)
- * 2) Pollinations OpenAI-compatible
+ * 1) Pollinations OpenAI-compatible (reachable from Render)
+ * 2) Vercel Node proxy → Gateway, then AgentRouter
  * 3) Direct AgentRouter last — WAF often rejects Render/Vercel ASNs
  */
 async function postChatCompletions(
@@ -264,11 +264,12 @@ async function postChatCompletions(
   };
 
   const hops: Array<() => Promise<CompletionHop>> = [];
-  // Production: Vercel proxy uses AI Gateway OIDC for openai/gpt-5.6-sol.
-  // Pollinations is secondary (may require pollen balance). Direct is last
-  // because AgentRouter WAF rejects Render/Vercel cloud ASNs.
-  if (hasAiProxy(env)) hops.push(tryProxy);
+  // Pollinations first: Vercel AI Gateway currently 403s without a card, and
+  // AgentRouter WAF blocks Render. Pollinations is the hop that actually
+  // completes from production. Proxy (Gateway + AgentRouter bypass) next.
+  // Direct AgentRouter last.
   if (pollinationsKey) hops.push(tryPollinations);
+  if (hasAiProxy(env)) hops.push(tryProxy);
   if (apiKey) hops.push(tryDirect);
   if (hops.length === 0) {
     throw new Error("No AI provider configured (gpt-5.6-sol key / proxy / Pollinations)");
