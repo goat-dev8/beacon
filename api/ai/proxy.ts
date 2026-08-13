@@ -1,16 +1,14 @@
 /**
  * Production AI proxy — Vercel Node.js serverless (NOT Edge).
  *
- * Hops:
- * 1) Vercel AI Gateway via deployment OIDC (openai/<model> or anthropic/<model>)
- * 2) AgentRouter OpenAI-compatible /v1/chat/completions (Claude Code headers)
+ * Hops (Singapore sin1):
+ * 1) AgentRouter OpenAI-compatible /v1/chat/completions with full Claude Code headers
+ * 2) Pollinations if AgentRouter WAF still challenges
  *
- * Gateway currently 403s without a card on file. AgentRouter is the working
- * generator path. Render cannot call AgentRouter directly (WAF), so this
- * proxy is the bypass.
- *
- * Auth from Render: x-beacon-proxy-secret or Bearer <AI_PROXY_SECRET>.
- * Never expose provider credentials to the browser.
+ * Vercel AI Gateway is skipped: it 403s without a card and was overwriting
+ * a successful AgentRouter hop. Docs: https://agentrouter.org/docs/codex.html
+ * (OPENAI_BASE_URL=https://agentrouter.org/v1) and
+ * https://agentrouter.org/docs/claude-code.html (ANTHROPIC_BASE_URL=https://agentrouter.org).
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
@@ -31,6 +29,12 @@ function readSecret(req: VercelRequest): string {
 }
 
 function agentRouterHeaders(apiKey: string): Record<string, string> {
+  // Must match Claude Code / Codex wire image. Missing Stainless OS/arch
+  // fields make AgentRouter's Singapore Cloudflare WAF return HTTP 200 HTML.
+  // Capitalize OS the way Stainless/Claude Code does (Linux not linux).
+  const os =
+    process.platform === "win32" ? "Windows" : process.platform === "darwin" ? "MacOS" : "Linux";
+  const arch = process.arch === "arm64" ? "arm64" : "x64";
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${apiKey}`,
@@ -43,7 +47,10 @@ function agentRouterHeaders(apiKey: string): Record<string, string> {
     "x-app": "cli",
     "X-Stainless-Lang": "js",
     "X-Stainless-Package-Version": "0.39.0",
+    "X-Stainless-OS": os,
+    "X-Stainless-Arch": arch,
     "X-Stainless-Runtime": "node",
+    "X-Stainless-Runtime-Version": process.version,
   };
 }
 
@@ -101,9 +108,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     stream: false,
   };
 
-  const oidcHeader = req.headers["x-vercel-oidc-token"];
-  const oidcToken =
-    (typeof oidcHeader === "string" ? oidcHeader : "") || process.env.VERCEL_OIDC_TOKEN || "";
   const agentKey =
     process.env.AI_API_KEY || process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || "";
 
@@ -156,40 +160,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     );
   }
 
-  if (!attempts.some((a) => isRealCompletion(a.status, a.text)) && oidcToken) {
-    const gatewayModel = requested.includes("/")
-      ? requested
-      : /^claude/i.test(requested)
-        ? `anthropic/${requested}`
-        : `openai/${requested}`;
-    await tryUpstream(`gateway:${gatewayModel}`, () =>
-      fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${oidcToken}`,
-        },
-        body: JSON.stringify({ ...payload, model: gatewayModel }),
-        signal: AbortSignal.timeout(40_000),
-      }),
-    );
-  }
-
-  const winner =
-    [...attempts].reverse().find((a) => isRealCompletion(a.status, a.text)) ?? attempts.at(-1);
+  const winner = attempts.find((a) => isRealCompletion(a.status, a.text));
+  const hopHeader = attempts.map((a) => `${a.route}:${a.status}`).join(",");
   if (!winner) {
-    return res.status(503).json({
-      error: "no_ai_upstream",
-      hint: "Set AI_API_KEY or POLLINATIONS_API_KEY on the Vercel proxy.",
+    res.setHeader("x-beacon-ai-hops", hopHeader);
+    return res.status(502).json({
+      error: "no_real_completion",
+      hops: hopHeader,
+      hint: "AgentRouter WAF HTML or upstream quota. Check x-beacon-ai-hops.",
     });
   }
 
   res.status(winner.status);
   res.setHeader("x-beacon-model-route", winner.route);
-  res.setHeader(
-    "x-beacon-ai-hops",
-    attempts.map((a) => `${a.route}:${a.status}`).join(","),
-  );
+  res.setHeader("x-beacon-ai-hops", hopHeader);
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   return res.send(winner.text);
 }

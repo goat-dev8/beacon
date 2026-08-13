@@ -91,7 +91,7 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
             },
             {
               role: "user",
-              content: `Service: ${job.serviceId}\nRequested generator: gpt-5.6-sol (fallback gpt-5.6-luna if Sol is unavailable)\n\nBrief:\n${job.briefText}${groundingBlock}`,
+              content: `Service: ${job.serviceId}\nRequested generator: gpt-5.6-sol (fallback claude-opus-4-8 if Sol is unavailable)\n\nBrief:\n${job.briefText}${groundingBlock}`,
             },
           ],
           { temperature: attempt === 1 ? 0.25 : 0.15, maxTokens, env },

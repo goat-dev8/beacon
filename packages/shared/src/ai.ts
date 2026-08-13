@@ -43,14 +43,22 @@ const DEFAULT_MODELS: Record<AiRole, string> = {
   acceptance: "claude-opus-4-8",
 };
 
+export function stainlessOsArch(): { os: string; arch: string } {
+  const os =
+    process.platform === "win32" ? "Windows" : process.platform === "darwin" ? "MacOS" : "Linux";
+  const arch = process.arch === "arm64" ? "arm64" : "x64";
+  return { os, arch };
+}
+
 /**
  * AgentRouter WAF only accepts Claude Code wire-image traffic.
  * Generic OpenAI SDK headers get `unauthorized client detected` even with a valid key.
- * Docs/community: ANTHROPIC_BASE_URL=https://agentrouter.org + Claude Code headers.
- * OpenAI-compatible path that works with the same wire image: POST /v1/chat/completions
- * Anthropic path: POST /v1/messages (?beta=true)
+ * Docs: ANTHROPIC_BASE_URL=https://agentrouter.org (no /v1) for Claude Code.
+ * OpenAI-compatible: OPENAI_BASE_URL=https://agentrouter.org/v1 — do not mix.
+ * Infra is Singapore; Render ASNs get WAF HTML, Vercel sin1 + full Stainless headers work.
  */
 export function buildAgentRouterHeaders(apiKey: string): Record<string, string> {
+  const { os, arch } = stainlessOsArch();
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${apiKey}`,
@@ -63,8 +71,8 @@ export function buildAgentRouterHeaders(apiKey: string): Record<string, string> 
     "x-app": "cli",
     "X-Stainless-Lang": "js",
     "X-Stainless-Package-Version": "0.39.0",
-    "X-Stainless-OS": process.platform === "win32" ? "Windows" : process.platform,
-    "X-Stainless-Arch": process.arch,
+    "X-Stainless-OS": os,
+    "X-Stainless-Arch": arch,
     "X-Stainless-Runtime": "node",
     "X-Stainless-Runtime-Version": process.version,
   };
@@ -140,7 +148,7 @@ export function mapVercelGatewayModel(requested: string): string {
 export function routingLayerForVia(
   via: AiHopVia,
 ): "vercel-ai-gateway" | "pollinations" | "agentrouter" {
-  if (via === "proxy") return "vercel-ai-gateway";
+  // Proxy is Vercel sin1 → AgentRouter, not Vercel AI Gateway.
   if (via === "pollinations") return "pollinations";
   return "agentrouter";
 }
@@ -197,9 +205,9 @@ function resolvePollinationsChatUrl(_env: BeaconEnv): string {
 
 /**
  * Production hops (no laptop):
- * 1) Pollinations OpenAI-compatible (reachable from Render)
- * 2) Vercel Node proxy → Gateway, then AgentRouter
- * 3) Direct AgentRouter last — WAF often rejects Render/Vercel ASNs
+ * 1) Vercel Node proxy in sin1 → AgentRouter (Singapore WAF + Claude Code headers)
+ * 2) Pollinations OpenAI-compatible
+ * 3) Direct AgentRouter last — WAF often rejects Render ASNs
  */
 async function postChatCompletions(
   payload: CompletionPayload,
@@ -264,22 +272,18 @@ async function postChatCompletions(
   };
 
   const hops: Array<() => Promise<CompletionHop>> = [];
-  // Pollinations first: Vercel AI Gateway currently 403s without a card, and
-  // AgentRouter WAF blocks Render. Pollinations is the hop that actually
-  // completes from production. Proxy (Gateway + AgentRouter bypass) next.
-  // Direct AgentRouter last.
-  if (pollinationsKey) hops.push(tryPollinations);
+  // Singapore proxy first (AgentRouter works from SEA residential + Vercel sin1
+  // with full Stainless headers). Pollinations next. Direct last (Render WAF).
   if (hasAiProxy(env)) hops.push(tryProxy);
+  if (pollinationsKey) hops.push(tryPollinations);
   if (apiKey) hops.push(tryDirect);
   if (hops.length === 0) {
     throw new Error("No AI provider configured (gpt-5.6-sol key / proxy / Pollinations)");
   }
 
-  let last: CompletionHop | null = null;
   for (const hop of hops) {
     try {
       const result = await hop();
-      last = result;
       if (isRealCompletion(result)) return result;
       errors.push(
         `${result.via}:${result.response.status}:${isWafOrHtmlBody(result.text) ? "waf_html" : result.text.slice(0, 80)}`,
@@ -289,8 +293,7 @@ async function postChatCompletions(
     }
   }
 
-  if (last) return last;
-  throw new Error(`AI unavailable (${errors.join(" | ")})`);
+  throw new Error(`AI unavailable (${errors.join(" | ") || "no hops"})`);
 }
 
 /** Stream Agent Router tokens; yields text deltas. Failures throw — never invent content. */
@@ -386,13 +389,11 @@ export async function chatForRole(
     role === "quote"
       ? [primary, "gpt-5.6-sol"]
       : role === "generator"
-        ? // Sol is the requested model. Luna is a real GPT-5.6 continuity
-          // route when Sol billing/credits are unavailable.
-          ["gpt-5.6-sol", primary, "gpt-5.6-luna"].filter(
-            (m, i, a) => a.indexOf(m) === i,
-          )
+        ? // Console-available models: gpt-5.6-sol, claude-opus-4-8, claude-opus-5.
+          // gpt-5.6-luna is not on this token.
+          ["gpt-5.6-sol", primary, "claude-opus-4-8"].filter((m, i, a) => a.indexOf(m) === i)
         : role === "acceptance"
-          ? [primary, "gpt-5.6-sol", "gpt-5.6-luna"].filter((m, i, a) => a.indexOf(m) === i)
+          ? [primary, "gpt-5.6-sol", "claude-opus-4-8"].filter((m, i, a) => a.indexOf(m) === i)
           : [primary, "gpt-5.6-sol"];
 
   const tried = new Set<string>();

@@ -5,6 +5,7 @@ import {
   mapVercelGatewayModel,
   resolveModelForRole,
   routingLayerForVia,
+  stainlessOsArch,
 } from "./ai.js";
 import { loadEnv, resetEnvCache } from "./env.js";
 
@@ -23,6 +24,14 @@ describe("AgentRouter wire headers", () => {
     expect(headers["anthropic-version"]).toBe("2023-06-01");
     expect(headers["x-app"]).toBe("cli");
     expect(headers["X-Stainless-Lang"]).toBe("js");
+    expect(headers["X-Stainless-OS"]).toBeTruthy();
+    expect(headers["X-Stainless-Arch"]).toBeTruthy();
+    expect(headers["X-Stainless-Runtime"]).toBe("node");
+    expect(headers["X-Stainless-Runtime-Version"]).toBeTruthy();
+    const { os, arch } = stainlessOsArch();
+    expect(headers["X-Stainless-OS"]).toBe(os);
+    expect(["Windows", "MacOS", "Linux"]).toContain(os);
+    expect(["x64", "arm64"]).toContain(arch);
   });
 
   it("normalizes base URL to /v1", () => {
@@ -64,7 +73,7 @@ describe("routing honesty", () => {
   });
 
   it("labels hops without calling the proxy AgentRouter", () => {
-    expect(routingLayerForVia("proxy")).toBe("vercel-ai-gateway");
+    expect(routingLayerForVia("proxy")).toBe("agentrouter");
     expect(routingLayerForVia("pollinations")).toBe("pollinations");
     expect(routingLayerForVia("direct")).toBe("agentrouter");
   });
