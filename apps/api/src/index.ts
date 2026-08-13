@@ -82,6 +82,7 @@ import { startEmbeddedWorkers } from "./workers.js";
 import { PIPELINE_CAPS } from "@beacon/pipeline";
 import { getFccLifecycleStatus } from "@beacon/fdc";
 import { attachHardwareCapFcc } from "./hardwareCapEvaluate.js";
+import { attachFdcFlow } from "./fdcFlow.js";
 import {
   assertPolicyAllows,
   DEFAULT_SECURITY_POLICY,
@@ -1688,6 +1689,12 @@ app.post("/v1/agents/chat", async (req) => {
     } catch (err) {
       app.log.warn({ err }, "hardware FCC attach skipped");
     }
+  }
+
+  try {
+    await attachFdcFlow(result, env, redis);
+  } catch (err) {
+    app.log.warn({ err }, "FDC Flow attach skipped");
   }
 
   let conversationId = body.conversationId ?? null;

@@ -12,6 +12,7 @@ import {
   Shield,
   Sparkles,
   Wallet,
+  BadgeCheck,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,7 @@ export const FLOW_FEATURES: FlowFeature[] = [
   { id: "bridge", label: "Bridge", prompt: "Bridge FXRP to Sepolia", icon: Network },
   { id: "x402", label: "x402", prompt: "Pay using x402", icon: Wallet },
   { id: "fassets", label: "FAssets", prompt: "Redeem FAssets", icon: Boxes },
+  { id: "fdc", label: "FDC", prompt: "Prove XRPL address with FDC", icon: BadgeCheck },
   { id: "portfolio", label: "Portfolio", prompt: "Analyze my Portfolio", icon: PieChart },
   { id: "signals", label: "Signals", prompt: "Show FTSO signals for FXRP", icon: LineChart },
   { id: "yield", label: "Yield", prompt: "Find best yield", icon: BarChart3 },

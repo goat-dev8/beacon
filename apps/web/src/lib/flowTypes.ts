@@ -90,6 +90,7 @@ export const LIVE_CARD_TYPES = new Set([
   "media_result",
   "authorization_receipt",
   "insufficient",
+  "fdc_receipt",
   "fassets_redeem_prep",
   "fassets_redeem_status",
 ]);

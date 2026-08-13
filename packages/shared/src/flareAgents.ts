@@ -96,6 +96,10 @@ export interface ConversationState {
   swapTokenIn?: string;
   swapTokenOut?: string;
   swapFee?: number;
+  fdcRequestId?: string;
+  fdcAddress?: string;
+  fdcTxHash?: string;
+  fdcVotingRound?: number;
 }
 
 export type AgentCard =
@@ -455,6 +459,26 @@ export type AgentCard =
       fccMode?: "verified" | "simulated";
       fccAllowed?: boolean;
       flarePrimitive?: string;
+    }
+  | {
+      type: "fdc_receipt";
+      title: string;
+      kind: "AddressValidity";
+      sourceId: string;
+      addressStr: string;
+      lifecycle: string;
+      pendingSubmit?: boolean;
+      pendingCheck?: boolean;
+      requestId?: string;
+      txHash?: string;
+      votingRound?: number;
+      txExplorer?: string | null;
+      roundExplorer?: string | null;
+      attestationExplorer?: string;
+      onChainVerified?: boolean;
+      isValid?: boolean | null;
+      honesty: string;
+      flarePrimitive: string;
     };
 
 export interface AgentChatResult {
@@ -627,6 +651,28 @@ export function extractAmount(message: string): string | null {
   const n = hit[1]!;
   if (n === "0" || n === "0.0") return null;
   return n;
+}
+
+function wantsFdcProof(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    /\bfdc\b/.test(m) ||
+    /address validity/.test(m) ||
+    /\battest(ation)?\b/.test(m) ||
+    /prove (this )?(xrpl|xrp|address)/.test(m)
+  );
+}
+
+function wantsFdcCheck(message: string): boolean {
+  const m = message.toLowerCase();
+  return /\bcheck\b/.test(m) && /\bfdc\b/.test(m);
+}
+
+const DEFAULT_FDC_XRPL = "rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe";
+
+function extractXrplAddress(message: string): string {
+  const hit = message.match(/\br[1-9A-HJ-NP-Za-km-z]{24,34}\b/);
+  return hit?.[0] ?? DEFAULT_FDC_XRPL;
 }
 
 function wantsConfirm(message: string): boolean {
@@ -891,6 +937,59 @@ export async function runBeaconAgentChat(opts: {
       env,
     });
     if (fulfilled) return fulfilled;
+  }
+
+  // FDC AddressValidity — real FdcHub submit, never a fake in-app proof.
+  if (wantsFdcProof(opts.message)) {
+    const addressStr = extractXrplAddress(opts.message) || prev?.fdcAddress || DEFAULT_FDC_XRPL;
+    const askingCheck = wantsFdcCheck(opts.message);
+    const check = askingCheck && Boolean(prev?.fdcRequestId);
+    const cards: AgentCard[] = [
+      {
+        type: "fdc_receipt",
+        title: check ? "FDC proof check" : "FDC AddressValidity",
+        kind: "AddressValidity",
+        sourceId: "testXRP",
+        addressStr,
+        lifecycle: check ? "Submitted" : "Requested",
+        pendingSubmit: !askingCheck,
+        pendingCheck: check,
+        requestId: prev?.fdcRequestId,
+        txHash: prev?.fdcTxHash,
+        votingRound: prev?.fdcVotingRound,
+        txExplorer: prev?.fdcTxHash
+          ? `https://coston2-explorer.flare.network/tx/${prev.fdcTxHash}`
+          : null,
+        roundExplorer: prev?.fdcVotingRound
+          ? `https://coston2-systems-explorer.flare.network/voting-round/${prev.fdcVotingRound}?tab=fdc`
+          : null,
+        attestationExplorer: "https://coston2-systems-explorer.flare.network/attestation-request",
+        honesty: check
+          ? "Checking DA proof for the submitted AddressValidity request. Proofs are never invented."
+          : "Beacon will prepare AddressValidity via the official verifier and submit to FdcHub on Coston2. This is a real attestation request, not a screenshot of the explorer homepage.",
+        flarePrimitive: "FDC AddressValidity",
+      },
+    ];
+    return {
+      agentId: "fassets",
+      text: check
+        ? `Checking FDC proof for **${addressStr}**…`
+        : askingCheck
+          ? "No FDC request in this chat yet. Type **Prove XRPL address with FDC** first."
+          : `Proving XRPL address **${addressStr}** with FDC AddressValidity on Coston2. Submitting to FdcHub…`,
+      cards,
+      model: "beacon-local",
+      displayModel: displayModelName("beacon-local", { fallback: true }),
+      paid: true,
+      state: {
+        intent: "fassets",
+        phase: "idle",
+        fdcAddress: addressStr,
+        fdcRequestId: prev?.fdcRequestId,
+        fdcTxHash: prev?.fdcTxHash,
+        fdcVotingRound: prev?.fdcVotingRound,
+      },
+    };
   }
 
   // Safe help before sticky swap/bridge state can swallow the turn.

@@ -90,15 +90,33 @@ Say: “Twelve versus a ten USDT0 cap. Balance is enough. The cap is not. Hardwa
 | **Open** | https://coston2-systems-explorer.flare.network/price-feeds?tab=block-latency |
 | **Say** | “Flare prices the move. Block-latency FTSO.” |
 
-### Flare proof (FDC)
+### Flare proof (FDC) — you submit from Beacon
 
-Flow does not submit a new FDC attestation from chat. Show the **live** FDC surface, not a memorized round.
+Do **not** start on the systems-explorer homepage (feeds + validators). That is not FDC.
+
+Stay on **FLOW**. Chip **FDC** (or paste the prompt). Beacon submits a real AddressValidity request to **FdcHub** on Coston2. Wait — this is an on-chain tx, ~10–20s.
+
+**Prompt**
+
+```
+Prove XRPL address with FDC
+```
+
+(Uses Flare’s test XRPL address `rPT1Sjq2YGrBMTttX4GZHjKu9dyfzbpAYe`. You can paste any `r…` address after the prompt.)
 
 | | |
 |---|---|
-| **Do** | Open the systems explorer FDC tab. Click a **FINALIZED** round. |
-| **Open** | https://coston2-systems-explorer.flare.network/ (FDC / voting rounds) |
-| **Say** | “When Beacon needs an external fact, Flare Data Connector attests it. This round finalized. We do not fake an in-app mint or attestation button.” |
+| **Do** | Send the prompt. Wait for **FDC submitted** + voting round number. |
+| **Open from the card** | **Open FdcHub tx** (this take’s submit). Then **Open FDC round** (tab **FDC**, wait until **FINALIZED** — often 90s–3min). |
+| **Then** | Back on Flow, tap **Check FDC proof**. Card must read **VERIFIED** (`verifyAddressValidity` true). |
+| **Say** | “Beacon asked Flare Data Connector to attest an XRPL address. FdcHub took the request. The round finalized. The DA proof verified on-chain. We did not fake a mint button.” |
+
+If the round is still pending, stay on the FDC tab until FINALIZED, then check again. Do not cut to an old round number.
+
+Direct URLs (only after the card gives you a round id):  
+https://coston2-systems-explorer.flare.network/attestation-request  
+https://coston2-systems-explorer.flare.network/voting-round/YOUR_ROUND?tab=fdc  
+Nav if you get lost: **FDC** dropdown on systems explorer — not the homepage search.
 
 ### Execution: LayerZero (you send)
 
@@ -183,7 +201,8 @@ You type only in Flow / Jobs / Safe. Other tabs are for the **new** links the UI
 8. https://coston2-systems-explorer.flare.network/tee/extensions/65925  
 9. https://coston2-systems-explorer.flare.network/price-feeds?tab=block-latency  
 10. https://coston2-systems-explorer.flare.network/fassets  
-11. Blank explorer tab — paste each **new** FCC / spend / fulfill / LZ / Jobs / x402 hash from the UI  
+11. https://coston2-systems-explorer.flare.network/attestation-request  ← FDC list (not the homepage)  
+12. Blank explorer tab — paste each **new** FCC / FDC / spend / fulfill / LZ / Jobs / x402 hash from the UI  
 
 ---
 
@@ -196,6 +215,8 @@ You type only in Flow / Jobs / Safe. Other tabs are for the **new** links the UI
 | ALLOW quote with no green strip after ~40s | TEE submit/poll failed; swap can still execute | Retry ALLOW once; if strip missing, still Execute and say policy ALLOW is on-chain Safe + server |
 | DENY card **Hardware FCC DENY** + **Open FCC instruction** | Correct | Open that hash. Do not Execute |
 | Jobs success says quality passed on **$0** | Wrong job / fail path | Success job must complete paid; fail brief must include `BEACON_E2E_GENERATION_FAIL` |
+| Systems explorer homepage (feeds + horses banner) | That is **not** FDC | Use the **Open FDC round** link from the Flow card, or nav **FDC** → attestation requests |
+| FDC card stuck on Requested with an error | Verifier/submit failed | Retry the prove prompt once; do not fake a round |
 
 Live health (optional pre-roll):  
 https://beacon-api-97gl.onrender.com/health · `/v1/fcc/status` → `hardwareClaim=true` · `simulatedTee=false` · `fccMode=verified`

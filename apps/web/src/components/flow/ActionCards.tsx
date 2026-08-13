@@ -361,6 +361,84 @@ export function ActionCard({
     );
   }
 
+  if (card.type === "fdc_receipt") {
+    const verified = card.onChainVerified === true;
+    const submitted = Boolean(card.txHash);
+    return (
+      <div
+        className={cn(
+          "overflow-hidden rounded-2xl border px-4 py-4",
+          verified
+            ? "border-signal/40 bg-signal/10"
+            : "border-[var(--p-border)] bg-[var(--p-card)]",
+        )}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-muted)]">
+            {String(card.title)}
+          </p>
+          <span className="rounded-full border border-signal/40 px-2 py-0.5 font-mono text-[10px] text-signal">
+            {verified ? "VERIFIED" : String(card.lifecycle)}
+          </span>
+        </div>
+        <p className="mt-3 text-sm text-[var(--p-fg)]">
+          AddressValidity · testXRP ·{" "}
+          <span className="font-mono text-xs">{String(card.addressStr)}</span>
+        </p>
+        {card.votingRound != null ? (
+          <p className="mt-1 font-mono text-[11px] text-[var(--p-muted)]">
+            Voting round {String(card.votingRound)}
+          </p>
+        ) : null}
+        {verified && card.isValid != null ? (
+          <p className="mt-1 text-sm text-[var(--p-accent-text)]">isValid · {String(card.isValid)}</p>
+        ) : null}
+        <p className="mt-2 text-xs text-[var(--p-muted)]">{String(card.honesty)}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {typeof card.txExplorer === "string" && card.txExplorer ? (
+            <a
+              href={card.txExplorer}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40"
+            >
+              Open FdcHub tx <ExternalLink className="size-3" />
+            </a>
+          ) : null}
+          {typeof card.roundExplorer === "string" && card.roundExplorer ? (
+            <a
+              href={card.roundExplorer}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40"
+            >
+              Open FDC round <ExternalLink className="size-3" />
+            </a>
+          ) : null}
+          {typeof card.attestationExplorer === "string" && card.attestationExplorer ? (
+            <a
+              href={card.attestationExplorer}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40"
+            >
+              Attestation requests <ExternalLink className="size-3" />
+            </a>
+          ) : null}
+        </div>
+        {submitted && !verified ? (
+          <button
+            type="button"
+            onClick={() => onQuickReply("Check FDC proof")}
+            className="mt-3 rounded-full bg-signal px-5 py-2 text-sm font-medium text-ink"
+          >
+            Check FDC proof
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
   if (card.type === "fassets_desk") {
     const managers = (card.managers as Array<{
       symbol: string;
