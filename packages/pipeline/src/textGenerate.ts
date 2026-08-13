@@ -40,7 +40,7 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
   } else if (!skipAiDraft) {
     // Keep the request bounded. Small coding/document jobs should not reserve
     // thousands of output tokens on metered gateways.
-    const maxTokens = sidEarly === "coding" ? 900 : 1200;
+    const maxTokens = maxTokensForService(sidEarly);
     const attempts = textService ? 3 : 1;
     let lastErr: unknown;
     for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -138,21 +138,37 @@ function normalizeGeneratedModel(model: string): string {
   return model || "unknown";
 }
 
-function generatorSystemPrompt(serviceId: string): string {
+function maxTokensForService(serviceId: string): number {
+  if (serviceId === "coding") return 900;
+  if (serviceId === "research" || serviceId === "analysis") return 2000;
+  if (
+    serviceId === "presentations" ||
+    serviceId === "documents" ||
+    serviceId === "planning" ||
+    serviceId === "agents"
+  ) {
+    return 1600;
+  }
+  if (serviceId === "marketing" || serviceId === "ui") return 1400;
+  return 1200;
+}
+
+export function generatorSystemPrompt(serviceId: string): string {
+  const common =
+    "Use markdown. Never ship placeholders, TODOs, scaffolds, or echo the brief back. Do not invent URLs, citations, or live market figures.";
   if (serviceId === "documents") {
     return [
-      "You are Beacon's documents generator (gpt-5.6-sol) for Agent Jobs on Flare Coston2.",
-      "Expand short briefs into a complete, usable markdown document pack.",
+      "You are Beacon's documents generator for Agent Jobs.",
+      "Expand short briefs into a complete, usable markdown document.",
       "For school / education briefs include: title, learning goals, outline or syllabus,",
       "lesson notes or worksheet, and a short parent/teacher note.",
-      "Be concrete and ready to hand to a student or teacher. Use markdown headings.",
-      "Do not refuse short briefs — expand them into real docs.",
-      "Never return a scaffold, placeholder, or echo-only reply.",
+      "Be concrete and ready to hand to a student or teacher.",
+      common,
     ].join(" ");
   }
   if (serviceId === "coding") {
     return [
-      "You are Beacon's coding generator powered by gpt-5.6-sol.",
+      "You are Beacon's coding generator.",
       "Produce a COMPLETE, RUNNABLE program that matches the brief exactly.",
       "Detect the requested language from the brief (Python, TypeScript, etc.). If Python is named, write Python.",
       "Output markdown with: (1) a short title, (2) one fenced code block with the full program, (3) a brief How to run section.",
@@ -161,11 +177,86 @@ function generatorSystemPrompt(serviceId: string): string {
       "Do not wrap the solution in export function run() that only returns the prompt text.",
     ].join(" ");
   }
+  if (serviceId === "research") {
+    return [
+      "You are Beacon Research for Agent Jobs.",
+      "Research the user's topic: protocols, products, competitors, markets, projects, or a specific question.",
+      "Structure with headings: What was researched, Key findings, Conclusions, Caveats, Source checklist.",
+      "Source checklist = search queries / official doc or product names only. Never invent URLs, paper titles, TVL, or audit scores.",
+      "If the topic is SparkDEX or a Flare DEX, include the honest Coston2 vs Mainnet caveat:",
+      "SparkDEX is Flare Mainnet; Coston2 SparkDEX SwapRouter is empty; Beacon Coston2 swaps use SwapDesk + FTSO.",
+      "Do not hijack unrelated topics into a Beacon product pitch. If unknown, say so.",
+      common,
+    ].join(" ");
+  }
+  if (serviceId === "marketing") {
+    return [
+      "You are Beacon's marketing generator.",
+      "Deliver usable campaign copy: positioning one-liner, 3 headline options, primary body copy, CTA, and channel notes (X, landing, email).",
+      "Match the brief's audience and tone. No generic 'revolutionize' filler.",
+      common,
+    ].join(" ");
+  }
+  if (serviceId === "design") {
+    return [
+      "You are Beacon's design generator.",
+      "Deliver a coherent design direction: concept, layout/composition notes, color + type, and export/handoff notes.",
+      "A visual creative is generated separately — write direction a designer can execute.",
+      common,
+    ].join(" ");
+  }
+  if (serviceId === "ui") {
+    return [
+      "You are Beacon's UI generator.",
+      "Deliver a useful UI spec: screen inventory, layout (mobile-first), key components, copy, and a fenced HTML+CSS sketch when a screen is requested.",
+      "Keep it implementable. No fake component libraries.",
+      common,
+    ].join(" ");
+  }
+  if (serviceId === "branding") {
+    return [
+      "You are Beacon's branding generator.",
+      "Deliver a coherent brand pack: name lockup notes, personality, color + type, do/don't usage, and a short rationale.",
+      "A mark visual is generated separately. Do not invent trademark claims.",
+      common,
+    ].join(" ");
+  }
+  if (serviceId === "analysis") {
+    return [
+      "You are Beacon's analysis generator.",
+      "Deliver an actual analysis: question, evidence/assumptions, findings, trade-offs, recommendation, and caveats.",
+      "Do not invent data. Label inferences as inferences.",
+      common,
+    ].join(" ");
+  }
+  if (serviceId === "presentations") {
+    return [
+      "You are Beacon's presentation generator.",
+      "Deliver a usable deck in markdown: title slide, 6–10 slides with headline + 3 bullets each, and speaker notes per slide.",
+      "One idea per slide. Ready to paste into slides.",
+      common,
+    ].join(" ");
+  }
+  if (serviceId === "planning") {
+    return [
+      "You are Beacon's planning generator.",
+      "Deliver an actionable plan: goal, success metric, sequenced milestones with owners/timeboxes if known, risks, and next action.",
+      common,
+    ].join(" ");
+  }
+  if (serviceId === "agents") {
+    return [
+      "You are Beacon's agent-brief generator.",
+      "Deliver a useful agent spec: role, tools, inputs/outputs, guardrails, failure modes, and a sample first user message.",
+      "Do not invent APIs that are not in the brief.",
+      common,
+    ].join(" ");
+  }
   return [
-    "You are Beacon's first-party generator powered by gpt-5.6-sol.",
-    "Produce concise, on-brief draft content for the requested deliverable. Use markdown.",
-    "Expand vague briefs into concrete deliverables — never return only the brief echoed back.",
-    "Never ship placeholders, scaffolds, or fake fallback content.",
+    "You are Beacon's first-party generator.",
+    "Produce concise, on-brief draft content for the requested deliverable.",
+    "Expand vague briefs into concrete deliverables.",
+    common,
   ].join(" ");
 }
 
@@ -232,7 +323,15 @@ export function isAcceptableTextDeliverable(
   }
   const brief = (briefText || "").trim();
   if (brief && text.replace(/\s+/g, " ") === brief.replace(/\s+/g, " ")) return false;
-  return text.length >= 120 || /^#\s+/m.test(text);
+  if (serviceId === "research" || serviceId === "analysis") {
+    const structured =
+      /what was researched|key findings|conclusions?|caveats?|recommendation/i.test(text);
+    return structured && text.length >= 400;
+  }
+  if (serviceId === "presentations") {
+    return /slide/i.test(text) && text.length >= 280;
+  }
+  return text.length >= 160 || /^#\s+/m.test(text);
 }
 
 function escapeRegExp(s: string): string {

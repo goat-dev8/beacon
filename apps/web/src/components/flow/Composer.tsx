@@ -12,7 +12,7 @@ type Props = {
 
 export function Composer({ input, onChange, onSend, pending, agentHint, onSuggestion }: Props) {
   return (
-    <div className="shrink-0 border-t border-[var(--p-border)] bg-[var(--p-rail)] px-4 py-2.5 md:px-6">
+    <div className="shrink-0 border-t border-[var(--p-border)] bg-[var(--p-rail)] px-3 py-2.5 md:px-6">
       <div className="mx-auto w-full max-w-[42rem]">
         <SuggestionChips onSelect={onSuggestion} disabled={pending} />
         {agentHint && (

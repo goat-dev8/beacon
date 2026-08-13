@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { estimateCost, evaluateSealedFit, formatPriceDisplay, hashBrief } from "./index.js";
+import { estimateCost, evaluateSealedFit, formatPriceDisplay, hashBrief, SERVICE_CATALOG } from "./index.js";
 
 describe("quote", () => {
   it("estimates micro video cost", () => {
@@ -38,4 +38,10 @@ describe("quote", () => {
     });
     expect(verdict.capability).toBe("FIT");
   }, 30_000);
+
+  it("describes Research as protocols/products/markets — not a vague pack", () => {
+    const research = SERVICE_CATALOG.find((s) => s.id === "research");
+    expect(research?.description.toLowerCase()).toContain("protocol");
+    expect(research?.description.toLowerCase()).not.toContain("competitor and market packs");
+  });
 });

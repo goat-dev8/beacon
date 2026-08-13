@@ -50,7 +50,7 @@ export function ArchitectureStrip() {
 
         <div className="mt-14 border border-dashed border-line bg-surface">
           <div className="flex flex-col lg:flex-row">
-            <div className="flex lg:w-[42%] lg:flex-col" role="tablist" aria-label="Architecture stages">
+            <div className="flex flex-col lg:w-[42%]" role="tablist" aria-label="Architecture stages">
               {ARCH_STEPS.map((step, i) => (
                 <button
                   key={step.id}

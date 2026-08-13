@@ -1159,18 +1159,27 @@ export function ActionCard({
   if (card.type === "bridge_clarify" || card.type === "media_clarify") {
     const prompts = (card.prompts as string[]) ?? [];
     const isVideo = false;
-    const isImage = card.kind === "image" || card.type === "media_clarify";
+    const isImage = card.kind === "image";
+    const isResearch = card.kind === "research";
     return (
       <div className="rounded-2xl border border-[var(--p-border)] bg-[var(--p-card)] p-4">
         <p className="font-mono text-[11px] uppercase tracking-widest text-[var(--p-muted)]">{card.title}</p>
-        <ul className="mt-3 space-y-1.5 text-sm text-[var(--p-muted)]">
-          {prompts.map((p) => (
-            <li key={p} className="flex gap-2">
-              <span className="text-[var(--p-accent-text)]">·</span>
-              {p}
-            </li>
-          ))}
-        </ul>
+        {isResearch && (
+          <p className="mt-2 text-sm leading-relaxed text-[var(--p-fg)]">
+            Research a protocol, product, competitor, market, project, or topic. You get findings,
+            conclusions, and caveats — not invented citations.
+          </p>
+        )}
+        {!isResearch && (
+          <ul className="mt-3 space-y-1.5 text-sm text-[var(--p-muted)]">
+            {prompts.map((p) => (
+              <li key={p} className="flex gap-2">
+                <span className="text-[var(--p-accent-text)]">·</span>
+                {p}
+              </li>
+            ))}
+          </ul>
+        )}
         {isVideo && (
           <div className="mt-3 flex flex-wrap gap-2">
             {["15", "30", "60"].map((d) => (
@@ -1181,6 +1190,20 @@ export function ActionCard({
                 className="rounded-full border border-[var(--p-border)] px-3 py-1.5 text-xs text-[var(--p-muted)] hover:border-signal/40"
               >
                 {d}s
+              </button>
+            ))}
+          </div>
+        )}
+        {isResearch && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {prompts.map((text) => (
+              <button
+                key={text}
+                type="button"
+                onClick={() => onQuickReply(text)}
+                className="max-w-full rounded-full border border-[var(--p-border)] px-3 py-1.5 text-left text-xs text-[var(--p-muted)] hover:border-signal/40"
+              >
+                {text}
               </button>
             ))}
           </div>
@@ -1509,7 +1532,7 @@ export function ActionCard({
           </a>
         )}
         {isImage && (
-          <img src={content} alt="Beacon result" className="mt-3 max-h-72 rounded-xl border border-[var(--p-border)]" />
+          <img src={content} alt="Beacon result" className="mt-3 max-h-72 w-full max-w-full rounded-xl border border-[var(--p-border)] object-contain" />
         )}
         {isResearch && content && (
           <div className="mt-3 border-t border-[var(--p-border)] pt-3">

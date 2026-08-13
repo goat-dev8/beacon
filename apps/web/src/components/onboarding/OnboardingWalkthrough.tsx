@@ -107,7 +107,7 @@ export function OnboardingWalkthrough({ open, onComplete }: Props) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={reduce ? undefined : { opacity: 0, y: 16, scale: 0.98 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-full max-w-md overflow-hidden rounded-[var(--p-radius)] border border-[var(--p-border)] bg-[var(--p-card)] shadow-[var(--p-shadow)]"
+            className="relative w-full max-w-md overflow-hidden rounded-[var(--p-radius)] border border-[var(--p-border)] bg-[var(--p-card)] shadow-[var(--p-shadow)] pb-[env(safe-area-inset-bottom,0px)]"
           >
             <button
               type="button"

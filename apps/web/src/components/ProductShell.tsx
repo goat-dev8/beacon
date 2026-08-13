@@ -56,6 +56,38 @@ function RailLink({
   );
 }
 
+function BottomLink({
+  to,
+  end,
+  label,
+  icon: Icon,
+}: {
+  to: string;
+  end: boolean;
+  label: string;
+  icon: typeof Sparkles;
+}) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className="flex min-w-0 flex-1 items-stretch justify-center"
+    >
+      {({ isActive }) => (
+        <span
+          className={cn(
+            "flex min-h-12 w-full flex-col items-center justify-center gap-0.5 px-1",
+            isActive ? "text-[var(--p-accent-text)]" : "text-[var(--p-faint)]",
+          )}
+        >
+          <Icon className="size-[18px]" strokeWidth={1.75} />
+          <span className="font-mono text-[9px] uppercase tracking-[0.12em]">{label}</span>
+        </span>
+      )}
+    </NavLink>
+  );
+}
+
 function ShellChrome() {
   const { theme, toggle } = useProductTheme();
   const location = useLocation();
@@ -80,8 +112,11 @@ function ShellChrome() {
         : "flow";
 
   return (
-    <div className="product-shell flex h-dvh max-h-dvh overflow-hidden" data-theme={theme}>
-      <aside className="flex w-[62px] shrink-0 flex-col items-stretch border-r border-[var(--p-border)] bg-[var(--p-rail)] py-3">
+    <div
+      className="product-shell flex h-dvh max-h-dvh flex-col overflow-hidden md:flex-row"
+      data-theme={theme}
+    >
+      <aside className="hidden w-[62px] shrink-0 flex-col items-stretch border-r border-[var(--p-border)] bg-[var(--p-rail)] py-3 md:flex">
         <Link
           to="/"
           className="mx-auto mb-3 grid size-9 place-items-center rounded-[var(--p-radius-sm)] bg-[var(--p-accent)] text-[var(--p-on-accent)] transition-transform duration-200 hover:scale-[1.04] active:scale-[0.97]"
@@ -125,7 +160,7 @@ function ShellChrome() {
       </aside>
 
       {/* Soft enter fade. Wallet lives above this so tab changes never flash Connect. */}
-      <div className="min-w-0 flex-1 overflow-hidden">
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         <AnimatePresence mode="popLayout" initial={false}>
           <motion.div
             key={routeKey}
@@ -138,6 +173,28 @@ function ShellChrome() {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      <nav
+        className="flex shrink-0 items-stretch border-t border-[var(--p-border)] bg-[var(--p-rail)] pb-[env(safe-area-inset-bottom,0px)] md:hidden"
+        aria-label="Beacon"
+      >
+        {NAV.map((item) => (
+          <BottomLink key={item.to} {...item} />
+        ))}
+        <button
+          type="button"
+          onClick={toggle}
+          className="flex min-h-12 w-12 shrink-0 flex-col items-center justify-center gap-0.5 text-[var(--p-faint)]"
+          aria-label="Toggle theme"
+        >
+          {theme === "dark" ? (
+            <Sun className="size-[18px]" strokeWidth={1.75} />
+          ) : (
+            <Moon className="size-[18px]" strokeWidth={1.75} />
+          )}
+          <span className="font-mono text-[9px] uppercase tracking-[0.12em]">Theme</span>
+        </button>
+      </nav>
     </div>
   );
 }

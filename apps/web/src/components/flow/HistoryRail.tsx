@@ -54,7 +54,7 @@ export function HistoryRail({
 }: Props) {
   if (!open) {
     return (
-      <div className="flex shrink-0 flex-col border-r border-[var(--p-border)] bg-[var(--p-rail)]">
+      <div className="hidden shrink-0 flex-col border-r border-[var(--p-border)] bg-[var(--p-rail)] md:flex">
         <button
           type="button"
           onClick={onToggle}
@@ -71,7 +71,7 @@ export function HistoryRail({
   return (
     <aside
       className={cn(
-        "flex w-[min(100vw-3rem,17.5rem)] shrink-0 flex-col border-r border-[var(--p-border)] bg-[var(--p-rail)]",
+        "flex w-[min(100%,17.5rem)] shrink-0 flex-col border-r border-[var(--p-border)] bg-[var(--p-rail)]",
         "absolute inset-y-0 left-0 z-30 shadow-[var(--p-shadow)] md:relative md:shadow-none",
       )}
       aria-label="Conversation history"

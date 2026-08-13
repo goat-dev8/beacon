@@ -56,7 +56,7 @@ export function Hero() {
         />
       </div>
 
-      <div className="relative z-10 mx-auto flex min-h-[min(100dvh,52rem)] max-w-7xl flex-col justify-between px-6 pb-16 pt-20 md:px-16 md:pb-24 md:pt-24">
+      <div className="relative z-10 mx-auto flex min-h-[min(100dvh,52rem)] max-w-7xl flex-col justify-between px-5 pb-12 pt-16 md:px-16 md:pb-24 md:pt-24">
         <motion.div
           initial={reduce ? false : { opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -65,7 +65,7 @@ export function Hero() {
           <p className="mb-4 font-mono text-[11px] uppercase tracking-[0.18em] text-signal-deep">
             Built on Flare
           </p>
-          <h1 className="max-w-[13ch] font-display text-[clamp(2.75rem,6.5vw,5.5rem)] font-extrabold leading-[0.98] tracking-[-0.04em] text-ink">
+          <h1 className="max-w-[13ch] font-display text-[clamp(2.15rem,10vw,5.5rem)] font-extrabold leading-[0.98] tracking-[-0.04em] text-ink">
             Where intent
             <br />
             becomes proof.
@@ -78,12 +78,21 @@ export function Hero() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.08, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         >
-          <p className="text-xl leading-relaxed tracking-tight text-ink-muted md:text-2xl">
+          <p className="text-base leading-relaxed tracking-tight text-ink-muted sm:text-xl md:text-2xl">
             Beacon is the Flare AI OS. FTSO prices the move. Policy and hardware FCC gate spend.
             Beacon Safe executes on Coston2. LayerZero and FAssets complete the path. Explorer
             receipts close the loop.
           </p>
-          <div className="mt-6">
+          <div className="mt-6 md:hidden">
+            <FacetCtaPair
+              left="Get Started"
+              right="Open Flow"
+              leftTo="/start"
+              rightTo="/flow"
+              size="md"
+            />
+          </div>
+          <div className="mt-6 hidden md:block">
             <FacetCtaPair
               left="Get Started"
               right="Open Flow"

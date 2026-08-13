@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  generatorSystemPrompt,
   isAcceptableTextDeliverable,
   isStubDeliverable,
   normalizeCodingMarkdown,
@@ -72,5 +73,44 @@ python main.py
 `;
     expect(isStubDeliverable(real, brief)).toBe(false);
     expect(isAcceptableTextDeliverable("coding", real, brief)).toBe(true);
+  });
+});
+
+describe("research deliverable gates", () => {
+  it("rejects a generic one-liner", () => {
+    expect(
+      isAcceptableTextDeliverable("research", "SparkDEX is a DEX on Flare.", "Research SparkDEX"),
+    ).toBe(false);
+  });
+
+  it("accepts a structured research brief", () => {
+    const body = `# Research SparkDEX
+
+## What was researched
+SparkDEX — Flare’s concentrated-liquidity DEX.
+
+## Key findings
+1. SparkDEX runs Uniswap v3-style pools on Flare Mainnet.
+2. Coston2 SparkDEX SwapRouter bytecode is empty; Beacon uses SwapDesk there.
+3. USDT0 on Coston2 is faucet test token, not mainnet USD₮0.
+
+## Conclusions
+Trade on SparkDEX on mainnet. Use Beacon Flow on Coston2 for SwapDesk tests.
+
+## Caveats
+Not financial advice. No invented URLs or TVL.
+
+## Source checklist
+- SparkDEX official documentation
+- Flare Developer Hub
+`;
+    expect(isAcceptableTextDeliverable("research", body, "Research SparkDEX")).toBe(true);
+  });
+
+  it("instructs the research generator to structure findings and never invent URLs", () => {
+    const prompt = generatorSystemPrompt("research").toLowerCase();
+    expect(prompt).toContain("what was researched");
+    expect(prompt).toContain("never invent urls");
+    expect(prompt).toContain("sparkdex");
   });
 });

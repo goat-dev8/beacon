@@ -199,7 +199,7 @@ export function ResultExperience({
       className={cn(
         "overflow-hidden rounded-2xl border border-line bg-surface",
         "shadow-[0_1px_0_rgba(255,255,255,0.03)]",
-        fullscreen && "fixed inset-3 z-50 flex flex-col md:inset-6",
+        fullscreen && "fixed inset-2 z-50 flex flex-col md:inset-6",
       )}
     >
       <header className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
@@ -325,7 +325,7 @@ export function ResultExperience({
           />
         )}
         {mode === "artifact" && isText && body && (
-          <div className="prose-beacon max-w-none text-[15px] leading-7 text-ink [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:border [&_pre]:border-line [&_pre]:bg-[#0d1117] [&_pre]:p-4 [&_code]:font-mono [&_code]:text-[13px] [&_h1]:font-display [&_h1]:text-2xl [&_h1]:font-semibold [&_h2]:mt-6 [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-semibold [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5">
+          <div className="prose-beacon max-w-none overflow-x-auto text-[15px] leading-7 text-ink [&_img]:max-w-full [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:rounded-xl [&_pre]:border [&_pre]:border-line [&_pre]:bg-[#0d1117] [&_pre]:p-4 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_code]:font-mono [&_code]:text-[13px] [&_h1]:font-display [&_h1]:text-xl [&_h1]:font-semibold sm:[&_h1]:text-2xl [&_h2]:mt-6 [&_h2]:font-display [&_h2]:text-lg [&_h2]:font-semibold sm:[&_h2]:text-xl [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-disc [&_ul]:pl-5">
             <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
               {body}
             </ReactMarkdown>
@@ -353,7 +353,7 @@ export function ResultExperience({
       animate={{ opacity: 1, y: 0 }}
       className="mx-auto w-full max-w-3xl"
     >
-      <h1 className="font-display text-3xl font-semibold tracking-tight md:text-4xl">
+      <h1 className="font-display text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
         {needsLook
           ? "Needs a quick look"
           : outcomePassed
@@ -396,7 +396,7 @@ export function ResultExperience({
       )}
 
       {needsLook && (
-        <div className="mt-6 flex gap-3">
+        <div className="mt-6 flex flex-wrap gap-3">
           <Button disabled={lookPending} onClick={() => onLook("accept")}>
             Accept
           </Button>

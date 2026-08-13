@@ -59,7 +59,8 @@ export const DISCOVERY_FEATURES: DiscoveryFeature[] = [
   {
     id: "research",
     title: "Research",
-    blurb: "Ask Beacon to brief a protocol, pair, or market path in plain language.",
+    blurb:
+      "Brief a protocol, product, competitor, market, project, or topic — findings, conclusions, caveats.",
     prompt: "Research SparkDEX",
     icon: Sparkles,
   },
@@ -124,7 +125,7 @@ export function FeatureDiscovery({ onTry, onOpenWhyFlare }: Props) {
   const reduce = useReducedMotion();
 
   return (
-    <div className="mx-auto w-full max-w-[42rem] px-4 pb-2 pt-1 md:px-6">
+    <div className="mx-auto w-full max-w-[42rem] px-3 pb-2 pt-1 md:px-6">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="font-display text-[18px] font-semibold tracking-tight text-[var(--p-fg)]">

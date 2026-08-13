@@ -30,7 +30,7 @@ export function ChatTopBar({
   onOpenWhyFlare,
 }: Props) {
   return (
-    <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--p-border)] bg-[var(--p-bg)] px-4 py-2.5 md:px-6">
+    <header className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--p-border)] bg-[var(--p-bg)] px-3 py-2.5 md:gap-3 md:px-6">
       <div className="flex min-w-0 items-center gap-2.5">
         {!historyOpen && (
           <button
@@ -82,7 +82,7 @@ export function ChatTopBar({
           </div>
         )}
         {wallet ? (
-          <span className="rounded-[var(--p-radius-sm)] border border-[var(--p-border)] px-3 py-1.5 font-mono text-[12px] text-[var(--p-muted)]">
+          <span className="max-w-[7.5rem] truncate rounded-[var(--p-radius-sm)] border border-[var(--p-border)] px-2.5 py-1.5 font-mono text-[12px] text-[var(--p-muted)] sm:max-w-none sm:px-3">
             {shortAddress(wallet)}
           </span>
         ) : (

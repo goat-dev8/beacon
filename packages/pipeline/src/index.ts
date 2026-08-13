@@ -18,7 +18,7 @@ export type PipelineStage = "plan" | "generate" | "compose" | "normalize";
 
 /** Bumped when deliverable composers change — exposed via /health for deploy proof. */
 export const PIPELINE_CAPS = {
-  version: "2026-08-08-gpt56sol-oidc",
+  version: "2026-08-13-jobs-research",
   imageSvg: true,
   imagePollinations: true,
   imageComfy: true,
@@ -142,6 +142,18 @@ async function composeDeliverable(
     return composeVideoDeliverable(job, inputs);
   }
 
+  const textPack = await composeMarkdownPack(job, inputs);
+  if (sid === "design" || sid === "branding") {
+    const visual = await composeImageDeliverable(job, inputs);
+    return [...textPack, ...visual.filter((a) => a.kind === "image")];
+  }
+  return textPack;
+}
+
+async function composeMarkdownPack(
+  job: PipelineJob,
+  inputs: StageArtifact[],
+): Promise<StageArtifact[]> {
   const packPath = path.join(job.outputDir, "deliverable.md");
   const draftUri = inputs.find((a) => a.kind === "draft")?.uri;
   let body = "";

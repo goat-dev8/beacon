@@ -54,6 +54,69 @@ const ICONS: Record<ServiceId, LucideIcon> = {
   agents: Code2,
 };
 
+const SERVICE_HINTS: Partial<
+  Record<ServiceId, { blurb: string; examples: string[]; placeholder?: string }>
+> = {
+  research: {
+    blurb:
+      "Research a protocol, product, competitor, market, project, or topic. You get what was researched, key findings, conclusions, and caveats — not invented citations.",
+    examples: [
+      "Research SparkDEX",
+      "Compare two DeFi protocols",
+      "Research the latest XRP ecosystem developments",
+      "Analyze a protocol before I use it",
+    ],
+    placeholder: "What should Beacon research?",
+  },
+  coding: {
+    blurb: "Describe the program or snippet you need. You should get runnable code, not a scaffold.",
+    examples: [
+      "Python calculator: two numbers and + - * / from input, print the result",
+      "TypeScript function that formats a Coston2 address",
+    ],
+  },
+  documents: {
+    blurb: "Reports, SOPs, school or work docs — say audience, length, and must-haves.",
+    examples: ["One-page SOP for depositing Coston2 USDT0 into Beacon Safe"],
+  },
+  marketing: {
+    blurb: "Campaign copy you can ship: headlines, body, CTA, channel notes.",
+    examples: ["Landing headlines for Beacon Safe on Flare Coston2"],
+  },
+  design: {
+    blurb: "Visual direction plus a generated creative. Name the surface, mood, and constraints.",
+    examples: ["App icon for a Flare wallet: signal green, geometric, dark background"],
+  },
+  image: {
+    blurb: "A generated still: thumbnail, product shot, or creative.",
+    examples: ["Square thumbnail: Beacon mark, paper background, signal-green accent"],
+  },
+  ui: {
+    blurb: "Layouts, components, and handoff notes. Prefer a single screen and platform.",
+    examples: ["Mobile jobs quote screen: price, Safe pay, wallet fallback"],
+  },
+  branding: {
+    blurb: "Name, personality, usage, and a generated mark visual.",
+    examples: ["Brand pack for a Coston2 research desk named Signal Brief"],
+  },
+  analysis: {
+    blurb: "A real analysis: question, findings, trade-offs, recommendation, caveats.",
+    examples: ["Analyze whether to swap USDT0→FXRP on Coston2 vs waiting for mainnet SparkDEX"],
+  },
+  presentations: {
+    blurb: "A usable deck: slides with headlines, bullets, and speaker notes.",
+    examples: ["8-slide deck: how Beacon Safe + FCC gates agent spend on Coston2"],
+  },
+  planning: {
+    blurb: "An actionable plan: goal, milestones, risks, next step.",
+    examples: ["Plan a 7-day Coston2 test: faucet, Safe, swap, one research job"],
+  },
+  agents: {
+    blurb: "An agent spec: role, tools, guardrails, sample first message.",
+    examples: ["Agent brief for a Flare research assistant that never invents URLs"],
+  },
+};
+
 const briefSchema = z.object({
   briefText: z.string().min(8, "Add a bit more detail.").max(20_000),
 });
@@ -361,9 +424,9 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
   return (
     <div className={cn("bg-paper", embedded ? "min-h-full" : "min-h-dvh crosshair-grid")}>
       <header className="sticky top-0 z-30 border-b border-line bg-surface/95 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-5">
+        <div className="mx-auto flex min-h-14 max-w-5xl flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-5">
           {embedded ? (
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
+            <p className="min-w-0 truncate font-mono text-[11px] uppercase tracking-[0.16em] text-ink-muted">
               {labelForStep(step)}
             </p>
           ) : (
@@ -372,7 +435,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               <span className="font-display text-lg font-bold">Beacon</span>
             </Link>
           )}
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
             {!embedded && (
               <Link
                 to="/flow"
@@ -381,7 +444,9 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 Flow
               </Link>
             )}
-            <Badge tone="signal">Live desk</Badge>
+            <Badge tone="signal" className="hidden min-[380px]:inline-flex">
+              Live desk
+            </Badge>
             {account ? (
               <Badge>{shortAddress(account)}</Badge>
             ) : (
@@ -405,7 +470,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-5 py-10">
+      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-5 sm:py-10">
         <StepRail step={step} />
 
         {!embedded && (
@@ -441,11 +506,11 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
             >
-              <h1 className="font-display text-3xl font-extrabold tracking-tight md:text-4xl">
+              <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl md:text-4xl">
                 Choose a service
               </h1>
-              <p className="mt-2 text-ink-muted">One tap. Then describe the job.</p>
-              <div className="mt-8 grid gap-0 border border-line sm:grid-cols-2 lg:grid-cols-3">
+              <p className="mt-2 text-sm text-ink-muted sm:text-base">One tap. Then describe the job.</p>
+              <div className="mt-6 grid gap-0 border border-line sm:mt-8 sm:grid-cols-2 lg:grid-cols-3">
                 {servicesQuery.isLoading &&
                   Array.from({ length: 7 }).map((_, i) => (
                     <Skeleton key={i} className="h-28 rounded-none border-b border-r border-line" />
@@ -480,7 +545,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                         setStep("describe");
                       }}
                       className={cn(
-                        "border-b border-r border-line bg-surface p-5 text-left transition-colors",
+                        "border-b border-r border-line bg-surface p-4 text-left transition-colors sm:p-5",
                         videoSoon
                           ? "cursor-not-allowed opacity-60"
                           : "hover:bg-paper-2",
@@ -525,19 +590,43 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               >
                 <ArrowLeft className="size-4" /> Back
               </button>
-              <h1 className="font-display text-3xl font-extrabold tracking-tight">Describe the job</h1>
-              <p className="mt-2 text-ink-muted">
+              <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
+                Describe the job
+              </h1>
+              <p className="mt-2 text-sm text-ink-muted sm:text-base">
                 Service: <span className="font-mono text-signal-deep">{serviceId}</span>
               </p>
+              {SERVICE_HINTS[serviceId]?.blurb && (
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-ink-muted">
+                  {SERVICE_HINTS[serviceId]?.blurb}
+                </p>
+              )}
+              {SERVICE_HINTS[serviceId]?.examples && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {SERVICE_HINTS[serviceId]!.examples.map((example) => (
+                    <button
+                      key={example}
+                      type="button"
+                      onClick={() => form.setValue("briefText", example, { shouldValidate: true })}
+                      className="max-w-full rounded-full border border-line bg-surface px-3 py-1.5 text-left text-xs text-ink-muted hover:border-signal/50 hover:text-ink"
+                    >
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              )}
               <form
-                className="mt-8 space-y-4"
+                className="mt-6 space-y-4 sm:mt-8"
                 onSubmit={form.handleSubmit((values) => createAndQuote.mutate(values.briefText))}
               >
                 <textarea
                   {...form.register("briefText")}
                   rows={8}
-                  placeholder="What should Beacon finish? Audience, tone, length, must-haves…"
-                  className="w-full resize-y border border-line bg-surface px-4 py-3 text-ink outline-none transition focus:border-ink focus:ring-2 focus:ring-signal/30"
+                  placeholder={
+                    SERVICE_HINTS[serviceId]?.placeholder ??
+                    "What should Beacon finish? Audience, tone, length, must-haves…"
+                  }
+                  className="w-full max-w-full resize-y border border-line bg-surface px-4 py-3 text-ink outline-none transition focus:border-ink focus:ring-2 focus:ring-signal/30"
                 />
                 {form.formState.errors.briefText && (
                   <p className="text-sm text-danger">{form.formState.errors.briefText.message}</p>
@@ -545,6 +634,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 <Button
                   type="submit"
                   size="lg"
+                  className="w-full sm:w-auto"
                   disabled={createAndQuote.isPending || (form.watch("briefText")?.trim().length ?? 0) < 8}
                 >
                   {createAndQuote.isPending ? (
@@ -567,12 +657,12 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               exit={{ opacity: 0, y: -8 }}
               className="mx-auto max-w-lg"
             >
-              <h1 className="font-display text-3xl font-extrabold tracking-tight">Your quote</h1>
-              <div className="mt-8 overflow-hidden rounded-2xl border border-line bg-surface p-6 shadow-[0_0_0_1px_rgba(255,255,255,0.02)]">
+              <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Your quote</h1>
+              <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-surface p-4 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] sm:mt-8 sm:p-6">
                 <p className="font-mono text-xs uppercase tracking-widest text-ink-faint">
                   Micro price · USDT0
                 </p>
-                <p className="mt-2 font-display text-4xl font-extrabold text-ink">{quote.priceDisplay}</p>
+                <p className="mt-2 break-all font-display text-3xl font-extrabold text-ink sm:text-4xl">{quote.priceDisplay}</p>
                 <p className="mt-2 text-sm text-ink-muted">ETA {formatEta(quote.etaSeconds)}</p>
                 {quote.breakdown && (
                   <dl className="mt-5 grid gap-2 border-t border-line pt-4 text-xs text-ink-muted sm:grid-cols-2">
@@ -661,9 +751,10 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 </div>
               )}
 
-              <div className="mt-6 flex flex-wrap items-center gap-3">
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                 <Button
                   size="lg"
+                  className="w-full sm:w-auto"
                   onClick={() => approveSafe.mutate()}
                   disabled={approveSafe.isPending || approve.isPending || !safeCanPay}
                 >
@@ -678,6 +769,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 <Button
                   size="lg"
                   variant="ghost"
+                  className="w-full sm:w-auto"
                   onClick={() => approve.mutate()}
                   disabled={approve.isPending || approveSafe.isPending || !account}
                 >
@@ -689,7 +781,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                     "Pay with wallet"
                   )}
                 </Button>
-                <Button variant="ghost" size="lg" onClick={() => setStep("describe")}>
+                <Button variant="ghost" size="lg" className="w-full sm:w-auto" onClick={() => setStep("describe")}>
                   Edit brief
                 </Button>
               </div>
@@ -715,7 +807,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               exit={{ opacity: 0, y: -8 }}
               className="mx-auto max-w-lg"
             >
-              <h1 className="font-display text-3xl font-extrabold tracking-tight">Live progress</h1>
+              <h1 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Live progress</h1>
               <p className="mt-2 text-ink-muted">
                 {status ? statusLabel(status) : "Starting…"}
                 {streamNote ? ` · ${streamNote}` : ""}
@@ -790,12 +882,12 @@ function StepRail({ step }: { step: Step }) {
   const labels = STEP_LABELS;
   const idx = items.indexOf(step);
   return (
-    <ol className="mb-10 flex flex-wrap gap-2">
+    <ol className="mb-8 flex flex-wrap gap-1.5 sm:mb-10 sm:gap-2">
       {items.map((s, i) => (
         <li
           key={s}
           className={cn(
-            "rounded-full px-3 py-1 font-mono text-[10px] uppercase tracking-wider transition-colors",
+            "rounded-full px-2.5 py-1 font-mono text-[9px] uppercase tracking-wider transition-colors sm:px-3 sm:text-[10px]",
             i <= idx
               ? "bg-signal text-ink"
               : "border border-line bg-transparent text-ink-faint",

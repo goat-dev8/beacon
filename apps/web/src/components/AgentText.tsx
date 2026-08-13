@@ -17,9 +17,20 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
       return <code key={key}>{part.slice(1, -1)}</code>;
     }
     if (/^https?:\/\//.test(part)) {
+      let label = part.replace(/^https?:\/\//, "").replace(/\/$/, "");
+      try {
+        const u = new URL(part);
+        const path =
+          u.pathname.length > 28
+            ? `${u.pathname.slice(0, 12)}…${u.pathname.slice(-10)}`
+            : u.pathname;
+        label = `${u.host}${path === "/" ? "" : path}`;
+      } catch {
+        if (label.length > 48) label = `${label.slice(0, 22)}…${label.slice(-14)}`;
+      }
       return (
-        <a key={key} href={part} target="_blank" rel="noreferrer">
-          {part.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+        <a key={key} href={part} target="_blank" rel="noreferrer" className="break-all">
+          {label}
         </a>
       );
     }

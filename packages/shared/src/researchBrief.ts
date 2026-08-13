@@ -10,60 +10,130 @@ export type ResearchBriefResult = {
   displayModel: string;
 };
 
+export const RESEARCH_EXAMPLE_PROMPTS = [
+  "Research SparkDEX",
+  "Compare two DeFi protocols",
+  "Research the latest XRP ecosystem developments",
+  "Analyze a protocol before I use it",
+] as const;
+
+const DEFAULT_FLARE_TOPIC =
+  "Flare Network for builders: FTSO signals, FAssets FXRP, SparkDEX on Flare Mainnet vs Coston2, LayerZero OFT bridges, and x402 agent micropayments";
+
 /** Catalog / @pay clicks are not a research scope. Use a real Flare default topic. */
 export function normalizeResearchTopic(raw: string): string {
   const cleaned = raw
     .replace(/^@\w+\s*/i, "")
     .replace(/^(pay(ment)?|confirm|yes|ok|run)\s*/i, "")
     .trim();
-  if (!cleaned || cleaned.length < 8) {
-    return "Flare Network for builders: FTSO signals, FAssets FXRP, SparkDEX USDT0, LayerZero OFT bridges, and x402 agent micropayments on Coston2";
+  if (!cleaned || cleaned.length < 8 || !hasNamedResearchTopic(cleaned)) {
+    return DEFAULT_FLARE_TOPIC;
   }
   return cleaned.slice(0, 600);
 }
 
+/**
+ * True when the user named a topic worth researching (protocol, product, market, etc.).
+ * Bare "research" / "what is research" still needs examples, not a quote.
+ */
+export function hasNamedResearchTopic(raw: string): boolean {
+  const cleaned = raw
+    .replace(/^@\w+\s*/i, "")
+    .replace(/^(please\s+)?(help me\s+)?/i, "")
+    .trim();
+  if (!cleaned) return false;
+  if (/^what is research\b/i.test(cleaned)) return false;
+  if (/^(research|brief|pack|help|topic)\??$/i.test(cleaned)) return false;
+  if (/\b(research|compare|analyze|analyse|brief)\s+\S{3,}/i.test(cleaned)) return true;
+  if (cleaned.length >= 12) return true;
+  return false;
+}
+
+function topicLooksLikeSparkDex(topic: string): boolean {
+  return /sparkdex|spark dex/i.test(topic);
+}
+
 function localResearchBrief(topic: string, ftsoLine: string): string {
+  const spark = topicLooksLikeSparkDex(topic);
+  const findings = spark
+    ? [
+        "SparkDEX is Flare’s Uniswap v3-style DEX (concentrated liquidity) used on Flare Mainnet for swaps such as USDT0 ↔ FXRP.",
+        "On Coston2, SparkDEX SwapRouter bytecode is empty. Beacon does not execute SparkDEX swaps there. Coston2 Safe swaps go through Beacon SwapDesk with an FTSOv2 guard.",
+        "Official Coston2 faucet USDT0 is Beacon’s EVM payment rail (Safe, Jobs, x402, SwapDesk). It is not Flare Mainnet USD₮0.",
+        "FXRP is the FAsset / LayerZero OFT rail. It is not a substitute for USDT0.",
+        ftsoLine
+          ? `Live FTSO context on Coston2 (not SparkDEX pool prices): ${ftsoLine}.`
+          : "Live pool TVL and SparkDEX quotes are not in this fallback brief — verify on SparkDEX / explorer before trading.",
+      ]
+    : [
+        `This brief is scoped to: ${topic}.`,
+        "Treat the following as orientation from Beacon’s model, not a live data scrape. Confirm anything that would move funds.",
+        "If the topic is a protocol or product: identify what it is, who it is for, how it works at a high level, and what to verify before using it.",
+        "If the topic is a market or competitor set: compare mechanism, risk, and what is actually live vs announced.",
+        ftsoLine
+          ? `Optional Coston2 FTSO context (only if prices are relevant): ${ftsoLine}.`
+          : "No live FTSO snapshot was attached to this fallback brief.",
+      ];
+
   return [
-    `Research brief`,
-    ``,
-    `Topic`,
+    `What was researched`,
     topic,
     ``,
-    `Executive snapshot`,
-    `Beacon delivers this paid brief on Flare Coston2 after an x402 settle in official faucet USDT0. The scope is builder-facing: what is live today, what to verify on explorer / docs, and where micropay fits.`,
-    ftsoLine ? `\nLive FTSO context\n${ftsoLine}` : "",
+    `Key findings`,
+    ...findings.map((line, i) => `${i + 1}. ${line}`),
     ``,
-    `Key points`,
-    `1. FTSO V2 feeds are the signal layer for pricing and bias. Prefer live reads over static screenshots.`,
-    `2. Official Coston2 faucet USDT0 is the Beacon EVM payment rail (Safe, Jobs, Flow SwapDesk, x402). SparkDEX Uniswap V3 USDT0→FXRP is Flare Mainnet only — Coston2 router bytecode is empty. FXRP is the FAsset / OFT rail, not a USDT0 substitute.`,
-    `3. LayerZero OFT moves FXRP off Coston2. Quote messaging fees with quoteSend, then approve + send. Destination fill is confirmed on LayerZero Scan, not invented by Beacon.`,
-    `4. x402 micropays unlock small resources (signals pack, logo still, research brief). Larger creative jobs should use Bound Work escrow.`,
-    `5. Security Center spend limits are server-enforced when Redis is configured. Pause anytime.`,
+    `Conclusions`,
+    spark
+      ? `Use SparkDEX on Flare Mainnet if you intend to trade on that DEX. Use Beacon Flow on Coston2 for SwapDesk + FTSO test execution — do not expect a SparkDEX router there.`
+      : `You can use this as a starting map. Verify current docs, deployments, and risk before you interact with the protocol or product.`,
     ``,
-    `Risks and unknowns`,
-    `- Testnet liquidity and OFT peer availability can change. Re-quote before every send.`,
-    `- Model narration can fail. Settlement is still on-chain. Re-open the receipt tx if the brief UI glitches.`,
-    `- Never treat Coston2 faucet USDT0 as Flare Mainnet SparkDEX USDT0.`,
+    `Caveats`,
+    `- This is not financial advice. Model knowledge can be stale.`,
+    `- Do not invent URLs, TVL, audit scores, or paper titles.`,
+    `- Re-check explorer / official docs before any spend.`,
+    spark ? `- Never treat Coston2 faucet USDT0 as Flare Mainnet SparkDEX USDT0.` : `- If a fact is unknown, it is omitted rather than guessed.`,
     ``,
-    `Source checklist (search these, do not invent URLs)`,
-    `- Flare Developer Hub · network Coston2 developer tools`,
-    `- Flare Developer Hub · FAssets swap / redeem guides`,
-    `- Flare Developer Hub · smart accounts · control USDT0 with viem`,
-    `- LayerZero docs · v2 deployments · Flare testnet`,
-    `- Coston2 explorer · verify settlement and OFT source txs`,
-    `- LayerZero Scan testnet · confirm destination delivery`,
-    ``,
-    `Next step`,
-    `Pick one path: pull FTSO signals, quote a SparkDEX swap, plan an OFT bridge, or open Bound Work for an escrowed creative job.`,
-  ]
-    .filter((line, i, arr) => !(line === "" && arr[i - 1] === ""))
-    .join("\n")
-    .trim();
+    `Source checklist (search these names — do not invent URLs)`,
+    spark
+      ? [
+          `- SparkDEX official documentation`,
+          `- Flare Developer Hub · SparkDEX / DEXes`,
+          `- Flare Developer Hub · FAssets and FTSO`,
+          `- Coston2 explorer · verify that SwapRouter is empty before assuming a testnet SparkDEX path`,
+          `- Beacon desk · SwapDesk is the Coston2 execute path`,
+        ].join("\n")
+      : [
+          `- Official project or protocol documentation`,
+          `- Flare Developer Hub (when the topic is Flare-related)`,
+          `- Relevant chain explorer for deployments`,
+          `- Project GitHub / audits if the user asked about safety`,
+        ].join("\n"),
+  ].join("\n");
+}
+
+function researchSystemPrompt(): string {
+  return `You are Beacon Research. The user paid for a usable brief on THEIR topic — not a Beacon product pitch.
+
+Write so a reader immediately understands:
+1. What was researched
+2. Key findings (concrete, numbered)
+3. Useful conclusions
+4. Important caveats
+
+Hard rules:
+- Structure with these plain headings (markdown ## is fine): What was researched, Key findings, Conclusions, Caveats, Source checklist.
+- Research the named topic. Protocols, products, competitors, markets, projects, and specific questions are all in scope.
+- Source checklist must be search queries / official product or doc names only. Never invent URLs, paper titles, TVL, audit scores, or citations.
+- If you are not sure, say so. Do not guess live prices, pool depth, or security reviews.
+- SparkDEX / Flare DEX caveat only when relevant: SparkDEX is Flare Mainnet; Coston2 SparkDEX SwapRouter bytecode is empty; Beacon Coston2 swaps use SwapDesk + FTSO; Coston2 faucet USDT0 is not mainnet USD₮0.
+- Do not hijack unrelated topics into FTSO / Safe / x402 marketing.
+- If live FTSO context is provided, use it only when prices help. Do not invent feed values.
+- Warm, clear, concise. No API keys, AgentRouter, or internal errors.`;
 }
 
 /**
  * Paid x402 research delivery. Always returns usable structured content.
- * Prefers Agent Router models; falls back to a Flare-grounded local brief (never a stub line).
+ * Prefers the configured generator model; falls back to a topic-grounded local brief (never a stub line).
  */
 export async function generateResearchBrief(opts: {
   topic: string;
@@ -103,39 +173,31 @@ export async function generateResearchBrief(opts: {
       [
         {
           role: "system",
-          content: `You are Beacon Research on Flare. The user already paid via x402 (Coston2 faucet USDT0).
-Write a REAL research brief they can use. Not a status line. Not "unlocked" marketing copy.
-
-Hard rules:
-- Structure with short plain headings (no markdown # required): Topic, Executive snapshot, Key points (5-8 bullets), Risks, Source checklist, Next step.
-- Source checklist must be search queries / official doc names only. Never invent URLs or paper titles you cannot verify.
-- If live FTSO context is provided, weave 1-2 sentences from it. Do not invent feed values.
-- Stay concrete about Flare primitives: FTSO, FAssets/FXRP, SparkDEX mainnet USDT0 vs Coston2 faucet USDT0, LayerZero OFT, x402.
-- Warm, clear, concise. No AgentRouter, API keys, or internal errors.`,
+          content: researchSystemPrompt(),
         },
         {
           role: "user",
           content: [
             `Topic: ${topic}`,
-            ftsoLine ? `Live FTSO (Coston2): ${ftsoLine}` : null,
+            ftsoLine ? `Live FTSO (Coston2, optional): ${ftsoLine}` : null,
             opts.settlementTxHash
               ? `Settlement tx (mention once, truncated): ${opts.settlementTxHash.slice(0, 10)}…`
               : null,
-            `Write the full brief now.`,
+            `Write the full brief now. Lead with what was researched, then findings, conclusions, caveats.`,
           ]
             .filter(Boolean)
             .join("\n"),
         },
       ],
-      { temperature: 0.35, maxTokens: 1800, env: opts.env },
+      { temperature: 0.3, maxTokens: 2200, env: opts.env },
     );
 
     const content = result.content.trim();
-    // Reject stub / status-only replies so payment always unlocks real substance.
     const looksStub =
-      content.length < 280 ||
+      content.length < 400 ||
       /paid research brief unlocked/i.test(content) ||
-      /delivering a structured outline/i.test(content);
+      /delivering a structured outline/i.test(content) ||
+      !/finding|conclusion|caveat|what was researched/i.test(content);
 
     if (looksStub) {
       return {

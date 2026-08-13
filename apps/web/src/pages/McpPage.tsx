@@ -270,12 +270,12 @@ export function McpPage() {
         aria-hidden
       />
 
-      <header className="relative mx-auto flex max-w-3xl items-center justify-between gap-3 px-5 pb-2 pt-6">
+      <header className="relative mx-auto flex max-w-3xl flex-col items-start gap-3 px-4 pb-2 pt-5 sm:flex-row sm:items-center sm:justify-between sm:px-5 sm:pt-6">
         <div className="min-w-0">
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--p-accent-text)]">
             Connect Agents
           </p>
-          <h1 className="mt-1 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+          <h1 className="mt-1 font-display text-2xl font-semibold tracking-tight sm:text-3xl md:text-4xl">
             Beacon MCP
           </h1>
           <p className="mt-2 max-w-lg text-sm leading-relaxed text-[var(--p-muted)]">
@@ -307,7 +307,7 @@ export function McpPage() {
         </div>
       </header>
 
-      <main className="relative mx-auto max-w-3xl space-y-10 px-5 pb-24 pt-4">
+      <main className="relative mx-auto max-w-3xl space-y-10 px-4 pb-24 pt-4 sm:px-5">
         <section className="grid gap-6 sm:grid-cols-2">
           <div>
             <h2 className="font-display text-lg font-semibold">What is Beacon MCP?</h2>

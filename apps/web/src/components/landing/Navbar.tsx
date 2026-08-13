@@ -26,7 +26,7 @@ export function Navbar() {
     <>
       <AnnouncementBar />
       <header className="sticky top-11 z-50 border-b border-line bg-surface/95 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between gap-4 px-5 md:px-8">
+        <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between gap-2 px-4 md:gap-4 md:px-8">
           <Link to="/" className="inline-flex items-center gap-2.5 text-ink" aria-label="Beacon home">
             <BeaconMark className="size-7 text-ink" />
             <span className="font-display text-lg font-bold tracking-tight">Beacon</span>
@@ -50,7 +50,12 @@ export function Navbar() {
             </Link>
           </nav>
 
-          <FacetCtaPair left="Get Started" right="Open Flow" leftTo="/start" rightTo="/flow" size="sm" />
+          <div className="md:hidden">
+            <FacetCtaPair left="Start" right="Flow" leftTo="/start" rightTo="/flow" size="sm" />
+          </div>
+          <div className="hidden md:block">
+            <FacetCtaPair left="Get Started" right="Open Flow" leftTo="/start" rightTo="/flow" size="sm" />
+          </div>
         </div>
       </header>
     </>

@@ -163,7 +163,7 @@ function GetStartedInner() {
         </button>
       </header>
 
-      <main className="relative z-10 mx-auto grid max-w-5xl gap-10 px-5 pb-24 pt-6 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:pt-10">
+      <main className="relative z-10 mx-auto grid max-w-5xl gap-8 px-4 pb-24 pt-4 sm:px-5 sm:pt-6 lg:grid-cols-[1fr_1.05fr] lg:items-center lg:pt-10">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-signal-deep">
             {String(step + 1).padStart(2, "0")} / {String(STEPS.length).padStart(2, "0")}
@@ -176,7 +176,7 @@ function GetStartedInner() {
               exit={reduce ? undefined : { opacity: 0, y: -10 }}
               transition={{ duration: 0.32, ease: [0.16, 1, 0.3, 1] }}
             >
-              <h1 className="mt-3 font-display text-4xl font-extrabold tracking-tight text-ink md:text-5xl">
+              <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-ink md:text-5xl">
                 {current.title}
               </h1>
               <p className="mt-4 max-w-md text-lg leading-relaxed text-ink-muted">{current.body}</p>
@@ -209,12 +209,12 @@ function GetStartedInner() {
             </div>
           )}
 
-          <div className="mt-10 flex flex-wrap items-center gap-3">
+          <div className="mt-10 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             {step > 0 && (
               <button
                 type="button"
                 onClick={() => setStep((s) => Math.max(0, s - 1))}
-                className="h-11 rounded-[10px] border border-line bg-surface px-5 font-display text-sm text-ink hover:bg-paper-2"
+                className="h-11 w-full rounded-[10px] border border-line bg-surface px-5 font-display text-sm text-ink hover:bg-paper-2 sm:w-auto"
               >
                 Back
               </button>
@@ -223,7 +223,7 @@ function GetStartedInner() {
               type="button"
               onClick={() => void next()}
               disabled={needsWallet && connecting}
-              className="h-11 bg-signal px-7 font-display text-sm font-semibold text-ink clip-facet-right hover:brightness-105 disabled:opacity-50"
+              className="h-11 w-full bg-signal px-7 font-display text-sm font-semibold text-ink clip-facet-right hover:brightness-105 disabled:opacity-50 sm:w-auto"
             >
               {needsWallet && !wallet
                 ? connecting

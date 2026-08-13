@@ -21,6 +21,7 @@ import { readFassetsDesk, prepareFassetsRedeemAmount, prepareFassetsRedeemLots, 
 import { readYieldVaultDesk } from "./yieldVaults.js";
 import { buildMarketIntelligence } from "./marketIntel.js";
 import { readPortfolioDesk } from "./portfolioDesk.js";
+import { hasNamedResearchTopic } from "./researchBrief.js";
 
 export { COSTON2_FXRP_OFT_ROUTES } from "./oftBridge.js";
 
@@ -72,7 +73,7 @@ export const BEACON_AGENTS: AgentDef[] = [
   { id: "trade", name: "Trade", blurb: "Signals → swap.", builtIn: true, x402PriceUsdt0: 0, mention: "@trade", flarePrimitive: "FTSO + SparkDEX" },
   { id: "desk", name: "Bound Work", blurb: "Escrow creative jobs.", builtIn: true, x402PriceUsdt0: 0, mention: "@desk", flarePrimitive: "x402 escrow" },
   { id: "image", name: "Image", blurb: "Creative generation.", builtIn: true, x402PriceUsdt0: 0, mention: "@image", flarePrimitive: "x402" },
-  { id: "research", name: "Research", blurb: "Scoped research packs.", builtIn: true, x402PriceUsdt0: 0, mention: "@research", flarePrimitive: "x402" },
+  { id: "research", name: "Research", blurb: "Protocols, products, competitors, markets, projects, topics.", builtIn: true, x402PriceUsdt0: 0, mention: "@research", flarePrimitive: "x402" },
 ];
 
 export type ConversationPhase =
@@ -509,7 +510,8 @@ const AGENT_SYSTEM: Record<BeaconAgentId, string> = {
   trade: "You are Beacon Trade. FTSO first; SparkDEX only when user confirms on Mainnet.",
   desk: "You are Bound Work. Escrow creative jobs with acceptance.",
   image: "You are Beacon Image. Small logos → x402. Large packs → Bound Offer.",
-  research: "You are Beacon Research. Scope then quote; small briefs can be x402.",
+  research:
+    "You are Beacon Research. Users research protocols, products, competitors, markets, projects, and topics. If they named a topic (e.g. Research SparkDEX), quote immediately. Explain findings, conclusions, and caveats. Never invent URLs.",
 };
 
 export type PaidResourceDef = {
@@ -552,7 +554,7 @@ export const PAID_RESOURCES: PaidResourceDef[] = [
     title: "Research brief",
     provider: "Beacon Research",
     priceUsdt0: "0.75",
-    reason: "Scoped written brief with sources checklist",
+    reason: "Written brief: what was researched, findings, conclusions, caveats (no invented URLs)",
     etaSeconds: 40,
     resource: "/v1/agents/resources/research-brief",
     flarePrimitive: "x402",
@@ -2505,32 +2507,32 @@ export async function runBeaconAgentChat(opts: {
       };
     }
 
-    // Research: clarify → x402 brief (not Bound Work by default)
+    // Research: named topic → x402 brief. Bare "research" gets examples, not a quiz.
     if (intent === "research") {
       const scoped =
         state.phase === "await_confirm" ||
-        /depth|source|pdf|slide|competitor|topic|outline|brief/i.test(m) ||
+        hasNamedResearchTopic(opts.message) ||
         m.length > 40;
       if (!scoped) {
         cards.push({
           type: "media_clarify",
-          title: "Research scope",
+          title: "What Research is for",
           kind: "research",
           prompts: [
-            "Topic?",
-            "Depth (scan / deep)?",
-            "Sources preference?",
-            "PDF or slides?",
-            "Competitor focus?",
+            "Research SparkDEX",
+            "Compare two DeFi protocols",
+            "Research the latest XRP ecosystem developments",
+            "Analyze a protocol before I use it",
           ],
           deskHref: "/flow/desk",
         });
         const narr = await narrate({
           intent: "research",
           userMessage: opts.message,
-          situation: "Clarify research scope before quoting. Do not charge yet.",
+          situation:
+            "Explain that Research covers protocols, products, competitors, markets, projects, and topics. Offer example prompts. Do not charge yet.",
           fallback:
-            "Let’s scope it first: **topic**, **depth**, **sources**, **PDF/slides?**, **competitors?**, then I’ll quote the research brief.",
+            "Research on Beacon is a paid brief on a **protocol, product, competitor, market, project, or topic**.\n\nTry: **Research SparkDEX**, **Compare two DeFi protocols**, **Research the latest XRP ecosystem developments**, or **Analyze a protocol before I use it**.\n\nYou get what was researched, key findings, conclusions, and caveats — no invented URLs.",
           env,
         });
         return {

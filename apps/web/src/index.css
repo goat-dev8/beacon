@@ -369,3 +369,24 @@
     );
   }
 }
+
+/* Phone viewports: keep product chrome inside the screen without a new design system. */
+@media (max-width: 430px) {
+  .product-shell img,
+  .product-shell video,
+  .product-shell canvas,
+  .product-shell iframe,
+  .product-shell svg {
+    max-width: 100%;
+  }
+
+  .product-shell pre,
+  .product-shell table {
+    max-width: 100%;
+  }
+
+  .product-shell table {
+    display: block;
+    overflow-x: auto;
+  }
+}
