@@ -381,10 +381,11 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
         const rec = data as { type?: string; payload?: { text?: string; stage?: string; status?: string } };
         const text = rec.payload?.text || rec.payload?.stage;
         if (rec.type === "thinking" && rec.payload?.text) {
-          setStreamNote(rec.payload.text);
+          const line = rec.payload.text;
+          setStreamNote(line);
           setThinkingLines((prev) => {
-            if (prev[prev.length - 1] === rec.payload!.text) return prev;
-            return [...prev.slice(-7), rec.payload!.text];
+            if (prev[prev.length - 1] === line) return prev;
+            return [...prev.slice(-7), line];
           });
         } else if (text) {
           setStreamNote(String(text));
