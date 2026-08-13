@@ -1,0 +1,108 @@
+{
+  "useCase": "amount_cap",
+  "valueProtection": {
+    "decision": "DENY",
+    "allow": false,
+    "deny": true,
+    "reasons": [
+      "Amount 100 USDT0 exceeds cap 10 USDT0",
+      "Per-job app limit is 25 USDT0; this spend is 100.00. Raise it under Safe → App limits (separate from on-chain Safe caps)."
+    ],
+    "checks": {
+      "useCase": "amount_cap",
+      "amountUsdt0": 100,
+      "amountCapUsdt0": 10,
+      "recipient": null,
+      "expiresAt": null,
+      "nowSec": 1786581176,
+      "underAmountCap": false
+    },
+    "canMoveFunds": false,
+    "teeResultVerified": false,
+    "note": "DENY — Amount 100 USDT0 exceeds cap 10 USDT0; Per-job app limit is 25 USDT0; this spend is 100.00. Raise it under Safe → App limits (separate from on-chain Safe caps)."
+  },
+  "serverPolicy": {
+    "allowed": false,
+    "reason": "Per-job app limit is 25 USDT0; this spend is 100.00. Raise it under Safe → App limits (separate from on-chain Safe caps).",
+    "policyVersion": "1.0.0",
+    "enforcement": "server",
+    "fccMode": "verified",
+    "checks": {
+      "policySource": "redis",
+      "spentTodayUsdt0": 0.00825,
+      "emergencyPause": false,
+      "agentId": "desk",
+      "amountUsdt0": 100,
+      "allowedChains": [
+        114,
+        14
+      ],
+      "sessionExpiryHours": 24,
+      "sessionStartedAt": null,
+      "sessionExpired": false,
+      "agentAllowed": true,
+      "perJobLimitUsdt0": 25
+    }
+  },
+  "shadowFcc": {
+    "status": "REAL",
+    "mode": "verified",
+    "allow": false,
+    "canMoveFunds": false,
+    "honestyLabel": "FCC verified mode — hardware-backed GCP Confidential Space (AMD SEV) shadow authorization. canMoveFunds: false. Do not treat as spend authority.",
+    "authorization": {
+      "actionHash": "closure-deny-1786581176677",
+      "policyHash": "v1.0.0:verified:amount_cap",
+      "nonce": "1786581176964",
+      "validAfter": "2026-08-13T00:32:56.964Z",
+      "validBefore": "2026-08-13T00:37:56.964Z",
+      "allow": false,
+      "reasonCommitment": "Amount 100 USDT0 exceeds cap 10 USDT0; Per-job app limit is 25 USDT0; this spend is 100.00. Raise it under Safe → App limits (separate from on-chain Safe caps).",
+      "timestamp": "2026-08-13T00:32:56.964Z"
+    }
+  },
+  "tee": {
+    "teeId": "0x2ebCFD562A24BDf0ea7b47F351f97d2140376506",
+    "flareTeeManager": "0x1a9C4A0f9D76c0b1D91d22E24E573a9b377618aE",
+    "teeMachineStatus": 2,
+    "teeMachineStatusLabel": "PRODUCTION",
+    "teeProduction": true,
+    "simulatedTee": false,
+    "attestationKind": "hardware",
+    "instructionPath": {
+      "senderReady": true,
+      "canSubmitInstruction": true,
+      "canPollResult": true,
+      "resultVerified": false,
+      "note": "Instruction submit possible; result poll reachable — still not auto-verified for fund movement."
+    },
+    "extProxyEphemeral": false
+  },
+  "onChainInstruction": {
+    "txHash": "0x1f47b9050647e57f681193e71d5981ead51bf6015f4ffdfd6ce9ff761b620ffc",
+    "instructionId": "0xdd69b252618fd296414d6c84bd43f08efdb46c52473ef7337f38fe7f0b56ab63",
+    "status": "status_0",
+    "teeSignedStatus": 0,
+    "log": "error: amount 100 USDT0 exceeds cap 10 USDT0",
+    "partial": false,
+    "resultPolled": true,
+    "resultVerified": false
+  },
+  "honesty": {
+    "serverPolicy": "REAL — Redis-backed spend accounting with fail-closed on unavailable",
+    "valueProtection": "DENY path clear — spend must not proceed on this decision",
+    "shadowFcc": "REAL — hardware-backed GCP Confidential Space (AMD SEV); still canMoveFunds:false",
+    "teeMachine": "PRODUCTION (status=2) hardware TEE 0x2ebCFD562A24BDf0ea7b47F351f97d2140376506 platform=GCP_AMD_SEV codeHash=0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be",
+    "onChainFcc": "PARTIAL — instruction result polled; canMoveFunds still false (no fake TEE verified spend)",
+    "fundsMoved": "NEVER — this endpoint does not move funds",
+    "hardwareClaim": "true — /info reports GCP_AMD_SEV with measured codeHash; FCC still cannot move funds",
+    "canMoveFunds": "false — kept false until result verified; never faked"
+  },
+  "daLayerNote": "Correct DA base: https://ctn2-data-availability.flare.network/ — proof path: /api/v1/fdc/proof-by-request-round-raw",
+  "docs": [
+    "https://dev.flare.network/fcc/overview",
+    "https://dev.flare.network/fcc/developer-guides"
+  ],
+  "_http": 200,
+  "_ms": 7691
+}

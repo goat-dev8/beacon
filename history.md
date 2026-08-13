@@ -20,27 +20,30 @@ Close every remaining verification gap. Old receipts cannot satisfy this pass.
 - Chrome swap 0.01 USDT0 spend `0x43d4bd65…` fulfill `0x5ceabe59…`. API swap 0.1 `0x6ad86e38…` / `0xaf9e5be2…`.
 - LZ 0.05 source `0x95b9b39d…` dest Sepolia `0xe0b3c54c…` DELIVERED. Chrome 0.01 source `0x994cb135…` dest `0x39fb9c28…` DELIVERED.
 - Jobs fail `85d91c00-…` refund `0x9f09bc5f…` Redis net-zero. Success `7ad705e0-…` settle `0x175d13e2…` Paid.
-- Production fail UI still showed “Paid $0.000000 · quality checks passed” until this Vercel deploy.
-- Chrome: Landing, Get Started, Safe, Flow swap execute, bridge execute, x402 cards, FAssets, Jobs, MCP, FTSO/TEE explorers.
+- Production fail UI after Vercel `9ab4702`: “Generation failed. You were not charged.” Amount $0.00 Status Not charged.
+- Chrome: Landing, Get Started, Safe, Flow swap execute, bridge execute, x402 cards, FAssets, Jobs fail+success, MCP (health/scopes/expiry/revoke, no private key), FTSO/TEE explorers.
+- Production Beacon evaluate DENY tx `0x1f47b905…0ffc` teeSignedStatus 0 log `amount 100 USDT0 exceeds cap 10 USDT0`. ALLOW tx `0x4e9d73f3…6ae2` status 1.
+- `npm test` 125/125 · `test:contracts` 52 · typecheck · web:build · web lint exit 0.
 
 ### Result
-Hardware signed DENY exists. Fresh x402/FDC/swap/LZ dest exist. Jobs refund accounting holds. UI copy fix ships with desk deploy.
+Hardware signed DENY exists on production Beacon. Fresh x402/FDC/swap/LZ dest exist. Jobs refund accounting holds. Fail UI copy is correct on Vercel.
 
 ### Remaining issue
-- Beacon-mediated `/v1/fcc/policy/evaluate` DENY with `onChainInstruction.teeSignedStatus=0` must be rechecked after Render picks up `TEE_ID=0x2ebC…` (pre-deploy status still listed paused 0xA5E9…).
 - MCP Claude/Cursor live tool execution remains a user-independent HANDOFF.
 - Smart Accounts STUB. FAssets mint remains XRPL/Xaman HANDOFF.
 - Historical Flow chat titles still mention MockUSDT0.
 
 ### Evidence
-`docs/evidence/final-production-verification.json` · `closure-fcc-hardware-allow.json` · `closure-fcc-hardware-deny.json` · `closure-x402-fresh.json` · `closure-fdc-fresh.json` · `closure-flow-swap.json` · `closure-chrome-swap.json` · `closure-lz-source.json` · `closure-lz-dest.json` · `closure-chrome-lz-dest.json` · `closeout-jobs-fail.json` · `closeout-jobs-success.json`
+`docs/evidence/final-production-verification.json` · `closure-fcc-hardware-allow.json` · `closure-fcc-hardware-deny.json` · `closure-fcc-beacon-deny.json` · `closure-fcc-beacon-allow.json` · `closure-x402-fresh.json` · `closure-fdc-fresh.json` · `closure-flow-swap.json` · `closure-chrome-swap.json` · `closure-lz-source.json` · `closure-lz-dest.json` · `closure-chrome-lz-dest.json` · `closeout-jobs-fail.json` · `closeout-jobs-success.json`
 
 ### Deployment
-Pending this commit push → Render merge (`TEE_ID`) → Vercel desk.
+- Git `9ab4702` pushed to `main`.
+- Render `dep-d9ugvd6417fc7386376g` live on `9ab4702` with `TEE_ID=0x2ebC…6506` and restored `EXT_PROXY_URL=https://policy-handful-outlast.ngrok-free.dev`. First merge had dropped the reserved ngrok; restored via Render env PUT. Follow-up `7819c9c` stops the merge script from deleting that host.
+- Vercel `beacon-desk` production Ready on `9ab4702` (GitHub auto-deploy, not a from-scratch CLI upload). Desk: https://beacon-desk.vercel.app API: https://beacon-api-97gl.onrender.com
 
 ---
 
-
+## 2026-08-12/13 - Closeout: hardware DENY diagnosis, Jobs Redis refund, LayerZero dest
 
 ### Timestamp
 2026-08-12 ~22:20–22:55 UTC (local 2026-08-13 ~01:20–02:00 UTC+3)

@@ -1,6 +1,7 @@
 {
   "pass": "2026-08-13-final-closure",
-  "at": "2026-08-13T00:10:00.000Z",
+  "at": "2026-08-13T00:33:12.000Z",
+  "finalStatus": "PASS",
   "network": "Flare Testnet Coston2",
   "chainId": 114,
   "production": {
@@ -27,29 +28,42 @@
     "NOT_SUPPORTED": ["in-app FAssets mint button", "SparkDEX SwapRouter on Coston2"]
   },
   "fcc_hardware_allow": {
-    "timestamp": "2026-08-12T23:49:26.518Z",
+    "timestamp": "2026-08-13T00:33:04.000Z",
+    "source": "POST https://beacon-api-97gl.onrender.com/v1/fcc/policy/evaluate submitInstruction=true",
     "teeId": "0x2ebCFD562A24BDf0ea7b47F351f97d2140376506",
     "codeHash": "0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be",
     "extension": 65925,
-    "instructionId": "0x0302a48a7688656b760f7af5dacf4e0859213d27d2554915b3fa2ab7d5ee722b",
-    "tx": "0x4e09f14b72ee7d23c9540a7229b7f4e6487bc735f58262fa227b671fe87eb54f",
-    "explorer": "https://coston2-explorer.flare.network/tx/0x4e09f14b72ee7d23c9540a7229b7f4e6487bc735f58262fa227b671fe87eb54f",
+    "instructionId": "0x8306ca3c37c20461132f929442acde6e04bbf4550500a8f00cce589bdcc5718c",
+    "tx": "0x4e9d73f3b306d725338e80837c85c027a9822e53af3cc0d5d1bd281cbeb36ae2",
+    "explorer": "https://coston2-explorer.flare.network/tx/0x4e9d73f3b306d725338e80837c85c027a9822e53af3cc0d5d1bd281cbeb36ae2",
     "teeSignedStatus": 1,
+    "log": "ok",
     "status": "PASS",
-    "verification": "Hardware EVALUATE FIT under-cap 1 vs 10 signed status 1 ALLOW"
+    "verification": "Production Beacon evaluate under-cap 1 vs 10; hardware signed status 1 ALLOW; canMoveFunds false",
+    "priorDirectEvaluate": {
+      "instructionId": "0x0302a48a7688656b760f7af5dacf4e0859213d27d2554915b3fa2ab7d5ee722b",
+      "tx": "0x4e09f14b72ee7d23c9540a7229b7f4e6487bc735f58262fa227b671fe87eb54f"
+    }
   },
   "fcc_hardware_deny": {
-    "timestamp": "2026-08-12T23:49:21.074Z",
+    "timestamp": "2026-08-13T00:32:56.000Z",
+    "source": "POST https://beacon-api-97gl.onrender.com/v1/fcc/policy/evaluate submitInstruction=true",
     "teeId": "0x2ebCFD562A24BDf0ea7b47F351f97d2140376506",
     "codeHash": "0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be",
     "extension": 65925,
-    "instructionId": "0x79d8399401e62e2d8b34d38dc7225b6839ab859751dd5ae68658790dbe6f57cc",
-    "tx": "0xb3736564d2c254eace45c954a00dd6d5b2c628f839a5e8559f13e0a4344c2c5d",
-    "explorer": "https://coston2-explorer.flare.network/tx/0xb3736564d2c254eace45c954a00dd6d5b2c628f839a5e8559f13e0a4344c2c5d",
+    "instructionId": "0xdd69b252618fd296414d6c84bd43f08efdb46c52473ef7337f38fe7f0b56ab63",
+    "tx": "0x1f47b9050647e57f681193e71d5981ead51bf6015f4ffdfd6ce9ff761b620ffc",
+    "explorer": "https://coston2-explorer.flare.network/tx/0x1f47b9050647e57f681193e71d5981ead51bf6015f4ffdfd6ce9ff761b620ffc",
     "teeSignedStatus": 0,
     "log": "error: amount 100 USDT0 exceeds cap 10 USDT0",
+    "beaconDecision": "DENY",
+    "fundsMoved": false,
     "status": "PASS",
-    "verification": "Well-formed over-cap EVALUATE; hardware signed status 0; not malformed input; not Beacon intercept"
+    "verification": "Well-formed over-cap 100 vs 10 submitted through production Beacon; hardware signed status 0; not malformed input; not Beacon intercept",
+    "priorDirectEvaluate": {
+      "instructionId": "0x79d8399401e62e2d8b34d38dc7225b6839ab859751dd5ae68658790dbe6f57cc",
+      "tx": "0xb3736564d2c254eace45c954a00dd6d5b2c628f839a5e8559f13e0a4344c2c5d"
+    }
   },
   "x402_fresh_settlement": {
     "timestamp": "2026-08-12T23:52:07.727Z",
@@ -145,8 +159,9 @@
     "receipt": { "statusLabel": "Not charged", "accept": "FAIL", "amountUsdt0": "0" },
     "redisNetZero": true,
     "safeUsdt0Unchanged": "9.827033",
+    "chromeUiPostDeploy": "Generation failed. You were not charged. Amount $0.00 Status Not charged",
     "status": "PASS",
-    "verification": "generation_failed → CLOSED → refund → Not charged. UI copy fix ships with this Vercel deploy."
+    "verification": "generation_failed → CLOSED → refund → Not charged. Production desk copy is fail copy, not quality-passed."
   },
   "jobs_success_fresh": {
     "timestamp": "2026-08-13T00:04:34.696Z",
@@ -196,16 +211,27 @@
     "verification": "Chrome Safe page: owner/executor/caps/pause/USDT0 live"
   },
   "production_health": {
-    "timestamp": "2026-08-13T00:04:00.000Z",
+    "timestamp": "2026-08-13T00:32:16.672Z",
     "health": "https://beacon-api-97gl.onrender.com/health",
     "ok": true,
     "chainId": 114,
     "simulatedTee": false,
     "fccMode": "verified",
-    "preDeployFccNote": "Before this-pass Render deploy, /v1/fcc/status still listed paused teeId 0xA5E9… (status 4). Post-deploy must show 0x2ebC… status 2 hardwareClaim true.",
+    "renderDeploy": "dep-d9ugvd6417fc7386376g live commit 9ab4702",
+    "vercelDeploy": "beacon-desk production Ready commit 9ab4702 https://beacon-desk.vercel.app",
+    "fccStatus": {
+      "teeId": "0x2ebCFD562A24BDf0ea7b47F351f97d2140376506",
+      "teeMachineStatus": 2,
+      "platformAscii": "GCP_AMD_SEV",
+      "codeHash": "0xb11215743d8b701bd757442cce17ec0c3a12d98e2d5ca083f6a92aa5fd9333be",
+      "attestationKind": "hardware",
+      "hardwareClaim": true,
+      "canMoveFunds": false,
+      "proxyReachable": true
+    },
     "mcpHealth": true,
     "mcpEndpoint": "https://beacon-api-97gl.onrender.com/mcp",
-    "status": "PASS_PENDING_POST_DEPLOY"
+    "status": "PASS"
   },
   "chrome_e2e": {
     "timestamp": "2026-08-13T00:00:00.000Z",
@@ -222,7 +248,7 @@
       "flowBridgeExecute": "PASS — source 0x994cb135… dest DELIVERED 0x39fb9c28…",
       "x402Ui": "PASS — $0.25/$0.50/$0.75 USDT0 ERC-20 pull cards; settlement via API 0x104da10b…",
       "fassets": "PASS — mint handoff copy",
-      "jobsFailCopyPreDeploy": "FAIL_UI — production still showed Paid $0.000000 · quality checks passed; code fixed, Vercel deploy this pass",
+      "jobsFailCopy": "PASS — Generation failed. You were not charged. Amount $0.00 Status Not charged",
       "jobsSuccess": "PASS — Paid $0.008250 · quality checks passed",
       "mcp": "PASS — health, scopes, expiry, revoke; no private key",
       "explorers": "PASS — FTSO 62 feeds, TEE 65925 v0.1.3, FDC round 1423862"
