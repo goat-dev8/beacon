@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SECURITY_POLICY,
   isLegacyTightDefaultPolicy,
+  isSessionExpired,
   migrateStoredPolicy,
   recordSpendUsdt0,
   reverseSpendUsdt0,
@@ -56,5 +57,28 @@ describe("security policy demo defaults", () => {
     await recordSpendUsdt0(redis as never, wallet, 0.008);
     expect(await reverseSpendUsdt0(redis as never, wallet, 0.008)).toBe(0);
     expect(await reverseSpendUsdt0(redis as never, wallet, 1)).toBe(0);
+  });
+
+  it("does not expire a policy that only has updatedAt", () => {
+    const stale = {
+      ...DEFAULT_SECURITY_POLICY,
+      updatedAt: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
+    };
+    expect(isSessionExpired(stale)).toBe(false);
+  });
+
+  it("expires only when sessionStartedAt is older than sessionExpiryHours", () => {
+    const expired = {
+      ...DEFAULT_SECURITY_POLICY,
+      sessionExpiryHours: 24,
+      sessionStartedAt: new Date(Date.now() - 25 * 3600 * 1000).toISOString(),
+    };
+    expect(isSessionExpired(expired)).toBe(true);
+    expect(
+      isSessionExpired({
+        ...expired,
+        sessionExpiryHours: 0,
+      }),
+    ).toBe(false);
   });
 });

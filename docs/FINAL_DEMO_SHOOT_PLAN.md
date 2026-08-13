@@ -1,7 +1,7 @@
 # Beacon demo shoot plan — you run every tx
 
 Record on **Coston2 (114)** at https://beacon-desk.vercel.app  
-Wallet: `0x3bE5…c794` · Safe: `0x9687…A0A6` · Per-trade cap **10 USDT0** · Rolling **50**
+Wallet (owner): `0xBDfC…0034` · Safe: `0xc7D9…d5ac` · Available **5 USDT0** · Per-trade cap **3 USDT0** · Rolling **50**
 
 Story: **Intent → Policy → Hardware TEE → Flare data/proof → Execution → Receipt.**
 
@@ -9,11 +9,13 @@ This take is **live**. Do not cut to old explorer hashes. After each action, ope
 
 Wait up to **~40 seconds** after ALLOW / DENY prompts. The hardware TEE must sign on-chain. Do not refresh.
 
+If Flow says **Security session expired after 24h**, hard-refresh and send the prompt again (server session now renews). You do not need to re-save App limits.
+
 ---
 
 ## Exact FCC prompts (this order)
 
-**ALLOW** (under the 10 USDT0 per-trade cap — also under your ~13.8 Safe balance):
+**ALLOW** (under the 3 USDT0 per-trade cap — also under your 5 USDT0 Safe balance):
 
 ```
 Swap 0.01 USDT0 to FXRP from Beacon Safe
@@ -22,16 +24,16 @@ Swap 0.01 USDT0 to FXRP from Beacon Safe
 Wait for the green strip **Hardware TEE · ALLOW status 1** and **Open FCC instruction**.  
 Then **Confirm swap** → **Execute from Beacon Safe**. Open the **new** spend + fulfill hashes from that card.
 
-**DENY** (over the 10 cap, still under Safe balance — this is the real policy violation, not “not enough USDT0”):
+**DENY** (over the 3 cap, still under Safe balance — this is the real policy violation, not “not enough USDT0”):
 
 ```
-Swap 12 USDT0 to FXRP from Beacon Safe
+Swap 4 USDT0 to FXRP from Beacon Safe
 ```
 
 Wait for **Hardware FCC DENY** / **status 0** and **Open FCC instruction**.  
 Do **not** Execute. No money moves.
 
-Do **not** use `Swap 100 USDT0…` for this Safe. 100 is over the cap **and** over the ~13.8 balance; the old Flow path showed a balance miss and never reached hardware FCC. **12** is the clean DENY: 12 > 10 cap, 12 < balance.
+Do **not** use `Swap 12 USDT0…` or `Swap 100 USDT0…` for this Safe. 12 and 100 are over the **5 USDT0** balance, so Flow would show a balance miss instead of a cap DENY. **4** is the clean DENY: 4 > 3 cap, 4 < 5 balance.
 
 ---
 
@@ -43,7 +45,7 @@ Do **not** use `Swap 100 USDT0…` for this Safe. 100 is over the cap **and** ov
 |---|---|
 | **Do** | Open landing. Pause on the hero. Click **Get Started**. |
 | **Type** | nothing |
-| **Show** | “Where intent becomes proof.” Wallet `0x3bE5…c794` · Coston2 114. |
+| **Show** | “Where intent becomes proof.” Wallet `0xBDfC…0034` · Coston2 114. |
 | **Say** | “Beacon is the Flare AI OS. An agent does not get a hot wallet. Intent goes in. Policy and hardware compute gate spend. Flare executes. You get a receipt.” |
 
 ### Policy (Safe)
@@ -51,9 +53,9 @@ Do **not** use `Swap 100 USDT0…` for this Safe. 100 is over the cap **and** ov
 | | |
 |---|---|
 | **Do** | Click **SAFE**. Scroll the policy row once. |
-| **Show** | Banner **Confidential policy (hardware TEE)**. Safe `0x9687…A0A6`. Available balance. Per-trade **10**. Rolling **50**. Paused **No**. Executor `0xBDfC…`. |
+| **Show** | Banner **Confidential policy (hardware TEE)**. Safe `0xc7D9…d5ac`. Available **5 USDT0**. Per-trade **3**. Rolling **50**. Paused **No**. Owner/executor `0xBDfC…0034`. |
 | **Open** | The Safe address explorer link from the card (live). |
-| **Say** | “Budget lives in Beacon Safe. Ten USDT0 per trade. Fifty rolling. The Safe is the spend boundary — FCC cannot move funds.” |
+| **Say** | “Budget lives in Beacon Safe. Three USDT0 per trade. Fifty rolling. The Safe is the spend boundary — FCC cannot move funds.” |
 
 ### Hardware ALLOW — then you execute
 
@@ -71,14 +73,14 @@ Say: “Under the cap. Hardware TEE signs ALLOW — status 1. Then the Safe spen
 ### Hardware DENY — you do not execute
 
 1. **New chat** (so the ALLOW card is not the live surface).
-2. Paste: `Swap 12 USDT0 to FXRP from Beacon Safe`
+2. Paste: `Swap 4 USDT0 to FXRP from Beacon Safe`
 3. Send. **Wait** for **Hardware FCC DENY** / **BLOCKED** / **status 0**.
 4. Click **Open FCC instruction** — that tab is **this take’s** DENY tx (status 0).
 5. Optional 1s flash: https://coston2-systems-explorer.flare.network/tee/extensions/65925  
    TEE `0x2ebC…6506` · GCP_AMD_SEV · status **2**.
 6. Do **not** Execute.
 
-Say: “Twelve versus a ten USDT0 cap. Balance is enough. The cap is not. Hardware signed status zero. No execution. No money moved.”
+Say: “Four versus a three USDT0 cap. Balance is enough. The cap is not. Hardware signed status zero. No execution. No money moved.”
 
 ### Flare data (FTSO)
 
@@ -197,7 +199,7 @@ You type only in Flow / Jobs / Safe. Other tabs are for the **new** links the UI
 4. https://beacon-desk.vercel.app/flow  ← **main recording surface** (wallet connected)  
 5. https://beacon-desk.vercel.app/flow/desk  ← create Jobs here  
 6. https://beacon-desk.vercel.app/flow/mcp  
-7. https://coston2.testnet.flarescan.com/address/0x96875f3F4346e2183A3ee0d156cAe6871551A0A6  
+7. https://coston2.testnet.flarescan.com/address/0xc7D9393EAe4C4391997B4Af28c023cCAf7c6d5ac  
 8. https://coston2-systems-explorer.flare.network/tee/extensions/65925  
 9. https://coston2-systems-explorer.flare.network/price-feeds?tab=block-latency  
 10. https://coston2-systems-explorer.flare.network/fassets  
@@ -210,7 +212,8 @@ You type only in Flow / Jobs / Safe. Other tabs are for the **new** links the UI
 
 | What you see | What it means | What to do |
 |---|---|---|
-| `Safe balance … < 100` | Wrong DENY prompt (balance miss, not cap) | Use **12 USDT0**, not 100 |
+| `Safe balance … < 12` or `< 100` | Wrong DENY prompt (balance miss, not cap) | Use **4 USDT0**, not 12 or 100 |
+| `Security session expired after 24h` | Stale server App-limits clock (not the on-chain Safe session) | Hard-refresh Flow and retry. Saving spending policy also refreshes the server session. |
 | `Amount exceeds maxSpendPerTx` **without** Hardware TEE strip | Old API (no FCC on Flow) | Hard-refresh after deploy; wait the full TEE round-trip |
 | ALLOW quote with no green strip after ~40s | TEE submit/poll failed; swap can still execute | Retry ALLOW once; if strip missing, still Execute and say policy ALLOW is on-chain Safe + server |
 | DENY card **Hardware FCC DENY** + **Open FCC instruction** | Correct | Open that hash. Do not Execute |

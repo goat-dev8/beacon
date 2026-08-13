@@ -91,6 +91,7 @@ import {
   parseUsdt0Display,
   policyKey,
   recordSpendUsdt0,
+  refreshSecuritySession,
   type BeaconSecurityPolicy,
 } from "./securityPolicy.js";
 import { runAfterPolicyAllows } from "./policyBeforeSpend.js";
@@ -1943,6 +1944,13 @@ app.post("/v1/vault/prepare", async (req) => {
         },
         env,
       );
+      if (body.wallet) {
+        try {
+          await refreshSecuritySession(redis, body.wallet);
+        } catch {
+          /* Redis session refresh is best-effort; on-chain policy still applies. */
+        }
+      }
       break;
     case "setPaused":
       prep = await prepareAgentVaultSetPaused(
@@ -2089,7 +2097,7 @@ app.put("/v1/security/policy", async (req) => {
         maxImageCostUsdt0: z.number().min(0),
         maxVideoSeconds: z.number().min(0),
         emergencyPause: z.boolean(),
-        sessionExpiryHours: z.number().min(1).max(720),
+    sessionExpiryHours: z.number().min(0).max(720),
       }),
     })
     .parse(req.body ?? {});

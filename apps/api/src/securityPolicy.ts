@@ -116,13 +116,33 @@ export function redisRequiredForSpend(redis: Redis | null): asserts redis is Red
 }
 
 export function isSessionExpired(policy: BeaconSecurityPolicy, now = Date.now()): boolean {
-  const started =
-    policy.sessionStartedAt ?? policy.updatedAt ?? null;
+  const hours = Number(policy.sessionExpiryHours ?? DEFAULT_SECURITY_POLICY.sessionExpiryHours);
+  if (!Number.isFinite(hours) || hours <= 0) return false;
+  // Only an explicit session start counts. `updatedAt` is a policy-edit stamp and
+  // must not brick a new Safe on a reused wallet.
+  const started = policy.sessionStartedAt ?? null;
   if (!started) return false;
   const startMs = Date.parse(started);
   if (!Number.isFinite(startMs)) return false;
-  const hours = policy.sessionExpiryHours ?? DEFAULT_SECURITY_POLICY.sessionExpiryHours;
   return now - startMs > hours * 60 * 60 * 1000;
+}
+
+/** Persist a fresh server session so Flow/Jobs are not blocked by a stale Redis clock. */
+export async function refreshSecuritySession(
+  redis: Redis | null,
+  wallet: string,
+): Promise<BeaconSecurityPolicy | null> {
+  if (!redis) return null;
+  const { policy, source } = await loadPolicy(redis, wallet);
+  if (source === "unavailable") return null;
+  const nowIso = new Date().toISOString();
+  const next: BeaconSecurityPolicy = {
+    ...policy,
+    sessionStartedAt: nowIso,
+    updatedAt: nowIso,
+  };
+  await redis.set(policyKey(wallet), next);
+  return next;
 }
 
 export async function loadPolicy(
@@ -138,6 +158,14 @@ export async function loadPolicy(
   const policy = migrateStoredPolicy(stored);
   if (isLegacyTightDefaultPolicy(stored)) {
     // Persist the bumped demo-friendly caps so Safe UI and Flow stop disagreeing.
+    await redis.set(policyKey(wallet), policy);
+  }
+  // Stale Redis sessionStartedAt (reused wallet / old App limits save) must not
+  // block a freshly created Safe. On-chain sessionExpiresAt is the spend clock.
+  if (isSessionExpired(policy) && !policy.emergencyPause) {
+    const nowIso = new Date().toISOString();
+    policy.sessionStartedAt = nowIso;
+    policy.updatedAt = nowIso;
     await redis.set(policyKey(wallet), policy);
   }
   return { policy, source: "redis" };

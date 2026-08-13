@@ -119,6 +119,7 @@ export function AppLimitsSection({
           value={policy.sessionExpiryHours}
           onChange={(v) => setPolicy((p) => ({ ...p, sessionExpiryHours: Number(v) || 0 }))}
           disabled={!wallet}
+          hint="0 = no server session expiry. On-chain Safe session is the spend clock. Save spending policy also refreshes this."
         />
       </div>
 
