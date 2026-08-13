@@ -3,6 +3,7 @@
   "installCommand": "npm ci --include=dev",
   "outputDirectory": "apps/web/dist",
   "framework": "vite",
+  "regions": ["sin1"],
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]

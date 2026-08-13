@@ -32,6 +32,7 @@
     "test:contracts": "node scripts/test-contracts.mjs",
     "typecheck": "tsc -b",
     "verify:env": "tsx scripts/verify-env.ts",
+    "ai-proxy": "node scripts/ai-sg-proxy.mjs",
     "probe:ai": "tsx scripts/probe-agentrouter.ts",
     "test:ai": "tsx scripts/ai-integration.ts",
     "test:fcc": "tsx scripts/fcc-instruction-test.ts",
