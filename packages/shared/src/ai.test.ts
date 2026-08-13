@@ -103,4 +103,19 @@ describe("routing honesty", () => {
       expect.arrayContaining(["nvidia", "groq", "kimi"]),
     );
   });
+
+  it("defaults to Groq first and skips quota hops", () => {
+    resetEnvCache();
+    const env = loadEnv({
+      ...process.env,
+      NVIDIA_API_KEY: "nv-test",
+      NVIDIA_MODEL_SECONDARY: "meta/llama-3.1-70b-instruct",
+      GROQ_API_KEY: "gsk-test",
+      KIMI_API_KEY: "sk-test",
+      CEREBRAS_API_KEY: "csk-test",
+      AI_PRIMARY_PROVIDER: "",
+      AI_TRY_QUOTA_PROVIDERS: "",
+    });
+    expect(listCloudLlmHops(env).map((h) => h.id)).toEqual(["groq", "kimi", "nvidia"]);
+  });
 });

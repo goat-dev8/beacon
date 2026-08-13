@@ -31,7 +31,7 @@ export const FLARE_STEPS_WALLET: FlareStep[] = [
   {
     id: "generate",
     label: "Generate + compose",
-    detail: "Live generator + service composer · actual model/provider stored with artifacts",
+    detail: "gpt-5.6-sol thinking live · retrieval then compose",
     statusKey: "GENERATING",
   },
   {
@@ -77,7 +77,7 @@ export const FLARE_STEPS_SAFE: FlareStep[] = [
   {
     id: "generate",
     label: "Generate + compose",
-    detail: "Live generator + service composer · actual model/provider stored with artifacts",
+    detail: "gpt-5.6-sol thinking live · retrieval then compose",
     statusKey: "GENERATING",
   },
   {

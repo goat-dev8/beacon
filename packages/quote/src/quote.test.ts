@@ -32,12 +32,14 @@ describe("quote", () => {
   });
 
   it("accepts coding in catalog without AI inventing unsupported", async () => {
+    const started = Date.now();
     const verdict = await evaluateSealedFit({
       serviceId: "coding",
       briefText: "code for calculator",
     });
     expect(verdict.capability).toBe("FIT");
-  }, 30_000);
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
 
   it("describes Research as live retrieval — not a vague pack", () => {
     const research = SERVICE_CATALOG.find((s) => s.id === "research");

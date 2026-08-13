@@ -75,6 +75,7 @@ export function ResultExperience({
     settleTx?: string | null;
     compact?: boolean;
     payMode?: "safe" | "wallet" | null;
+    thinkingLines?: string[];
   }>;
 }) {
   const genFailed = recentEvents.some((e) => {

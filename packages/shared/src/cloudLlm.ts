@@ -38,6 +38,7 @@ function openaiBase(url: string): string {
  */
 export function listCloudLlmHops(env: BeaconEnv): CloudLlmHop[] {
   const hops: CloudLlmHop[] = [];
+  const groqKey = env.GROQ_API_KEY || "";
   const nvidiaKey = env.NVIDIA_API_KEY || "";
   const nvidiaBase = openaiBase(env.NVIDIA_BASE_URL || "https://integrate.api.nvidia.com/v1");
   const nvidiaTimeout = Number(env.NVIDIA_TIMEOUT_MS || 120_000) || 120_000;
@@ -52,18 +53,20 @@ export function listCloudLlmHops(env: BeaconEnv): CloudLlmHop[] {
         (env.NVIDIA_MODEL_PRIMARY && !/deepseek-v4-flash/i.test(env.NVIDIA_MODEL_PRIMARY)
           ? env.NVIDIA_MODEL_PRIMARY
           : "meta/llama-3.1-70b-instruct"),
-      timeoutMs: Math.min(Math.max(nvidiaTimeout, 20_000), 120_000),
+      timeoutMs: groqKey
+        ? Math.min(Math.max(nvidiaTimeout, 12_000), 40_000)
+        : Math.min(Math.max(nvidiaTimeout, 20_000), 120_000),
     });
   }
 
-  const groqKey = env.GROQ_API_KEY || "";
+
   if (groqKey) {
     hops.push({
       id: "groq",
       baseUrl: openaiBase(env.GROQ_BASE_URL || "https://api.groq.com/openai/v1"),
       apiKey: groqKey,
       model: env.GROQ_MODEL || "llama-3.3-70b-versatile",
-      timeoutMs: 40_000,
+      timeoutMs: 25_000,
     });
   }
 
@@ -74,74 +77,81 @@ export function listCloudLlmHops(env: BeaconEnv): CloudLlmHop[] {
       baseUrl: openaiBase(env.KIMI_BASE_URL || "https://api.moonshot.ai/v1"),
       apiKey: kimiKey,
       model: env.KIMI_MODEL || "moonshot-v1-auto",
-      timeoutMs: 60_000,
+      timeoutMs: groqKey ? 25_000 : 60_000,
     });
   }
 
-  const cerebrasKey = env.CEREBRAS_API_KEY || "";
-  if (cerebrasKey) {
-    hops.push({
-      id: "cerebras",
-      baseUrl: openaiBase(env.CEREBRAS_BASE_URL || "https://api.cerebras.ai/v1"),
-      apiKey: cerebrasKey,
-      model: env.CEREBRAS_MODEL || "llama-3.3-70b",
-      timeoutMs: 8_000,
-    });
+  const tryQuota = (env.AI_TRY_QUOTA_PROVIDERS || "").toLowerCase() === "true";
+  if (tryQuota) {
+    const cerebrasKey = env.CEREBRAS_API_KEY || "";
+    if (cerebrasKey) {
+      hops.push({
+        id: "cerebras",
+        baseUrl: openaiBase(env.CEREBRAS_BASE_URL || "https://api.cerebras.ai/v1"),
+        apiKey: cerebrasKey,
+        model: env.CEREBRAS_MODEL || "llama-3.3-70b",
+        timeoutMs: 8_000,
+      });
+    }
+
+    const sambaKey = env.SAMBANOVA_API_KEY || "";
+    if (sambaKey) {
+      hops.push({
+        id: "sambanova",
+        baseUrl: openaiBase(env.SAMBANOVA_BASE_URL || "https://api.sambanova.ai/v1"),
+        apiKey: sambaKey,
+        model: env.SAMBANOVA_MODEL || "Meta-Llama-3.3-70B-Instruct",
+        timeoutMs: 8_000,
+      });
+    }
+
+    const togetherKey = env.TOGETHER_API_KEY || "";
+    if (togetherKey) {
+      hops.push({
+        id: "together",
+        baseUrl: "https://api.together.xyz/v1",
+        apiKey: togetherKey,
+        model: env.TOGETHER_MODEL || "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
+        timeoutMs: 8_000,
+      });
+    }
+
+    const openrouterKey = env.OPENROUTER_API_KEY || "";
+    if (openrouterKey) {
+      hops.push({
+        id: "openrouter",
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiKey: openrouterKey,
+        model: env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free",
+        timeoutMs: 8_000,
+        headers: {
+          "HTTP-Referer": "https://beacon-desk.vercel.app",
+          "X-Title": "Beacon",
+        },
+      });
+    }
+
+    const geminiKey = env.GEMINI_API_KEY || "";
+    if (geminiKey) {
+      hops.push({
+        id: "gemini",
+        baseUrl: trimSlash(env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta/openai"),
+        apiKey: geminiKey,
+        model: env.GEMINI_MODEL || "gemini-2.0-flash",
+        timeoutMs: 8_000,
+      });
+    }
   }
 
-  const sambaKey = env.SAMBANOVA_API_KEY || "";
-  if (sambaKey) {
-    hops.push({
-      id: "sambanova",
-      baseUrl: openaiBase(env.SAMBANOVA_BASE_URL || "https://api.sambanova.ai/v1"),
-      apiKey: sambaKey,
-      model: env.SAMBANOVA_MODEL || "Meta-Llama-3.3-70B-Instruct",
-      timeoutMs: 8_000,
-    });
-  }
-
-  const togetherKey = env.TOGETHER_API_KEY || "";
-  if (togetherKey) {
-    hops.push({
-      id: "together",
-      baseUrl: "https://api.together.xyz/v1",
-      apiKey: togetherKey,
-      model: env.TOGETHER_MODEL || "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
-      timeoutMs: 8_000,
-    });
-  }
-
-  const openrouterKey = env.OPENROUTER_API_KEY || "";
-  if (openrouterKey) {
-    hops.push({
-      id: "openrouter",
-      baseUrl: "https://openrouter.ai/api/v1",
-      apiKey: openrouterKey,
-      model: env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free",
-      timeoutMs: 8_000,
-      headers: {
-        "HTTP-Referer": "https://beacon-desk.vercel.app",
-        "X-Title": "Beacon",
-      },
-    });
-  }
-
-  const geminiKey = env.GEMINI_API_KEY || "";
-  if (geminiKey) {
-    hops.push({
-      id: "gemini",
-      baseUrl: trimSlash(env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta/openai"),
-      apiKey: geminiKey,
-      model: env.GEMINI_MODEL || "gemini-2.0-flash",
-      timeoutMs: 8_000,
-    });
-  }
-
-  const primary = (env.AI_PRIMARY_PROVIDER || "nvidia").toLowerCase();
+  // Groq first by default — NVIDIA is a real fallback but ~12–30s per call.
+  const primary = (env.AI_PRIMARY_PROVIDER || "groq").toLowerCase();
+  const liveRank: CloudHopId[] = ["groq", "kimi", "nvidia"];
   hops.sort((a, b) => {
     if (a.id === primary && b.id !== primary) return -1;
     if (b.id === primary && a.id !== primary) return 1;
-    return 0;
+    const ai = liveRank.indexOf(a.id);
+    const bi = liveRank.indexOf(b.id);
+    return (ai < 0 ? 50 : ai) - (bi < 0 ? 50 : bi);
   });
   return hops;
 }

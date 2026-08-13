@@ -31,7 +31,7 @@ export function startEmbeddedWorkers(db: pg.Pool, redis: Redis): void {
   const enableSettler = process.env.ENABLE_SETTLER !== "false";
   if (enablePipeline) {
     console.log("[workers] pipeline orchestrator embedded");
-    void loop(async () => tickPipeline(db, redis), 3000);
+    void loop(async () => tickPipeline(db, redis), 800);
   }
   if (enableSettler) {
     console.log("[workers] settler embedded");
@@ -92,12 +92,14 @@ async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promi
         if (/\bBEACON_E2E_GENERATION_FAIL\b/.test(job.brief_text ?? "")) {
           throw new Error("Controlled E2E generation_failed — no deliverable produced.");
         }
+        await think(db, redis, job.id, "Worker picked up the job. Generate + compose starting…", "generate");
         const result = await Promise.race([
           runPipeline({
             jobId: job.id,
             serviceId: job.service_id,
             briefText: job.brief_text ?? "",
             outputDir,
+            onProgress: (event) => think(db, redis, job.id, event.text, event.stage),
           }),
           new Promise<never>((_, reject) =>
             setTimeout(
@@ -146,6 +148,7 @@ async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promi
     }
     if (status === JobStatus.ACCEPTING) {
       try {
+        await think(db, redis, job.id, "Running acceptance gates (L1 / L3 / L2 judge)…", "accept");
         const { rows: artifacts } = await db.query(
           `SELECT kind, uri, meta FROM artifacts WHERE job_id = $1`,
           [job.id],
@@ -495,6 +498,24 @@ async function advance(
   );
   await publish(redis, jobId, "status", { status: next });
   return next;
+}
+
+async function think(
+  db: pg.Pool,
+  redis: Redis,
+  jobId: string,
+  text: string,
+  stage: string,
+): Promise<void> {
+  try {
+    await db.query(`INSERT INTO job_events (job_id, type, payload) VALUES ($1, 'thinking', $2::jsonb)`, [
+      jobId,
+      JSON.stringify({ text, stage }),
+    ]);
+    await publish(redis, jobId, "thinking", { text, stage });
+  } catch (err) {
+    console.error("[workers] think event", jobId, err);
+  }
 }
 
 async function publish(

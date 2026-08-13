@@ -57,4 +57,10 @@ describe("research grounding", () => {
     expect(wikipediaTitleRelevant("Research SparkDEX", "SparkDEX")).toBe(true);
     expect(wikipediaTitleRelevant("Research SparkDEX", "Sparkle in the Rain")).toBe(false);
   });
+
+  it("selects at most four official pages", () => {
+    const urls = selectOfficialSources("Research SparkDEX FTSO FDC FCC Flare ecosystem");
+    expect(urls.length).toBeLessThanOrEqual(4);
+    expect(urls.length).toBeGreaterThan(0);
+  });
 });

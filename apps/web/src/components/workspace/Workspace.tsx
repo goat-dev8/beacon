@@ -162,8 +162,10 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
   const [quote, setQuote] = useState<QuoteDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [streamNote, setStreamNote] = useState<string | null>(null);
+  const [thinkingLines, setThinkingLines] = useState<string[]>([]);
   const [lockTx, setLockTx] = useState<string | null>(null);
   const [payMode, setPayMode] = useState<"safe" | "wallet" | null>(null);
+  const [liveTick, setLiveTick] = useState(0);
 
   useEffect(() => {
     if (!jobId) return;
@@ -204,7 +206,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     refetchInterval: (q) => {
       const status = q.state.data?.job.status;
       if (!status) return false;
-      if (LIVE_STATUSES.includes(status) || status === "NEEDS_LOOK") return 2500;
+      if (LIVE_STATUSES.includes(status) || status === "NEEDS_LOOK") return 1200;
       return false;
     },
   });
@@ -376,13 +378,42 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     if (!jobId || step !== "live") return;
     return subscribeJobEvents(jobId, (event, data) => {
       if (event === "message") {
-        const payload = data as { stage?: string };
-        if (payload.stage) setStreamNote(String(payload.stage));
+        const rec = data as { type?: string; payload?: { text?: string; stage?: string; status?: string } };
+        const text = rec.payload?.text || rec.payload?.stage;
+        if (rec.type === "thinking" && rec.payload?.text) {
+          setStreamNote(rec.payload.text);
+          setThinkingLines((prev) => {
+            if (prev[prev.length - 1] === rec.payload!.text) return prev;
+            return [...prev.slice(-7), rec.payload!.text];
+          });
+        } else if (text) {
+          setStreamNote(String(text));
+        }
         void qc.invalidateQueries({ queryKey: ["job", jobId] });
       }
       if (event === "heartbeat") void qc.invalidateQueries({ queryKey: ["job", jobId] });
     });
   }, [jobId, step, qc]);
+
+  useEffect(() => {
+    const events = jobQuery.data?.recentEvents ?? [];
+    const texts = events
+      .filter((e) => e.type === "thinking")
+      .map((e) => (e.payload as { text?: string } | null)?.text)
+      .filter((t): t is string => Boolean(t))
+      .reverse();
+    if (texts.length) {
+      setThinkingLines((prev) => (prev.length >= texts.length ? prev : texts.slice(-8)));
+      setStreamNote(texts[texts.length - 1] ?? null);
+    }
+  }, [jobQuery.data?.recentEvents]);
+
+  useEffect(() => {
+    if (step !== "live") return;
+    setLiveTick(0);
+    const t = setInterval(() => setLiveTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [step, jobId]);
 
   const status = jobQuery.data?.job.status;
   useEffect(() => {
@@ -408,6 +439,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     setQuote(null);
     setError(null);
     setStreamNote(null);
+    setThinkingLines([]);
     setLockTx(null);
     setPayMode(null);
     form.reset();
@@ -812,6 +844,9 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 {status ? statusLabel(status) : "Starting…"}
                 {streamNote ? ` · ${streamNote}` : ""}
               </p>
+              <p className="mt-1 font-mono text-[11px] text-ink-faint">
+                gpt-5.6-sol · {liveTick}s elapsed · real model, live retrieval
+              </p>
               {lockTx && (
                 <a
                   href={`${NETWORK.explorer}/tx/${lockTx}`}
@@ -831,6 +866,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
               </div>
               <Timeline
                 status={status}
+                thinking={streamNote}
                 refunded={
                   jobQuery.data?.acceptance?.result === "FAIL" ||
                   (jobQuery.data?.recentEvents ?? []).some((e) => {
@@ -839,7 +875,12 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                   })
                 }
               />
-              <FlareRails status={status} lockTx={lockTx} payMode={payMode} />
+              <FlareRails
+                status={status}
+                lockTx={lockTx}
+                payMode={payMode}
+                thinkingLines={thinkingLines}
+              />
             </motion.div>
           )}
 
@@ -900,7 +941,15 @@ function StepRail({ step }: { step: Step }) {
   );
 }
 
-function Timeline({ status, refunded = false }: { status?: JobStatus; refunded?: boolean }) {
+function Timeline({
+  status,
+  refunded = false,
+  thinking,
+}: {
+  status?: JobStatus;
+  refunded?: boolean;
+  thinking?: string | null;
+}) {
   const stages: JobStatus[] = [
     "AUTHORIZED",
     "PREPARING",
@@ -943,8 +992,10 @@ function Timeline({ status, refunded = false }: { status?: JobStatus; refunded?:
                     : "Refunding escrow"
                   : statusLabel(s)}
               </span>
-              {active && streamNoteHint(status) ? (
-                <p className="mt-0.5 font-mono text-[11px] text-ink-muted">{streamNoteHint(status)}</p>
+              {active && (thinking || streamNoteHint(status)) ? (
+                <p className="mt-0.5 font-mono text-[11px] text-ink-muted">
+                  {thinking || streamNoteHint(status)}
+                </p>
               ) : null}
             </div>
           </li>
@@ -957,7 +1008,7 @@ function Timeline({ status, refunded = false }: { status?: JobStatus; refunded?:
 function streamNoteHint(status?: JobStatus): string | null {
   if (!status) return null;
   if (status === "PREPARING") return "Worker picked up the locked job…";
-  if (status === "GENERATING") return "Generator and service composer running…";
+  if (status === "GENERATING") return "gpt-5.6-sol thinking · retrieving sources · composing…";
   if (status === "COMPOSING") return "Handing artifacts to quality checks…";
   if (status === "ACCEPTING") return "Objective and brand gates; AI judge when available…";
   if (status === "SETTLING") return "Releasing escrow to the configured payee…";
@@ -970,12 +1021,14 @@ function FlareRails({
   settleTx,
   compact = false,
   payMode = null,
+  thinkingLines = [],
 }: {
   status?: JobStatus;
   lockTx: string | null;
   settleTx?: string | null;
   compact?: boolean;
   payMode?: "safe" | "wallet" | null;
+  thinkingLines?: string[];
 }) {
   const steps = payMode === "wallet" ? FLARE_STEPS_WALLET : FLARE_STEPS_SAFE;
   return (
@@ -1034,6 +1087,22 @@ function FlareRails({
                   {step.label}
                 </p>
                 <p className="font-mono text-[11px] leading-relaxed text-ink-muted">{step.detail}</p>
+                {step.id === "generate" && state === "active" && thinkingLines.length > 0 ? (
+                  <ul className="mt-2 space-y-1 border-l border-signal/40 pl-3">
+                    {thinkingLines.map((line, i) => (
+                      <li
+                        key={`${i}-${line.slice(0, 24)}`}
+                        className={cn(
+                          "font-mono text-[11px] leading-relaxed",
+                          i === thinkingLines.length - 1 ? "text-signal-deep" : "text-ink-muted",
+                        )}
+                      >
+                        {i === thinkingLines.length - 1 ? "▸ " : "· "}
+                        {line}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
             </li>
           );

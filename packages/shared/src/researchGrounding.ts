@@ -32,9 +32,9 @@ export type ResearchGrounding = {
   modelContext: string;
 };
 
-const FETCH_MS = 12_000;
+const FETCH_MS = 5_000;
 const EXCERPT_CHARS = 2_400;
-const MAX_SOURCES = 7;
+const MAX_SOURCES = 4;
 
 /** Public, verified Beacon/FCC identifiers — not secrets. */
 export const BEACON_FCC = {
@@ -306,6 +306,7 @@ async function fetchWikipedia(
 async function fetchWebSearch(
   topic: string,
   fetchImpl: typeof fetch,
+  opts: { skipJina?: boolean } = {},
 ): Promise<RetrievedSource[]> {
   const q = extractSearchQuery(topic);
   if (q.length < 3) return [];
@@ -354,7 +355,7 @@ async function fetchWebSearch(
     // continue to jina
   }
 
-  if (out.length >= 2) return out.slice(0, 3);
+  if (opts.skipJina || out.length >= 1) return out.slice(0, 3);
 
   try {
     const jinaUrl = `https://s.jina.ai/${encodeURIComponent(q)}`;
@@ -413,59 +414,60 @@ export async function gatherResearchGrounding(
 ): Promise<ResearchGrounding> {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const retrievedAt = new Date().toISOString();
-  const liveNotes: string[] = [];
   const pages = selectOfficialSources(topic);
 
-  const sourceResults = await Promise.all(
-    pages.map(async (page) => {
-      const got = await fetchExcerpt(page.url, fetchImpl);
-      return {
-        title: page.title,
-        url: page.url,
-        excerpt: got.excerpt,
-        fetchedAt: retrievedAt,
-        ok: got.ok,
-        error: got.error,
-      } satisfies RetrievedSource;
-    }),
-  );
+  const sparkP =
+    topicTouchesFlare(topic) || /sparkdex|\bdex\b/i.test(topic)
+      ? resolveSparkDexDeployment(env)
+          .then(
+            (dep) =>
+              `SparkDEX on-chain: network=${dep.network} chainId=${dep.chainId}. ${dep.honesty} Router ${dep.router}.`,
+          )
+          .catch(
+            (err) =>
+              `SparkDEX on-chain check failed (${err instanceof Error ? err.message : String(err)}). Do not invent bytecode status.`,
+          )
+      : Promise.resolve(null as string | null);
 
-  const wiki = await fetchWikipedia(topic, fetchImpl);
-  const web = await fetchWebSearch(topic, fetchImpl);
+  const ftsoP =
+    topicTouchesFlare(topic) || /ftso|price/i.test(topic)
+      ? readFtsoFeeds(env)
+          .then((snap) =>
+            snap.feeds.length
+              ? `Live Coston2 FTSO (not DEX pool prices): ${snap.feeds
+                  .slice(0, 6)
+                  .map((f) => `${f.symbol}=${Number(f.value).toPrecision(6)}`)
+                  .join(" · ")}`
+              : "FTSO snapshot returned no feeds.",
+          )
+          .catch(
+            (err) =>
+              `FTSO snapshot failed (${err instanceof Error ? err.message : String(err)}). Do not invent prices.`,
+          )
+      : Promise.resolve(null as string | null);
+
+  const [sourceResults, wiki, web, sparkNote, ftsoNote] = await Promise.all([
+    Promise.all(
+      pages.map(async (page) => {
+        const got = await fetchExcerpt(page.url, fetchImpl);
+        return {
+          title: page.title,
+          url: page.url,
+          excerpt: got.excerpt,
+          fetchedAt: retrievedAt,
+          ok: got.ok,
+          error: got.error,
+        } satisfies RetrievedSource;
+      }),
+    ),
+    fetchWikipedia(topic, fetchImpl),
+    fetchWebSearch(topic, fetchImpl, { skipJina: pages.length > 0 }),
+    sparkP,
+    ftsoP,
+  ]);
+
+  const liveNotes = [sparkNote, ftsoNote].filter((n): n is string => Boolean(n));
   const sources = [...sourceResults, ...(wiki ? [wiki] : []), ...web];
-
-  if (topicTouchesFlare(topic) || /sparkdex|\bdex\b/i.test(topic)) {
-    try {
-      const dep = await resolveSparkDexDeployment(env);
-      liveNotes.push(
-        `SparkDEX on-chain: network=${dep.network} chainId=${dep.chainId}. ${dep.honesty} Router ${dep.router}.`,
-      );
-    } catch (err) {
-      liveNotes.push(
-        `SparkDEX on-chain check failed (${err instanceof Error ? err.message : String(err)}). Do not invent bytecode status.`,
-      );
-    }
-  }
-
-  if (topicTouchesFlare(topic) || /ftso|price/i.test(topic)) {
-    try {
-      const snap = await readFtsoFeeds(env);
-      if (snap.feeds.length) {
-        liveNotes.push(
-          `Live Coston2 FTSO (not DEX pool prices): ${snap.feeds
-            .slice(0, 6)
-            .map((f) => `${f.symbol}=${Number(f.value).toPrecision(6)}`)
-            .join(" · ")}`,
-        );
-      } else {
-        liveNotes.push("FTSO snapshot returned no feeds.");
-      }
-    } catch (err) {
-      liveNotes.push(
-        `FTSO snapshot failed (${err instanceof Error ? err.message : String(err)}). Do not invent prices.`,
-      );
-    }
-  }
 
   const base = {
     topic,

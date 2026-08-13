@@ -817,7 +817,7 @@ app.get("/v1/jobs/:id", async (req) => {
   const jobId = (req.params as { id: string }).id;
   const job = await getJob(jobId);
   const { rows: events } = await pool.query(
-    `SELECT type, payload, ts FROM job_events WHERE job_id = $1 ORDER BY ts DESC LIMIT 20`,
+    `SELECT type, payload, ts FROM job_events WHERE job_id = $1 ORDER BY ts DESC LIMIT 40`,
     [jobId],
   );
   const { rows: accepts } = await pool.query(
@@ -871,12 +871,20 @@ app.get("/v1/jobs/:id/events", async (req, reply) => {
   const jobId = (req.params as { id: string }).id;
   await getJob(jobId);
 
+  const origin = typeof req.headers.origin === "string" ? req.headers.origin : "";
   // Hijack so Fastify does not try to send a second response after SSE headers.
   reply.hijack();
   reply.raw.writeHead(200, {
     "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
+    "Cache-Control": "no-cache, no-transform",
     Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+    ...(origin
+      ? {
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Credentials": "true",
+        }
+      : { "Access-Control-Allow-Origin": "*" }),
   });
 
   const send = (event: string, data: unknown) => {
@@ -896,19 +904,34 @@ app.get("/v1/jobs/:id/events", async (req, reply) => {
 
   send("connected", { jobId });
 
-  if (redis) {
-    try {
+  const seen = new Set<string>();
+  const flushLog = async () => {
+    if (!redis) return;
     const history = await redis.lrange(`sse:job:${jobId}:log`, 0, 49);
-    for (const item of history.reverse()) {
-        send("message", parseLogItem(item));
-      }
-    } catch (err) {
-      send("error", { message: err instanceof Error ? err.message : String(err) });
+    for (const item of [...history].reverse()) {
+      const key = typeof item === "string" ? item : JSON.stringify(item);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      send("message", parseLogItem(item));
     }
+  };
+
+  try {
+    await flushLog();
+  } catch (err) {
+    send("error", { message: err instanceof Error ? err.message : String(err) });
   }
 
-  const heartbeat = setInterval(() => send("heartbeat", { ts: Date.now() }), 15_000);
-  req.raw.on("close", () => clearInterval(heartbeat));
+  const poll = setInterval(() => {
+    void flushLog().catch((err) => {
+      send("error", { message: err instanceof Error ? err.message : String(err) });
+    });
+  }, 800);
+  const heartbeat = setInterval(() => send("heartbeat", { ts: Date.now() }), 3_000);
+  req.raw.on("close", () => {
+    clearInterval(poll);
+    clearInterval(heartbeat);
+  });
 });
 
 app.get("/v1/jobs/:id/artifacts", async (req) => {

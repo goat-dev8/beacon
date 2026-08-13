@@ -18,7 +18,7 @@ export type PipelineStage = "plan" | "generate" | "compose" | "normalize";
 
 /** Bumped when deliverable composers change — exposed via /health for deploy proof. */
 export const PIPELINE_CAPS = {
-  version: "2026-08-14-cloud-llm",
+  version: "2026-08-14-fast-think",
   imageSvg: true,
   imagePollinations: true,
   imageComfy: true,
@@ -40,6 +40,7 @@ export interface PipelineJob {
   serviceId: string;
   briefText: string;
   outputDir: string;
+  onProgress?: (event: { stage: string; text: string }) => void | Promise<void>;
 }
 
 export interface StageArtifact {
@@ -78,11 +79,33 @@ export interface RemotionRenderResult {
   message: string;
 }
 
+async function emitProgress(
+  job: PipelineJob,
+  stage: string,
+  text: string,
+): Promise<void> {
+  try {
+    await job.onProgress?.({ stage, text });
+  } catch {
+    /* progress is best-effort */
+  }
+}
+
+function composeProgressText(serviceId: string): string {
+  const sid = String(serviceId ?? "").toLowerCase();
+  if (sid === "presentations") return "Composing slides and speaker notes…";
+  if (sid === "research") return "Composing findings, conclusions, and caveats…";
+  if (sid === "coding") return "Packaging code and review notes…";
+  if (sid === "image" || sid === "design" || sid === "branding") return "Composing the visual pack…";
+  return "Composing the deliverable…";
+}
+
 export async function runPipeline(job: PipelineJob): Promise<PipelineResult> {
   const logs: string[] = [];
   const artifacts: StageArtifact[] = [];
   await mkdir(job.outputDir, { recursive: true });
 
+  await emitProgress(job, "plan", "Planning the deliverable…");
   logs.push("plan: derived stage graph");
   const planPath = path.join(job.outputDir, "plan.json");
   const plan = {
@@ -95,10 +118,12 @@ export async function runPipeline(job: PipelineJob): Promise<PipelineResult> {
   artifacts.push({ kind: "plan", uri: planPath, mimeType: "application/json", meta: plan });
 
   logs.push("generate: producing draft content");
+  await emitProgress(job, "generate", "gpt-5.6-sol is generating…");
   const generated = await generateContent(job);
   artifacts.push(...generated);
 
   logs.push("compose: assembling deliverable");
+  await emitProgress(job, "compose", composeProgressText(job.serviceId));
   let composed = await composeDeliverable(job, generated);
   // Hard guarantee: image jobs must ship an SVG creative even if compose routing drifts.
   const sid = String(job.serviceId ?? "")

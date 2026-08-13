@@ -13,6 +13,7 @@ export interface TextJob {
   serviceId: string;
   briefText: string;
   outputDir: string;
+  onProgress?: (event: { stage: string; text: string }) => void | Promise<void>;
 }
 
 export interface TextArtifact {
@@ -28,6 +29,13 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
   const sidEarly = String(job.serviceId ?? "")
     .toLowerCase()
     .trim();
+  const note = async (stage: string, text: string) => {
+    try {
+      await job.onProgress?.({ stage, text });
+    } catch {
+      /* progress is best-effort */
+    }
+  };
   const mediaFast = (env.MEDIA_FAST || "").toLowerCase() === "true";
   const skipAiDraft = mediaFast && ["image", "video"].includes(sidEarly);
   const textService = !["image", "video", "voice"].includes(sidEarly);
@@ -41,6 +49,7 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
   const textNeedsRetrieval = ["research", "analysis", "planning", "agents"].includes(sidEarly);
   if (textNeedsRetrieval) {
     try {
+      await note("retrieve", "Retrieving official sources…");
       const grounding = await gatherResearchGrounding(job.briefText, env);
       groundingBlock = `\n\n${grounding.modelContext}`;
       retrievalMeta = {
@@ -57,6 +66,10 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
         job.jobId,
         retrievalMeta.sourceCount,
         Array.isArray(retrievalMeta.sourceUrls) ? retrievalMeta.sourceUrls : [],
+      );
+      await note(
+        "retrieve",
+        `Read ${String(retrievalMeta.sourceCount)} live sources. Calling gpt-5.6-sol…`,
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -76,10 +89,16 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
     // Keep the request bounded. Small coding/document jobs should not reserve
     // thousands of output tokens on metered gateways.
     const maxTokens = maxTokensForService(sidEarly);
-    const attempts = textService ? 3 : 1;
+    const attempts = textService ? 2 : 1;
     let lastErr: unknown;
     for (let attempt = 1; attempt <= attempts; attempt++) {
       try {
+        await note(
+          "generate",
+          attempt === 1
+            ? "gpt-5.6-sol is thinking through the brief…"
+            : "Retrying gpt-5.6-sol with a stricter prompt…",
+        );
         const result = await chatForRole(
           "generator",
           [
@@ -164,13 +183,6 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
   }
 
   return out;
-}
-
-function normalizeGeneratedModel(model: string): string {
-  const value = (model || "").toLowerCase();
-  if (value.includes("gpt-5.6-sol")) return "gpt-5.6-sol";
-  if (value.includes("gpt-5.6-luna")) return "gpt-5.6-luna";
-  return model || "unknown";
 }
 
 function maxTokensForService(serviceId: string): number {

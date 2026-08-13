@@ -333,9 +333,11 @@ export async function evaluateSealedFit(
   }
 
   // Catalog services are supported — do not let the quote model invent "unsupported".
-  // Optional AI pass only soft-warns; never blocks coding/documents/etc.
+  // Quote LLM is optional and slow (~12–30s). Default: instant catalog FIT.
   const env = loadEnv();
-  const useAi = Boolean(options.aiBaseUrl && options.aiApiKey) || isAiConfigured(env);
+  const quoteLlm = (env.AI_QUOTE_LLM || "").toLowerCase() === "true";
+  const useAi =
+    quoteLlm && (Boolean(options.aiBaseUrl && options.aiApiKey) || isAiConfigured(env));
   if (useAi) {
     try {
       const ai = await aiCapabilityCheck(input, options);

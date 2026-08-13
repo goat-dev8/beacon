@@ -157,6 +157,10 @@ export const envSchema = z.object({
   GEMINI_MODEL: optionalString,
   AI_PRIMARY_PROVIDER: optionalString,
   AI_FALLBACK_PROVIDERS: optionalString,
+  /** When true, quote calls the LLM. Default off — catalog FIT is instant. */
+  AI_QUOTE_LLM: optionalString,
+  /** When true, try quota/dead hops (Cerebras, Together, …) after live hops. */
+  AI_TRY_QUOTA_PROVIDERS: optionalString,
   PRODUCT_MODEL_LABEL: optionalString,
 
   OPENMONTAGE_ROOT: optionalString,
