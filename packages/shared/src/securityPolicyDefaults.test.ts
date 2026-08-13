@@ -31,6 +31,15 @@ describe("security policy demo defaults", () => {
     expect(migrated.dailySpendUsdt0).toBe(50);
   });
 
+  it("restores general / signals / research so Flow chat is not bricked", () => {
+    const stored = {
+      ...DEFAULT_SECURITY_POLICY,
+      allowedAgents: ["swap", "bridge", "desk"],
+    };
+    const migrated = migrateStoredPolicy(stored);
+    expect(migrated.allowedAgents).toEqual(expect.arrayContaining(["general", "signals", "research", "swap"]));
+  });
+
   it("does not rewrite intentionally tight custom policies", () => {
     const custom = {
       ...DEFAULT_SECURITY_POLICY,

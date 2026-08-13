@@ -79,6 +79,9 @@ const OS_AGENT_ROLLOUT = [
   "treasury",
 ] as const;
 
+/** Flow header defaults to `general`. Chat must not be bricked if those chips were left off. */
+const CHAT_AGENT_ROLLOUT = ["general", "signals", "research"] as const;
+
 export function isLegacyTightDefaultPolicy(policy: BeaconSecurityPolicy): boolean {
   return (
     !policy.emergencyPause &&
@@ -89,7 +92,11 @@ export function isLegacyTightDefaultPolicy(policy: BeaconSecurityPolicy): boolea
 
 export function migrateStoredPolicy(stored: BeaconSecurityPolicy): BeaconSecurityPolicy {
   const allowedAgents = [
-    ...new Set([...stored.allowedAgents.filter((a) => a !== "video"), ...OS_AGENT_ROLLOUT]),
+    ...new Set([
+      ...stored.allowedAgents.filter((a) => a !== "video"),
+      ...OS_AGENT_ROLLOUT,
+      ...CHAT_AGENT_ROLLOUT,
+    ]),
   ];
   const allowedChains = [...new Set([...(stored.allowedChains ?? [114]), 14])];
   const next: BeaconSecurityPolicy = { ...stored, allowedAgents, allowedChains };
@@ -156,8 +163,9 @@ export async function loadPolicy(
   const stored = await redis.get<BeaconSecurityPolicy>(policyKey(wallet));
   if (!stored) return { policy: { ...DEFAULT_SECURITY_POLICY }, source: "default" };
   const policy = migrateStoredPolicy(stored);
-  if (isLegacyTightDefaultPolicy(stored)) {
-    // Persist the bumped demo-friendly caps so Safe UI and Flow stop disagreeing.
+  const agentsAdded = policy.allowedAgents.some((a) => !stored.allowedAgents.includes(a));
+  if (isLegacyTightDefaultPolicy(stored) || agentsAdded) {
+    // Persist so Safe UI and Flow stop disagreeing.
     await redis.set(policyKey(wallet), policy);
   }
   // Stale Redis sessionStartedAt (reused wallet / old App limits save) must not

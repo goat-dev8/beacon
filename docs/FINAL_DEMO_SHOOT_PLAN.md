@@ -213,7 +213,8 @@ You type only in Flow / Jobs / Safe. Other tabs are for the **new** links the UI
 | What you see | What it means | What to do |
 |---|---|---|
 | `Safe balance … < 12` or `< 100` | Wrong DENY prompt (balance miss, not cap) | Use **4 USDT0**, not 12 or 100 |
-| `Security session expired after 24h` | Stale server App-limits clock (not the on-chain Safe session) | Hard-refresh Flow and retry. Saving spending policy also refreshes the server session. |
+| `Agent "general" is blocked by your spending policy` | App limits left General off; Flow still sends `general` on the first message | Hard-refresh after deploy. Chat is no longer gated on that chip. Click **Swap** and send the ALLOW prompt. |
+| `Security session expired after 24h` | Stale server App-limits clock | Hard-refresh Flow and retry. |
 | `Amount exceeds maxSpendPerTx` **without** Hardware TEE strip | Old API (no FCC on Flow) | Hard-refresh after deploy; wait the full TEE round-trip |
 | ALLOW quote with no green strip after ~40s | TEE submit/poll failed; swap can still execute | Retry ALLOW once; if strip missing, still Execute and say policy ALLOW is on-chain Safe + server |
 | DENY card **Hardware FCC DENY** + **Open FCC instruction** | Correct | Open that hash. Do not Execute |

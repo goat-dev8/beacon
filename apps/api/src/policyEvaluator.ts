@@ -153,7 +153,14 @@ export async function evaluatePolicy(
     };
   }
 
-  if (agentId && policy.allowedAgents.length > 0 && !policy.allowedAgents.includes(agentId)) {
+  // Agent allowlist gates spend (swap/bridge/x402/jobs), not Flow chat.
+  // The desk header starts on `general`; a swap prompt still arrives as general.
+  if (
+    needsSpendAccounting &&
+    agentId &&
+    policy.allowedAgents.length > 0 &&
+    !policy.allowedAgents.includes(agentId)
+  ) {
     return {
       allowed: false,
       reason: `Agent "${agentId}" is blocked by your spending policy.`,
