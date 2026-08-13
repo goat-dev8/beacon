@@ -148,6 +148,15 @@ export type AgentCard =
         xrpUsd: number;
         maxAgeSeconds: number;
       };
+      teeSignedStatus?: number;
+      fccTxHash?: string;
+      fccInstructionId?: string;
+      fccLog?: string | null;
+      fccExplorer?: string | null;
+      amountUsdt0?: number;
+      amountCapUsdt0?: number;
+      fccMode?: "verified" | "simulated";
+      fccAllowed?: boolean;
     }
   | {
       type: "swap_prepare";
@@ -186,6 +195,15 @@ export type AgentCard =
       ftsoMidOut?: string;
       quoter?: string;
       vaultBalanceDisplay?: string;
+      teeSignedStatus?: number;
+      fccTxHash?: string;
+      fccInstructionId?: string;
+      fccLog?: string | null;
+      fccExplorer?: string | null;
+      amountUsdt0?: number;
+      amountCapUsdt0?: number;
+      fccMode?: "verified" | "simulated";
+      fccAllowed?: boolean;
     }
   | {
       type: "yield_vaults";
@@ -420,6 +438,23 @@ export type AgentCard =
       summary: string;
       mintMock?: boolean;
       faucetHref?: string;
+    }
+  | {
+      type: "authorization_receipt";
+      title: string;
+      summary?: string;
+      reason?: string;
+      allowed: boolean;
+      teeSignedStatus?: number;
+      fccTxHash?: string;
+      fccInstructionId?: string;
+      fccLog?: string | null;
+      fccExplorer?: string | null;
+      amountUsdt0?: number;
+      amountCapUsdt0?: number;
+      fccMode?: "verified" | "simulated";
+      fccAllowed?: boolean;
+      flarePrimitive?: string;
     };
 
 export interface AgentChatResult {

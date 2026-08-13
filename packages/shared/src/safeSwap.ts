@@ -175,13 +175,7 @@ export async function prepareBeaconSafeSwap(
 
   const amountIn = parseUnits(params.amountInUnits, status.tokenDecimals);
   if (amountIn <= 0n) return { ok: false, error: "amount must be > 0", honesty };
-  if (BigInt(status.balance) < amountIn) {
-    return {
-      ok: false,
-      error: `Safe balance ${status.balanceDisplay} USDT0 < ${params.amountInUnits}. Deposit more or reduce size.`,
-      honesty,
-    };
-  }
+  // Policy first: over-cap is a DENY even when the Safe also lacks balance.
   if (BigInt(status.maxSpendPerTx) === 0n || BigInt(status.rollingWindowBudget) === 0n) {
     return {
       ok: false,
@@ -194,6 +188,13 @@ export async function prepareBeaconSafeSwap(
     return {
       ok: false,
       error: `Amount exceeds maxSpendPerTx (${status.maxSpendPerTxDisplay}).`,
+      honesty,
+    };
+  }
+  if (BigInt(status.balance) < amountIn) {
+    return {
+      ok: false,
+      error: `Safe balance ${status.balanceDisplay} USDT0 < ${params.amountInUnits}. Deposit more or reduce size.`,
       honesty,
     };
   }

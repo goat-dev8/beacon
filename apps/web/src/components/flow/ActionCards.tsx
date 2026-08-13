@@ -23,6 +23,44 @@ type OftDeliveryUi = {
   uiPhases: Array<{ id: string; label: string; status: string }>;
 };
 
+function FccHardwareStrip({ card }: { card: AgentCard }) {
+  const status = card.teeSignedStatus;
+  if (typeof status !== "number") return null;
+  const allowed = status === 1;
+  const href = typeof card.fccExplorer === "string" ? card.fccExplorer : null;
+  const log = typeof card.fccLog === "string" ? card.fccLog : null;
+  return (
+    <div
+      className={cn(
+        "mt-3 rounded-xl border px-3 py-2 font-mono text-[11px]",
+        allowed
+          ? "border-signal/40 bg-signal/10 text-[var(--p-accent-text)]"
+          : "border-[var(--p-danger)]/40 bg-[var(--p-danger)]/10 text-[var(--p-danger)]",
+      )}
+    >
+      <p className="uppercase tracking-widest">
+        Hardware TEE · {allowed ? "ALLOW status 1" : "DENY status 0"}
+      </p>
+      {card.amountUsdt0 != null && card.amountCapUsdt0 != null ? (
+        <p className="mt-1 text-[var(--p-muted)]">
+          {String(card.amountUsdt0)} USDT0 vs cap {String(card.amountCapUsdt0)}
+        </p>
+      ) : null}
+      {log ? <p className="mt-1 text-[var(--p-muted)]">{log}</p> : null}
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 inline-flex items-center gap-1 underline underline-offset-2"
+        >
+          Open FCC instruction <ExternalLink className="size-3" />
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
 export function ActionCard({
   card,
   cardKey: execKey,
@@ -239,6 +277,7 @@ export function ActionCard({
           </p>
         ) : null}
         {card.honesty ? <p className="mt-2 text-xs text-amber-200/90">{String(card.honesty)}</p> : null}
+        <FccHardwareStrip card={card} />
         <button
           type="button"
           onClick={() => onQuickReply("confirm")}
@@ -641,6 +680,7 @@ export function ActionCard({
         </p>
         <p className="mt-1 text-xs text-[var(--p-muted)]">{String(card.warning)}</p>
         {card.honesty ? <p className="mt-1 text-xs text-amber-200/90">{String(card.honesty)}</p> : null}
+        <FccHardwareStrip card={card} />
         {isSafe ? (
           <p className="mt-2 text-xs text-signal">
             Agent executor spends from Beacon Safe on Coston2 — no MetaMask, no Mainnet switch.
@@ -1239,6 +1279,7 @@ export function ActionCard({
         <p className="mt-3 text-sm leading-relaxed text-[var(--p-fg)]">
           {String(card.reason ?? "Policy decision")}
         </p>
+        <FccHardwareStrip card={card} />
         <dl className="mt-3 space-y-1 font-mono text-[11px] text-[var(--p-muted)]">
           {card.serviceId != null && (
             <div>

@@ -81,6 +81,7 @@ import { registryFromEnv, assertRegistryConfigured, encodeCreditDepositMemo } fr
 import { startEmbeddedWorkers } from "./workers.js";
 import { PIPELINE_CAPS } from "@beacon/pipeline";
 import { getFccLifecycleStatus } from "@beacon/fdc";
+import { attachHardwareCapFcc } from "./hardwareCapEvaluate.js";
 import {
   assertPolicyAllows,
   DEFAULT_SECURITY_POLICY,
@@ -1680,6 +1681,14 @@ app.post("/v1/agents/chat", async (req) => {
     state: (body.state as ConversationState | null | undefined) ?? null,
     env,
   });
+
+  if (body.wallet) {
+    try {
+      await attachHardwareCapFcc(result, body.wallet, env);
+    } catch (err) {
+      app.log.warn({ err }, "hardware FCC attach skipped");
+    }
+  }
 
   let conversationId = body.conversationId ?? null;
   if (body.wallet) {

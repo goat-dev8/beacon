@@ -155,6 +155,9 @@ function buildExplorerLinks(
   const links: { label: string; href: string }[] = [];
   const net = explorerLabel(chainId);
 
+  if (typeof card.fccExplorer === "string" && card.fccExplorer) {
+    links.push({ label: "Hardware FCC · Coston2", href: card.fccExplorer });
+  }
   if (cardType === "swap_prepare" && exec?.swapHash) {
     links.push({ label: `Swap · ${net}`, href: explorerTx(exec.swapHash, chainId) });
   }
