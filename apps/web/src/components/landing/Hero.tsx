@@ -79,8 +79,9 @@ export function Hero() {
           transition={{ delay: 0.08, duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         >
           <p className="text-xl leading-relaxed tracking-tight text-ink-muted md:text-2xl">
-            Beacon is the Flare AI OS. FTSO prices the move. Policy and FCC gate spend. x402 settles.
-            SparkDEX, LayerZero, and FAssets execute. Explorer receipts close the loop.
+            Beacon is the Flare AI OS. FTSO prices the move. Policy and hardware FCC gate spend.
+            Beacon Safe executes on Coston2. LayerZero and FAssets complete the path. Explorer
+            receipts close the loop.
           </p>
           <div className="mt-6">
             <FacetCtaPair
@@ -105,7 +106,7 @@ export function Hero() {
 
 /** Greptile-style ruled strip under hero — Beacon rails as wordmarks */
 export function HeroTrustStrip() {
-  const rails = ["FTSO", "SparkDEX", "LayerZero", "x402", "FAssets", "Beacon Safe", "FCC"];
+  const rails = ["FTSO", "FCC", "LayerZero", "x402", "FAssets", "Beacon Safe", "FDC"];
   return (
     <div className="border-b border-line bg-paper">
       <div className="flex items-center gap-6 px-6 py-2 md:px-16">

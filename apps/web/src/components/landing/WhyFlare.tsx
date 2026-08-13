@@ -37,7 +37,7 @@ export const WHY_FLARE_ITEMS = [
   {
     id: "smart-accounts",
     title: "Safe with rules",
-    body: "Smart accounts and Beacon Safe hold funds under your policy. Deposit once. Agents act inside the budget.",
+    body: "Beacon Safe holds a prepaid USDT0 budget under your policy. Deposit once. Agents act inside the cap.",
   },
 ] as const;
 

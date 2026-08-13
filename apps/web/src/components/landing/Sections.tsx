@@ -180,7 +180,7 @@ export function FinalCta() {
           Open Beacon Flow
         </h2>
         <p className="mx-auto mt-4 max-w-md text-white/65">
-          Talk to Flare AI OS. Quotes, policy, payments, and explorer receipts on production rails.
+          Talk to Flare AI OS. Quotes, policy, payments, and explorer receipts on Coston2.
         </p>
         <div className="mt-8 flex justify-center">
           <FacetCtaPair left="Get Started" right="Open Flow" leftTo="/start" rightTo="/flow" />

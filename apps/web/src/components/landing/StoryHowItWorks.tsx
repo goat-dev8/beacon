@@ -13,8 +13,8 @@ const STAGES = [
   {
     id: "quote",
     title: "Quote",
-    body: "Beacon prices the move: SparkDEX quoter, LayerZero fee, or Agent Job estimate. Numbers first.",
-    rail: "SparkDEX / LZ",
+    body: "Beacon prices the move: SwapDesk plus FTSO, a LayerZero fee, or an Agent Job estimate. Numbers first.",
+    rail: "SwapDesk / LZ",
   },
   {
     id: "policy",

@@ -55,7 +55,7 @@ const STEPS = [
   {
     id: "execute",
     title: "AI executes on Flare",
-    body: "Swap, bridge, signals, portfolio, yield, FAssets, research. Rails include FTSO, SparkDEX, LayerZero.",
+    body: "Swap, bridge, signals, portfolio, yield, FAssets, research. Rails include FTSO, SwapDesk, and LayerZero.",
     diagram: 4,
   },
   {

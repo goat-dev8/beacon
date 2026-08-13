@@ -506,7 +506,7 @@ export function ActionCard({
             Bridge FXRP
           </button>
           <button type="button" onClick={() => onQuickReply("@swap")} className="rounded-full border border-[var(--p-border)] px-3 py-1 text-xs">
-            SparkDEX
+            Swap
           </button>
           <button
             type="button"

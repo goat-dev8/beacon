@@ -50,7 +50,7 @@ export function Composer({ input, onChange, onSend, pending, agentHint, onSugges
           </button>
         </div>
         <p className="mt-1.5 text-center text-[10px] text-[var(--p-faint)]">
-          Flare Coston2 · FTSO · SparkDEX · LayerZero · x402 · verify every tx
+          Flare Coston2 · FTSO · LayerZero · x402 · verify every tx
         </p>
       </div>
     </div>
