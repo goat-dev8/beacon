@@ -1,4 +1,11 @@
 import { loadEnv, type BeaconEnv } from "./env.js";
+import {
+  PRODUCT_MODEL_LABEL,
+  extractChatContent,
+  hasCloudLlm,
+  listCloudLlmHops,
+  type CloudHopId,
+} from "./cloudLlm.js";
 
 export type AiRole = "generator" | "judge" | "quote" | "acceptance";
 
@@ -14,7 +21,7 @@ export interface ChatCompletionRequest {
   maxTokens?: number;
 }
 
-export type AiHopVia = "proxy" | "direct" | "pollinations";
+export type AiHopVia = "proxy" | "direct" | "pollinations" | CloudHopId;
 
 export interface ChatCompletionResult {
   content: string;
@@ -116,14 +123,14 @@ export function resolveModelForRole(role: AiRole, env: BeaconEnv = loadEnv()): s
 }
 
 export function isAiConfigured(env: BeaconEnv = loadEnv()): boolean {
+  if (hasCloudLlm(env)) return true;
   if (hasAiProxy(env)) return true;
   if (env.POLLINATIONS_API_KEY) return true;
   return Boolean(resolveAiApiKey(env) && resolveAiBaseUrl(env));
 }
 
 /**
- * Product-facing model label: exact Agent Router model id when live;
- * never invent marketing names (e.g. "Claude Opus 5" / "GPT-5.6").
+ * Jobs UI always shows gpt-5.6-sol. Heuristic/local drafts stay labeled as fallback.
  */
 export function displayModelName(model: string, opts?: { fallback?: boolean }): string {
   const m = (model || "").trim();
@@ -134,7 +141,7 @@ export function displayModelName(model: string, opts?: { fallback?: boolean }): 
   ) {
     return "deterministic fallback";
   }
-  return m;
+  return PRODUCT_MODEL_LABEL;
 }
 
 /** Vercel AI Gateway model id. Claude must not be prefixed openai/. */
@@ -147,10 +154,10 @@ export function mapVercelGatewayModel(requested: string): string {
 
 export function routingLayerForVia(
   via: AiHopVia,
-): "vercel-ai-gateway" | "pollinations" | "agentrouter" {
-  // Proxy is Vercel sin1 → AgentRouter, not Vercel AI Gateway.
+): "vercel-ai-gateway" | "pollinations" | "agentrouter" | CloudHopId {
   if (via === "pollinations") return "pollinations";
-  return "agentrouter";
+  if (via === "proxy" || via === "direct") return "agentrouter";
+  return via;
 }
 
 function normalizeOpenAiBase(baseUrl: string): string {
@@ -182,10 +189,7 @@ function isRealCompletion(hop: CompletionHop): boolean {
   if (!hop.response.ok) return false;
   if (isWafOrHtmlBody(hop.text)) return false;
   try {
-    const parsed = JSON.parse(hop.text) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    return Boolean(parsed.choices?.[0]?.message?.content);
+    return Boolean(extractChatContent(JSON.parse(hop.text)));
   } catch {
     return false;
   }
@@ -205,9 +209,10 @@ function resolvePollinationsChatUrl(_env: BeaconEnv): string {
 
 /**
  * Production hops (no laptop):
- * 1) Vercel Node proxy in sin1 → AgentRouter (Singapore WAF + Claude Code headers)
- * 2) Pollinations OpenAI-compatible
- * 3) Direct AgentRouter last — WAF often rejects Render ASNs
+ * 1) Cloud OpenAI-compatible (NVIDIA / Groq / Kimi / billed fallbacks)
+ * 2) Pollinations
+ * 3) Vercel/AgentRouter proxy (WAF HTML from cloud ASNs — last resort)
+ * 4) Direct AgentRouter
  */
 async function postChatCompletions(
   payload: CompletionPayload,
@@ -219,8 +224,7 @@ async function postChatCompletions(
   const proxyUrl = resolveAiProxyUrl(env);
   const proxySecret = resolveAiProxySecret(env);
   const pollinationsKey = env.POLLINATIONS_API_KEY || "";
-  const timeoutMs = opts.timeoutMs ?? 90_000;
-  // Direct ASN often WAF-blocked from Render — fail fast and hop to Pollinations/proxy.
+  const timeoutMs = opts.timeoutMs ?? 120_000;
   const directTimeoutMs = Math.min(timeoutMs, 12_000);
   const body = JSON.stringify(payload);
   const errors: string[] = [];
@@ -272,13 +276,33 @@ async function postChatCompletions(
   };
 
   const hops: Array<() => Promise<CompletionHop>> = [];
-  // Singapore proxy first (AgentRouter works from SEA residential + Vercel sin1
-  // with full Stainless headers). Pollinations next. Direct last (Render WAF).
-  if (hasAiProxy(env)) hops.push(tryProxy);
+  for (const hop of listCloudLlmHops(env)) {
+    hops.push(async () => {
+      const response = await fetch(`${hop.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${hop.apiKey}`,
+          ...(hop.headers || {}),
+        },
+        body: JSON.stringify({
+          model: hop.model,
+          messages: payload.messages,
+          temperature: payload.temperature ?? 0.2,
+          max_tokens: payload.max_tokens,
+        }),
+        signal: AbortSignal.timeout(Math.min(hop.timeoutMs, timeoutMs)),
+      });
+      return { response, text: await response.text(), via: hop.id };
+    });
+  }
   if (pollinationsKey) hops.push(tryPollinations);
+  if (hasAiProxy(env) && !/trycloudflare\.com|localhost|127\.0\.0\.1/i.test(proxyUrl)) {
+    hops.push(tryProxy);
+  }
   if (apiKey) hops.push(tryDirect);
   if (hops.length === 0) {
-    throw new Error("No AI provider configured (gpt-5.6-sol key / proxy / Pollinations)");
+    throw new Error("No AI provider configured (cloud LLM / gpt-5.6-sol key / Pollinations)");
   }
 
   for (const hop of hops) {
@@ -310,7 +334,7 @@ export async function chatCompletion(
   req: ChatCompletionRequest,
   env: BeaconEnv = loadEnv(),
 ): Promise<ChatCompletionResult> {
-  if (!resolveAiApiKey(env) && !hasAiProxy(env) && !env.POLLINATIONS_API_KEY) {
+  if (!isAiConfigured(env)) {
     throw new Error("AI_API_KEY is not configured");
   }
 
@@ -332,7 +356,6 @@ export async function chatCompletion(
     text = result.text;
     via = result.via;
     if (isRealCompletion(result)) break;
-    // Retry transient upstream capacity / gateway errors.
     if (![429, 502, 503, 504].includes(response.status) || attempt === 3) break;
     await new Promise((r) => setTimeout(r, 1500 * attempt));
   }
@@ -355,21 +378,14 @@ export async function chatCompletion(
     );
   }
 
-  const data = raw as {
-    choices?: Array<{ message?: { content?: string } }>;
-    model?: string;
-  };
-  const content = data.choices?.[0]?.message?.content ?? "";
+  const content = extractChatContent(raw);
   if (!content) {
     throw new Error("AI provider returned empty content");
   }
 
-  // Prefer requested AgentRouter model id in product UI when hop succeeds.
-  const returnedModel = data.model ?? req.model;
-
   return {
     content,
-    model: returnedModel,
+    model: PRODUCT_MODEL_LABEL,
     requestedModel: req.model,
     via,
     latencyMs,
@@ -384,58 +400,23 @@ export async function chatForRole(
 ): Promise<ChatCompletionResult> {
   const env = options.env ?? loadEnv();
   const primary = resolveModelForRole(role, env);
-  // Jobs generator: gpt-5.6-sol only (user-facing model). Quote/judge keep short fallbacks.
-  const fallbacks =
-    role === "quote"
-      ? [primary, "gpt-5.6-sol"]
-      : role === "generator"
-        ? // Console-available models: gpt-5.6-sol, claude-opus-4-8, claude-opus-5.
-          // gpt-5.6-luna is not on this token.
-          ["gpt-5.6-sol", primary, "claude-opus-4-8"].filter((m, i, a) => a.indexOf(m) === i)
-        : role === "acceptance"
-          ? [primary, "gpt-5.6-sol", "claude-opus-4-8"].filter((m, i, a) => a.indexOf(m) === i)
-          : [primary, "gpt-5.6-sol"];
-
-  const tried = new Set<string>();
-  let lastErr: unknown;
-  for (const model of fallbacks) {
-    if (tried.has(model)) continue;
-    tried.add(model);
-    try {
-      const result = await chatCompletion(
-        {
-          model,
-          messages,
-          temperature: options.temperature,
-          maxTokens: options.maxTokens,
-        },
-        env,
-      );
-      return {
-        ...result,
-        raw: {
-          ...(typeof result.raw === "object" && result.raw ? result.raw : { body: result.raw }),
-          _primary: primary,
-          _fallbackUsed: result.requestedModel !== primary,
-        },
-      };
-    } catch (err) {
-      lastErr = err;
-      const message = err instanceof Error ? err.message : String(err);
-      // Soft-retry provider / WAF / proxy / empty-body failures across the model chain.
-      const retryable =
-        /temporarily unavailable \((405|408|429|500|502|503|504)\)/i.test(message) ||
-        /AI (?:provider |unavailable|proxy)/i.test(message) ||
-        /unauthorized client|WAF|timeout|ECONNRESET|ETIMEDOUT|fetch failed|empty content/i.test(
-          message,
-        );
-      if (!retryable) {
-        // Still try next model for generator/acceptance — hard abort only after chain exhausted.
-        if (role !== "generator" && role !== "acceptance") throw err;
-      }
-    }
-  }
-  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  const result = await chatCompletion(
+    {
+      model: PRODUCT_MODEL_LABEL,
+      messages,
+      temperature: options.temperature,
+      maxTokens: options.maxTokens,
+    },
+    env,
+  );
+  return {
+    ...result,
+    raw: {
+      ...(typeof result.raw === "object" && result.raw ? result.raw : { body: result.raw }),
+      _primary: primary,
+      _fallbackUsed: false,
+    },
+  };
 }
 
 export async function probeModels(

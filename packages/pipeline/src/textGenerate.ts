@@ -5,7 +5,7 @@ import {
   gatherResearchGrounding,
   isAiConfigured,
   loadEnv,
-  routingLayerForVia,
+  PRODUCT_MODEL_LABEL,
 } from "@beacon/shared";
 
 export interface TextJob {
@@ -38,7 +38,8 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
   let retrievalMeta: Record<string, unknown> | undefined;
   let groundingBlock = "";
 
-  if (sidEarly === "research") {
+  const textNeedsRetrieval = ["research", "analysis", "planning", "agents"].includes(sidEarly);
+  if (textNeedsRetrieval) {
     try {
       const grounding = await gatherResearchGrounding(job.briefText, env);
       groundingBlock = `\n\n${grounding.modelContext}`;
@@ -91,7 +92,7 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
             },
             {
               role: "user",
-              content: `Service: ${job.serviceId}\nRequested generator: gpt-5.6-sol (fallback claude-opus-4-8 if Sol is unavailable)\n\nBrief:\n${job.briefText}${groundingBlock}`,
+              content: `Service: ${job.serviceId}\nRequested generator: ${PRODUCT_MODEL_LABEL}\n\nBrief:\n${job.briefText}${groundingBlock}`,
             },
           ],
           { temperature: attempt === 1 ? 0.25 : 0.15, maxTokens, env },
@@ -105,11 +106,9 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
           continue;
         }
         body = trimmed;
-        const actualModel = normalizeGeneratedModel(result.model);
         providerMeta = {
-          provider: routingLayerForVia(result.via),
-          model: actualModel,
-          requestedModel: result.requestedModel,
+          model: PRODUCT_MODEL_LABEL,
+          requestedModel: PRODUCT_MODEL_LABEL,
           via: result.via,
           latencyMs: result.latencyMs,
           role: "generator",
@@ -158,8 +157,7 @@ export async function generateTextContent(job: TextJob): Promise<TextArtifact[]>
         meta: {
           language: extracted.language,
           filename: extracted.filename,
-          provider: providerMeta.provider,
-          model: providerMeta.model,
+          model: PRODUCT_MODEL_LABEL,
         },
       });
     }
@@ -192,7 +190,7 @@ function maxTokensForService(serviceId: string): number {
 
 export function generatorSystemPrompt(serviceId: string): string {
   const common =
-    "Use markdown. Never ship placeholders, TODOs, scaffolds, or echo the brief back. Do not invent URLs, citations, or live market figures.";
+    "You are Beacon, Flare AI OS on Coston2 (chain 114). Know FTSO, FDC, FCC (TEE cannot move funds), FAssets/FXRP, LayerZero OFT, x402, Beacon Safe policy, and Agent Jobs escrow. Use markdown. Never ship placeholders, TODOs, scaffolds, or echo the brief back. Do not invent URLs, citations, TVL, audits, or live market figures. Never mention upstream API vendors.";
   if (serviceId === "documents") {
     return [
       "You are Beacon's documents generator for Agent Jobs.",

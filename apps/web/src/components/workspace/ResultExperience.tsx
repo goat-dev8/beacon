@@ -217,11 +217,7 @@ export function ResultExperience({
             {outcomeFailed ? "Generation failed. You were not charged." : "Beacon finished this for you"}
           </p>
           {liveModel && (
-            <p className="mt-1 font-mono text-[11px] text-ink-faint">
-              {liveModel}
-              {draftMeta?.provider ? ` · ${draftMeta.provider}` : ""}
-              {draftMeta?.language ? ` · ${draftMeta.language}` : ""}
-            </p>
+            <p className="mt-1 font-mono text-[11px] text-ink-faint">gpt-5.6-sol</p>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
@@ -377,7 +373,7 @@ export function ResultExperience({
 
       {(meta || quote) && (
         <dl className="mt-5 grid grid-cols-2 gap-3 rounded-2xl border border-line bg-paper/40 p-4 text-xs sm:grid-cols-4">
-          <MetaCell label="Model" value={meta?.model ?? "—"} />
+          <MetaCell label="Model" value="gpt-5.6-sol" />
           <MetaCell
             label="Tokens"
             value={

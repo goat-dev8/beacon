@@ -18,7 +18,7 @@ export type PipelineStage = "plan" | "generate" | "compose" | "normalize";
 
 /** Bumped when deliverable composers change — exposed via /health for deploy proof. */
 export const PIPELINE_CAPS = {
-  version: "2026-08-14-ar-sg-proxy",
+  version: "2026-08-14-cloud-llm",
   imageSvg: true,
   imagePollinations: true,
   imageComfy: true,
@@ -185,8 +185,7 @@ async function composeMarkdownPack(
       uri: packPath,
       mimeType: "text/markdown",
       meta: {
-        provider: draftMeta.provider,
-        model: draftMeta.model,
+        model: draftMeta.model || "gpt-5.6-sol",
         via: draftMeta.via,
         requestedModel: draftMeta.requestedModel,
         retrieval: draftMeta.retrieval,

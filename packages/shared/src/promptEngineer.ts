@@ -11,7 +11,7 @@ export interface EngineeredPrompt {
   shotList?: Array<{ beat: string; prompt: string; seconds: number }>;
   model: string;
   latencyMs: number;
-  source: "agentrouter" | "vercel-ai-gateway" | "pollinations" | "local-heuristic";
+  source: string;
 }
 
 function heuristicImagePrompt(brief: string): EngineeredPrompt {

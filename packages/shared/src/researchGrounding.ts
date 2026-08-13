@@ -103,9 +103,16 @@ const OFFICIAL_PAGES: OfficialPage[] = [
     match: /layerzero|\boft\b|bridge|fxrp/i,
   },
   {
-    title: "Flare — Coston2 developer tools",
-    url: "https://dev.flare.network/network/developer-tools?network=coston2",
-    match: /coston2|testnet/i,
+    title: "Flare — network overview",
+    url: "https://dev.flare.network/network/overview",
+    match: /flare ecosystem|flare network|coston|layerzero|ftso/i,
+    flareCore: true,
+  },
+  {
+    title: "Flare — getting started",
+    url: "https://dev.flare.network/network/getting-started",
+    match: /flare|developer|coston2/i,
+    flareCore: true,
   },
   {
     title: "Beacon README (live)",
@@ -171,6 +178,16 @@ export function selectOfficialSources(topic: string): OfficialPage[] {
     if (out.length >= MAX_SOURCES) break;
   }
   return out;
+}
+
+export function wikipediaTitleRelevant(query: string, title: string): boolean {
+  const qTokens = extractSearchQuery(query)
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 4);
+  if (!qTokens.length) return false;
+  const hay = title.toLowerCase();
+  return qTokens.some((t) => hay.includes(t));
 }
 
 export function extractSearchQuery(topic: string): string {
@@ -264,6 +281,7 @@ async function fetchWikipedia(
     const title = json[1]?.[0];
     const pageUrl = json[3]?.[0];
     if (!title || !pageUrl || !hostAllowed(pageUrl)) return null;
+    if (!wikipediaTitleRelevant(topic, title)) return null;
     const sumRes = await fetchImpl(
       `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
       { signal: AbortSignal.timeout(FETCH_MS) },
@@ -283,6 +301,88 @@ async function fetchWikipedia(
   } catch {
     return null;
   }
+}
+
+async function fetchWebSearch(
+  topic: string,
+  fetchImpl: typeof fetch,
+): Promise<RetrievedSource[]> {
+  const q = extractSearchQuery(topic);
+  if (q.length < 3) return [];
+  const retrievedAt = new Date().toISOString();
+  const out: RetrievedSource[] = [];
+
+  try {
+    const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(q)}&format=json&no_html=1&skip_disambig=1`;
+    const res = await fetchImpl(ddgUrl, {
+      headers: { Accept: "application/json", "User-Agent": "BeaconResearch/1.0" },
+      signal: AbortSignal.timeout(FETCH_MS),
+    });
+    if (res.ok) {
+      const json = (await res.json()) as {
+        AbstractText?: string;
+        AbstractURL?: string;
+        Heading?: string;
+        RelatedTopics?: Array<{ Text?: string; FirstURL?: string }>;
+      };
+      const abstract = (json.AbstractText || "").trim();
+      const absUrl = json.AbstractURL || "";
+      if (abstract.length >= 80 && absUrl) {
+        out.push({
+          title: json.Heading ? `Web — ${json.Heading}` : "DuckDuckGo abstract",
+          url: absUrl,
+          excerpt: abstract.slice(0, EXCERPT_CHARS),
+          fetchedAt: retrievedAt,
+          ok: true,
+        });
+      }
+      for (const rel of json.RelatedTopics || []) {
+        if (out.length >= 3) break;
+        const text = (rel.Text || "").trim();
+        const url = rel.FirstURL || "";
+        if (text.length < 80 || !url) continue;
+        out.push({
+          title: `Web — ${text.slice(0, 80)}`,
+          url,
+          excerpt: text.slice(0, EXCERPT_CHARS),
+          fetchedAt: retrievedAt,
+          ok: true,
+        });
+      }
+    }
+  } catch {
+    // continue to jina
+  }
+
+  if (out.length >= 2) return out.slice(0, 3);
+
+  try {
+    const jinaUrl = `https://s.jina.ai/${encodeURIComponent(q)}`;
+    const res = await fetchImpl(jinaUrl, {
+      headers: {
+        Accept: "text/plain, application/json, */*",
+        "User-Agent": "BeaconResearch/1.0",
+        "X-Retain-Images": "none",
+      },
+      signal: AbortSignal.timeout(FETCH_MS),
+    });
+    if (res.ok) {
+      const excerpt = stripToExcerpt(await res.text());
+      if (excerpt.length >= 80) {
+        out.push({
+          title: `Web search — ${q}`,
+          url: jinaUrl,
+          excerpt: excerpt.slice(0, EXCERPT_CHARS),
+          fetchedAt: retrievedAt,
+          ok: true,
+        });
+      }
+    }
+  } catch {
+    // optional
+  }
+
+  return out.slice(0, 3);
 }
 
 function formatModelContext(g: Omit<ResearchGrounding, "modelContext">): string {
@@ -331,7 +431,8 @@ export async function gatherResearchGrounding(
   );
 
   const wiki = await fetchWikipedia(topic, fetchImpl);
-  const sources = [...sourceResults, ...(wiki ? [wiki] : [])];
+  const web = await fetchWebSearch(topic, fetchImpl);
+  const sources = [...sourceResults, ...(wiki ? [wiki] : []), ...web];
 
   if (topicTouchesFlare(topic) || /sparkdex|\bdex\b/i.test(topic)) {
     try {
@@ -371,7 +472,7 @@ export async function gatherResearchGrounding(
     retrievedAt,
     beaconFlareContext: topicTouchesFlare(topic)
       ? buildBeaconFlareContext()
-      : "Topic is not clearly Flare/Beacon-related. Do not force Beacon product narrative into the brief.",
+      : `${buildBeaconFlareContext()}\nTopic may not be Flare/Beacon-related. Use Beacon notes only if relevant. Do not hijack the answer into a Beacon pitch.`,
     liveNotes,
     sources,
   };

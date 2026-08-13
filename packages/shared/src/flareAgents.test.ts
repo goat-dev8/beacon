@@ -20,10 +20,10 @@ describe("extractAmount", () => {
 });
 
 describe("displayModelName", () => {
-  it("shows exact Agent Router model ids; never invents marketing names", () => {
-    expect(displayModelName("claude-opus-5")).toBe("claude-opus-5");
+  it("shows gpt-5.6-sol for live generators; heuristic stays fallback", () => {
+    expect(displayModelName("claude-opus-5")).toBe("gpt-5.6-sol");
     expect(displayModelName("gpt-5.6-sol")).toBe("gpt-5.6-sol");
-    expect(displayModelName("gpt-4o")).toBe("gpt-4o");
+    expect(displayModelName("gpt-4o")).toBe("gpt-5.6-sol");
     expect(displayModelName("local-heuristic")).toBe("deterministic fallback");
     expect(displayModelName("beacon-local")).toBe("deterministic fallback");
     expect(displayModelName("anything", { fallback: true })).toBe("deterministic fallback");

@@ -1,5 +1,6 @@
 export * from "./env.js";
 export * from "./ai.js";
+export * from "./cloudLlm.js";
 export {
   chatCompletion,
   chatCompletionStream,

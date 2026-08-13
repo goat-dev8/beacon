@@ -6,6 +6,7 @@ import {
   selectOfficialSources,
   stripToExcerpt,
   topicTouchesFlare,
+  wikipediaTitleRelevant,
 } from "./researchGrounding.js";
 
 describe("research grounding", () => {
@@ -50,5 +51,10 @@ describe("research grounding", () => {
   it("extracts a search query from research phrasing", () => {
     expect(extractSearchQuery("Research SparkDEX")).toBe("SparkDEX");
     expect(extractSearchQuery("What is FCC and how does Beacon use it?")).toContain("FCC");
+  });
+
+  it("rejects Wikipedia titles that do not share tokens with the query", () => {
+    expect(wikipediaTitleRelevant("Research SparkDEX", "SparkDEX")).toBe(true);
+    expect(wikipediaTitleRelevant("Research SparkDEX", "Sparkle in the Rain")).toBe(false);
   });
 });

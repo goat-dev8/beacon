@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAgentRouterHeaders,
+  displayModelName,
   extractJsonObject,
   mapVercelGatewayModel,
   resolveModelForRole,
   routingLayerForVia,
   stainlessOsArch,
 } from "./ai.js";
+import { listCloudLlmHops, PRODUCT_MODEL_LABEL } from "./cloudLlm.js";
 import { loadEnv, resetEnvCache } from "./env.js";
 
 function normalizeOpenAiBase(baseUrl: string): string {
@@ -76,5 +78,29 @@ describe("routing honesty", () => {
     expect(routingLayerForVia("proxy")).toBe("agentrouter");
     expect(routingLayerForVia("pollinations")).toBe("pollinations");
     expect(routingLayerForVia("direct")).toBe("agentrouter");
+    expect(routingLayerForVia("nvidia")).toBe("nvidia");
+    expect(routingLayerForVia("groq")).toBe("groq");
+  });
+
+  it("labels live generators as gpt-5.6-sol", () => {
+    expect(displayModelName("meta/llama-3.1-70b-instruct")).toBe("gpt-5.6-sol");
+    expect(displayModelName("moonshot-v1-auto")).toBe("gpt-5.6-sol");
+    expect(displayModelName("gpt-5.6-sol")).toBe(PRODUCT_MODEL_LABEL);
+  });
+
+  it("puts NVIDIA first when configured as primary", () => {
+    resetEnvCache();
+    const env = loadEnv({
+      ...process.env,
+      NVIDIA_API_KEY: "nv-test",
+      NVIDIA_MODEL_SECONDARY: "meta/llama-3.1-70b-instruct",
+      GROQ_API_KEY: "gsk-test",
+      KIMI_API_KEY: "sk-test",
+      AI_PRIMARY_PROVIDER: "nvidia",
+    });
+    expect(listCloudLlmHops(env)[0]?.id).toBe("nvidia");
+    expect(listCloudLlmHops(env).map((h) => h.id)).toEqual(
+      expect.arrayContaining(["nvidia", "groq", "kimi"]),
+    );
   });
 });
