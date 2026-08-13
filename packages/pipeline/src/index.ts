@@ -18,7 +18,7 @@ export type PipelineStage = "plan" | "generate" | "compose" | "normalize";
 
 /** Bumped when deliverable composers change — exposed via /health for deploy proof. */
 export const PIPELINE_CAPS = {
-  version: "2026-08-14-jobs-research-retrieval",
+  version: "2026-08-14-jobs-coding-gate",
   imageSvg: true,
   imagePollinations: true,
   imageComfy: true,

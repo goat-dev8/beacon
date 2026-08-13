@@ -128,6 +128,13 @@ async function processPipelineJob(db: pg.Pool, redis: Redis, job: JobRow): Promi
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         console.error("[workers] pipeline failed", job.id, message);
+        await db.query(
+          `INSERT INTO job_events (job_id, type, payload) VALUES ($1, 'error', $2::jsonb)`,
+          [
+            job.id,
+            JSON.stringify({ stage: "generation", message: message.slice(0, 400) }),
+          ],
+        );
         await publish(redis, job.id, "error", { stage: "generation", message: message.slice(0, 400) });
         status = await advance(db, redis, job.id, status, "generation_failed");
         await redis.lpush("q:settle", `refuse:${job.id}`);

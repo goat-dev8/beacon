@@ -48,6 +48,17 @@ else:
     expect(isAcceptableTextDeliverable("coding", wrapped, brief)).toBe(true);
   });
 
+  it("accepts a short complete even/odd Python CLI", () => {
+    const raw = `n = int(input("Number: "))
+print("even" if n % 2 == 0 else "odd")`;
+    const wrapped = normalizeCodingMarkdown("coding", raw, "Build a small Python CLI even or odd");
+    expect(wrapped).toContain("```python");
+    expect(isAcceptableTextDeliverable("coding", wrapped, "Build a small Python CLI even or odd")).toBe(
+      true,
+    );
+    expect(isAcceptableTextDeliverable("coding", raw, "Build a small Python CLI even or odd")).toBe(true);
+  });
+
   it("accepts a real Python calculator markdown pack", () => {
     const real = `# Python calculator
 

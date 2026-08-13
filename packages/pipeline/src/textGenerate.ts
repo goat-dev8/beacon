@@ -311,10 +311,10 @@ export function normalizeCodingMarkdown(
   const looksPy =
     /python|\.py\b/i.test(briefText) ||
     /\b(def |import |input\s*\(|print\s*\(|if __name__)/i.test(text);
-  if (looksPy && text.length >= 80) {
+  if (looksPy && text.length >= 40) {
     return `# Python deliverable\n\n\`\`\`python\n${text}\n\`\`\`\n\n## How to run\n\n\`\`\`bash\npython main.py\n\`\`\`\n`;
   }
-  if (/\b(function |const |export |console\.log)/i.test(text) && text.length >= 80) {
+  if (/\b(function |const |export |console\.log)/i.test(text) && text.length >= 40) {
     return `# Coding deliverable\n\n\`\`\`ts\n${text}\n\`\`\`\n`;
   }
   return text;
@@ -350,15 +350,15 @@ export function isAcceptableTextDeliverable(
   briefText: string,
 ): boolean {
   const text = (body || "").trim();
-  if (text.length < 80) return false;
   if (isStubDeliverable(text, briefText)) return false;
   if (serviceId === "coding") {
-    const hasFence = /```[\w+-]*\n[\s\S]{40,}```/.test(text);
+    const hasFence = /```[\w+-]*\n[\s\S]{20,}```/.test(text);
     const hasLogic =
       /\b(def |class |function |const |let |input\s*\(|print\s*\(|console\.log|if\s*\()/i.test(text);
-    // Accept fenced packs OR clear raw programs (normalized before ship).
-    return hasLogic && (hasFence || text.length >= 120);
+    // Small complete CLIs (even/odd, fizzbuzz) are valid — do not require 80+ chars.
+    return hasLogic && (hasFence || text.length >= 40);
   }
+  if (text.length < 80) return false;
   const brief = (briefText || "").trim();
   if (brief && text.replace(/\s+/g, " ") === brief.replace(/\s+/g, " ")) return false;
   if (serviceId === "research" || serviceId === "analysis") {
