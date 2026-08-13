@@ -327,12 +327,14 @@ npm run settler
 From the repo root:
 
 ```bash
-npm test                 # vitest
-npm run test:contracts   # needs Foundry (`forge` on PATH)
+npm test                 # vitest — 128 tests
+npm run test:contracts   # Foundry. First run installs forge-std
 npm run typecheck
 npm run web:build
 npm run lint -w @beacon/web
 ```
+
+Contract tests need [Foundry](https://book.getfoundry.sh/getting-started/installation) (`forge` on PATH). `npm run test:contracts` installs `forge-std` on the first run.
 
 Windows, if `forge` is missing from PATH:
 
@@ -341,7 +343,7 @@ $env:Path += ";$env:USERPROFILE\.foundry\bin"
 npm run test:contracts
 ```
 
-`npm run ci` runs typecheck + unit tests + contract tests. Foundry: https://book.getfoundry.sh/getting-started/installation
+`npm run ci` runs typecheck + unit tests + contract tests.
 
 ### 4. Coston2 wallet
 

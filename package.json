@@ -29,7 +29,7 @@
     "web": "npm run dev -w @beacon/web",
     "web:build": "npm run build -w @beacon/web",
     "test": "vitest run",
-    "test:contracts": "cd packages/contracts && forge test",
+    "test:contracts": "node scripts/test-contracts.mjs",
     "typecheck": "tsc -b",
     "verify:env": "tsx scripts/verify-env.ts",
     "probe:ai": "tsx scripts/probe-agentrouter.ts",
