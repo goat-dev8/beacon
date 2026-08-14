@@ -35,6 +35,7 @@ import { useProductWallet } from "@/lib/productWallet";
 import { ensureSafeAgentSession, readSafeAgentSession } from "@/lib/safeSession";
 import { DeskContextStrip } from "@/components/workspace/DeskContextStrip";
 import { ResultExperience } from "@/components/workspace/ResultExperience";
+import { ExamplePrompts } from "@/components/workspace/ExamplePrompts";
 import { NETWORK, CONTRACTS } from "@/lib/chain";
 import { FLARE_STEPS_SAFE, FLARE_STEPS_WALLET, flareStepState } from "@/lib/flareSteps";
 
@@ -73,47 +74,88 @@ const SERVICE_HINTS: Partial<
     examples: [
       "Python calculator: two numbers and + - * / from input, print the result",
       "TypeScript function that formats a Coston2 address",
+      "CLI that prints Coston2 USDT0 balance for a given address",
     ],
   },
   documents: {
     blurb: "Reports, SOPs, school or work docs — say audience, length, and must-haves.",
-    examples: ["One-page SOP for depositing Coston2 USDT0 into Beacon Safe"],
+    examples: [
+      "One-page SOP for depositing Coston2 USDT0 into Beacon Safe",
+      "School worksheet: what FCC is, and why it cannot move funds",
+      "Internal memo: how Agent Jobs lock, generate, then release or refund",
+    ],
   },
   marketing: {
     blurb: "Campaign copy you can ship: headlines, body, CTA, channel notes.",
-    examples: ["Landing headlines for Beacon Safe on Flare Coston2"],
+    examples: [
+      "Landing headlines for Beacon Safe on Flare Coston2",
+      "X thread: prepaid agent spend with policy caps, no MetaMask per job",
+      "Product email: research jobs that cite live sources, not invented links",
+    ],
   },
   design: {
     blurb: "Visual direction plus a generated creative. Name the surface, mood, and constraints.",
-    examples: ["App icon for a Flare wallet: signal green, geometric, dark background"],
+    examples: [
+      "App icon for a Flare wallet: signal green, geometric, dark background",
+      "Poster: Beacon Safe gates agent spend on Coston2",
+      "Sticker sheet: FTSO, FCC, x402 marks on paper",
+    ],
   },
   image: {
     blurb: "A generated still: thumbnail, product shot, or creative.",
-    examples: ["Square thumbnail: Beacon mark, paper background, signal-green accent"],
+    examples: [
+      "Square thumbnail: Beacon mark, paper background, signal-green accent",
+      "OG image: Describe the job screen with green quote button",
+      "Product still: Coston2 USDT0 lock into BeaconEscrow",
+    ],
   },
   ui: {
     blurb: "Layouts, components, and handoff notes. Prefer a single screen and platform.",
-    examples: ["Mobile jobs quote screen: price, Safe pay, wallet fallback"],
+    examples: [
+      "Mobile jobs quote screen: price, Safe pay, wallet fallback",
+      "Desktop Generate + compose step with thinking lines",
+      "Empty state: tap an example to fill the brief",
+    ],
   },
   branding: {
     blurb: "Name, personality, usage, and a generated mark visual.",
-    examples: ["Brand pack for a Coston2 research desk named Signal Brief"],
+    examples: [
+      "Brand pack for a Coston2 research desk named Signal Brief",
+      "Wordmark + usage for a Flare agent called Rails",
+      "Logo lockup: Beacon + FCC TEE, dark product UI",
+    ],
   },
   analysis: {
     blurb: "A real analysis: question, findings, trade-offs, recommendation, caveats.",
-    examples: ["Analyze whether to swap USDT0→FXRP on Coston2 vs waiting for mainnet SparkDEX"],
+    examples: [
+      "Analyze whether to swap USDT0→FXRP on Coston2 vs waiting for mainnet SparkDEX",
+      "Trade-offs: Beacon Safe prepaid vs wallet lockFrom for one research job",
+      "Should an agent use FTSO or a DEX pool price for a Coston2 guard?",
+    ],
   },
   presentations: {
     blurb: "A usable deck: slides with headlines, bullets, and speaker notes.",
-    examples: ["8-slide deck: how Beacon Safe + FCC gates agent spend on Coston2"],
+    examples: [
+      "8-slide deck: how Beacon Safe + FCC gates agent spend on Coston2",
+      "5-slide pitch: Agent Jobs lock, generate, accept, release or refund",
+      "Investor deck: Flare rails behind Beacon — FTSO, FDC, FCC, x402",
+    ],
   },
   planning: {
     blurb: "An actionable plan: goal, milestones, risks, next step.",
-    examples: ["Plan a 7-day Coston2 test: faucet, Safe, swap, one research job"],
+    examples: [
+      "Plan a 7-day Coston2 test: faucet, Safe, swap, one research job",
+      "Launch checklist for shipping a coding job from Beacon Safe",
+      "Week plan: fund Safe, set policy, run research + presentation jobs",
+    ],
   },
   agents: {
     blurb: "An agent spec: role, tools, guardrails, sample first message.",
-    examples: ["Agent brief for a Flare research assistant that never invents URLs"],
+    examples: [
+      "Agent brief for a Flare research assistant that never invents URLs",
+      "Spend agent: quote a job, pay from Safe, never receive the user key",
+      "Ops agent: check FTSO, then recommend wait vs swap on Coston2",
+    ],
   },
 };
 
@@ -635,18 +677,12 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
                 </p>
               )}
               {SERVICE_HINTS[serviceId]?.examples && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {SERVICE_HINTS[serviceId]!.examples.map((example) => (
-                    <button
-                      key={example}
-                      type="button"
-                      onClick={() => form.setValue("briefText", example, { shouldValidate: true })}
-                      className="max-w-full rounded-full border border-line bg-surface px-3 py-1.5 text-left text-xs text-ink-muted hover:border-signal/50 hover:text-ink"
-                    >
-                      {example}
-                    </button>
-                  ))}
-                </div>
+                <ExamplePrompts
+                  key={serviceId}
+                  examples={SERVICE_HINTS[serviceId]!.examples}
+                  value={form.watch("briefText")}
+                  onPick={(example) => form.setValue("briefText", example, { shouldValidate: true })}
+                />
               )}
               <form
                 className="mt-6 space-y-4 sm:mt-8"

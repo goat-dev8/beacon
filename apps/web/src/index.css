@@ -193,6 +193,16 @@
   }
 }
 
+@keyframes example-chip-ping {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-signal) 0%, transparent);
+  }
+  45% {
+    box-shadow: 0 0 0 7px color-mix(in oklab, var(--color-signal) 32%, transparent);
+  }
+}
+
 @keyframes float-sphere {
   0%,
   100% {
@@ -233,6 +243,16 @@
 
   .float-soft {
     animation: float-sphere 8s ease-in-out infinite;
+  }
+
+  .example-chip-ping {
+    animation: example-chip-ping 1.55s ease-out 0.35s 2;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .example-chip-ping {
+      animation: none;
+    }
   }
 
   /* Greptile-faithful paper hero: ruler ticks + crosshair stack */
