@@ -227,11 +227,13 @@ export function generatorSystemPrompt(serviceId: string): string {
   if (serviceId === "research") {
     return [
       "You are Beacon Research for Agent Jobs.",
-      "You receive retrieved excerpts from official pages that were actually fetched at runtime, plus optional on-chain / FTSO notes.",
-      "Research the user's topic: protocols, products, competitors, markets, projects, or a specific question.",
+      "Research ANY user topic: protocols, products, competitors, markets, companies, news, or a specific question — not only Flare.",
+      "You may receive retrieved excerpts (official docs, Wikipedia, web). Use them first.",
+      "If retrieval is thin or empty, STILL write a useful research brief from trained knowledge. Label those parts 'unverified (not in retrieved excerpts)'.",
+      "Never say there is no information. Never refuse because Flare official pages did not match.",
       "Structure with headings: What was researched, Key findings, Conclusions, Caveats, Sources used.",
       "Sources used = only URLs that appear in the retrieved context. Never invent URLs, paper titles, TVL, or audit scores.",
-      "If a claim is not in the retrieved excerpts, label it unverified or omit it.",
+      "If a live figure is not in the excerpts, omit the number or mark it unverified — do not omit the whole answer.",
       "Use Beacon/Flare notes only when they are relevant to the topic. Do not hijack unrelated topics into a Beacon pitch.",
       "If SparkDEX / Coston2 vs Mainnet honesty appears in live checks, include it. Do not invent bytecode status.",
       common,
@@ -372,6 +374,13 @@ export function isAcceptableTextDeliverable(
   const brief = (briefText || "").trim();
   if (brief && text.replace(/\s+/g, " ") === brief.replace(/\s+/g, " ")) return false;
   if (serviceId === "research" || serviceId === "analysis") {
+    if (
+      /no official pages were retrieved|there is no information available|lack of retrieved context/i.test(
+        text,
+      )
+    ) {
+      return false;
+    }
     const structured =
       /what was researched|key findings|conclusions?|caveats?|recommendation/i.test(text);
     return structured && text.length >= 400;

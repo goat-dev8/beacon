@@ -63,9 +63,9 @@ const SERVICE_HINTS: Partial<
       "Research a protocol, product, competitor, market, project, or topic. You get what was researched, key findings, conclusions, and caveats — not invented citations.",
     examples: [
       "Research SparkDEX",
+      "Research Polymarket",
       "Compare two DeFi protocols",
       "Research the latest XRP ecosystem developments",
-      "Analyze a protocol before I use it",
     ],
     placeholder: "What should Beacon research?",
   },

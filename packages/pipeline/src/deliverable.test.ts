@@ -122,6 +122,26 @@ Not financial advice. No invented URLs or TVL.
     const prompt = generatorSystemPrompt("research").toLowerCase();
     expect(prompt).toContain("what was researched");
     expect(prompt).toContain("never invent urls");
+    expect(prompt).toContain("any user topic");
+    expect(prompt).toContain("never say there is no information");
     expect(prompt).toContain("sparkdex");
+  });
+
+  it("rejects a retrieval-refusal dressed as a research brief", () => {
+    const body = `# Research
+
+## What was researched
+The topic of poly market research was investigated.
+
+## Key findings
+No official pages were retrieved for this topic, and as a result, there is no information available to provide key findings.
+
+## Conclusions
+Due to the lack of retrieved context, it is not possible to draw any conclusions.
+
+## Caveats
+The research was limited by the absence of official pages.
+`;
+    expect(isAcceptableTextDeliverable("research", body, "poly market reasearch")).toBe(false);
   });
 });

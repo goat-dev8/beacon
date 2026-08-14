@@ -180,22 +180,69 @@ export function selectOfficialSources(topic: string): OfficialPage[] {
   return out;
 }
 
+const TOPIC_ALIASES: Array<{ match: RegExp; canonical: string }> = [
+  { match: /\bpoly[\s_-]*market/i, canonical: "Polymarket" },
+  { match: /\buni[\s_-]*swap/i, canonical: "Uniswap" },
+];
+
+export function extractSearchQuery(topic: string): string {
+  const stripped = topic
+    .replace(/^(please\s+)?(research|compare|analyze|analyse|explain|what is|what's)\s+/i, "")
+    .replace(/\b(reasearch|research|analysis)\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  for (const alias of TOPIC_ALIASES) {
+    if (alias.match.test(stripped) || alias.match.test(topic)) return alias.canonical;
+  }
+  return stripped.slice(0, 120);
+}
+
 export function wikipediaTitleRelevant(query: string, title: string): boolean {
   const qTokens = extractSearchQuery(query)
     .toLowerCase()
     .split(/[^a-z0-9]+/)
-    .filter((t) => t.length >= 4);
+    .filter((t) => t.length >= 3);
   if (!qTokens.length) return false;
   const hay = title.toLowerCase();
   return qTokens.some((t) => hay.includes(t));
 }
 
-export function extractSearchQuery(topic: string): string {
-  return topic
-    .replace(/^(please\s+)?(research|compare|analyze|analyse|explain|what is|what's)\s+/i, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 120);
+export function isSafeHttpUrl(url: string): boolean {
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    const host = u.hostname.toLowerCase();
+    if (!host.includes(".")) return false;
+    if (host === "localhost" || host.endsWith(".local")) return false;
+    if (/^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/.test(host)) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Pull title+URL hits out of a Jina search dump. */
+export function parseJinaSearchHits(text: string): Array<{ title: string; url: string }> {
+  const hits: Array<{ title: string; url: string }> = [];
+  const seen = new Set<string>();
+  const re = /\[([^\]]{2,160})\]\((https?:\/\/[^)\s]+)\)/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    let href = m[2] ?? "";
+    href = href.replace(/^https?:\/\/(?:r|s)\.jina\.ai\//i, "");
+    if (!isSafeHttpUrl(href)) continue;
+    try {
+      const host = new URL(href).hostname.toLowerCase();
+      if (host === "jina.ai" || host.endsWith(".jina.ai")) continue;
+    } catch {
+      continue;
+    }
+    if (seen.has(href)) continue;
+    seen.add(href);
+    hits.push({ title: (m[1] ?? "").trim(), url: href });
+    if (hits.length >= 5) break;
+  }
+  return hits;
 }
 
 export function stripToExcerpt(raw: string): string {
@@ -281,7 +328,7 @@ async function fetchWikipedia(
     const title = json[1]?.[0];
     const pageUrl = json[3]?.[0];
     if (!title || !pageUrl || !hostAllowed(pageUrl)) return null;
-    if (!wikipediaTitleRelevant(topic, title)) return null;
+    if (!wikipediaTitleRelevant(q, title)) return null;
     const sumRes = await fetchImpl(
       `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
       { signal: AbortSignal.timeout(FETCH_MS) },
@@ -355,7 +402,7 @@ async function fetchWebSearch(
     // continue to jina
   }
 
-  if (opts.skipJina || out.length >= 1) return out.slice(0, 3);
+  if (opts.skipJina && out.length >= 1) return out.slice(0, 3);
 
   try {
     const jinaUrl = `https://s.jina.ai/${encodeURIComponent(q)}`;
@@ -365,7 +412,7 @@ async function fetchWebSearch(
         "User-Agent": "BeaconResearch/1.0",
         "X-Retain-Images": "none",
       },
-      signal: AbortSignal.timeout(FETCH_MS),
+      signal: AbortSignal.timeout(10_000),
     });
     if (res.ok) {
       const excerpt = stripToExcerpt(await res.text());
@@ -377,13 +424,28 @@ async function fetchWebSearch(
           fetchedAt: retrievedAt,
           ok: true,
         });
+        const pages = parseJinaSearchHits(excerpt);
+        const extras = await Promise.all(
+          pages.slice(0, 3).map(async (hit) => {
+            const got = await fetchExcerpt(hit.url, fetchImpl);
+            return {
+              title: hit.title.slice(0, 120) || hit.url,
+              url: hit.url,
+              excerpt: got.excerpt,
+              fetchedAt: retrievedAt,
+              ok: got.ok,
+              error: got.error,
+            } satisfies RetrievedSource;
+          }),
+        );
+        out.push(...extras.filter((s) => s.ok));
       }
     }
   } catch {
     // optional
   }
 
-  return out.slice(0, 3);
+  return out.slice(0, 6);
 }
 
 function formatModelContext(g: Omit<ResearchGrounding, "modelContext">): string {
@@ -398,7 +460,9 @@ function formatModelContext(g: Omit<ResearchGrounding, "modelContext">): string 
     "Prefer these excerpts over unaudited memory. If something is not in the excerpts, say it is unverified.",
     g.beaconFlareContext,
     g.liveNotes.length ? `Live checks:\n${g.liveNotes.map((n) => `- ${n}`).join("\n")}` : "",
-    blocks.length ? `Fetched sources:\n\n${blocks.join("\n\n")}` : "No official pages were retrieved for this topic.",
+    blocks.length
+      ? `Fetched sources:\n\n${blocks.join("\n\n")}`
+      : "No Flare-official docs matched this topic. That does not mean the topic is unanswerable. Still write a useful research brief. Mark live figures as unverified. Do not invent URLs.",
     failed.length
       ? `Fetch failures (do not cite these as sources): ${failed.map((s) => `${s.title} (${s.error})`).join("; ")}`
       : "",
@@ -461,7 +525,7 @@ export async function gatherResearchGrounding(
       }),
     ),
     fetchWikipedia(topic, fetchImpl),
-    fetchWebSearch(topic, fetchImpl, { skipJina: pages.length > 0 }),
+    fetchWebSearch(topic, fetchImpl, { skipJina: topicTouchesFlare(topic) && pages.length > 0 }),
     sparkP,
     ftsoP,
   ]);

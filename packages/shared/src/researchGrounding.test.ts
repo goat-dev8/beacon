@@ -3,6 +3,7 @@ import {
   buildBeaconFlareContext,
   extractSearchQuery,
   hostAllowed,
+  parseJinaSearchHits,
   selectOfficialSources,
   stripToExcerpt,
   topicTouchesFlare,
@@ -51,11 +52,24 @@ describe("research grounding", () => {
   it("extracts a search query from research phrasing", () => {
     expect(extractSearchQuery("Research SparkDEX")).toBe("SparkDEX");
     expect(extractSearchQuery("What is FCC and how does Beacon use it?")).toContain("FCC");
+    expect(extractSearchQuery("poly market reasearch")).toBe("Polymarket");
+    expect(extractSearchQuery("Research Polymarket")).toBe("Polymarket");
   });
 
   it("rejects Wikipedia titles that do not share tokens with the query", () => {
     expect(wikipediaTitleRelevant("Research SparkDEX", "SparkDEX")).toBe(true);
     expect(wikipediaTitleRelevant("Research SparkDEX", "Sparkle in the Rain")).toBe(false);
+    expect(wikipediaTitleRelevant("poly market reasearch", "Polymarket")).toBe(true);
+  });
+
+  it("parses Jina search hits into http URLs", () => {
+    const hits = parseJinaSearchHits(
+      "[Polymarket](https://polymarket.com/) Prediction markets.\n[Docs](https://docs.polymarket.com/overview)",
+    );
+    expect(hits.map((h) => h.url)).toEqual([
+      "https://polymarket.com/",
+      "https://docs.polymarket.com/overview",
+    ]);
   });
 
   it("selects at most four official pages", () => {
