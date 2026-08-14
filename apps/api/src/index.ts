@@ -2126,8 +2126,18 @@ app.put("/v1/security/policy", async (req) => {
     .parse(req.body ?? {});
   await requireSafeSession(req, body.wallet);
   const nowIso = new Date().toISOString();
+  const imageCost =
+    body.policy.emergencyPause || body.policy.maxImageCostUsdt0 > 0
+      ? body.policy.maxImageCostUsdt0
+      : DEFAULT_SECURITY_POLICY.maxImageCostUsdt0;
+  const videoSeconds =
+    body.policy.emergencyPause || body.policy.maxVideoSeconds > 0
+      ? body.policy.maxVideoSeconds
+      : DEFAULT_SECURITY_POLICY.maxVideoSeconds;
   const stored: BeaconSecurityPolicy = {
     ...body.policy,
+    maxImageCostUsdt0: imageCost,
+    maxVideoSeconds: videoSeconds,
     updatedAt: nowIso,
     sessionStartedAt: nowIso,
   };

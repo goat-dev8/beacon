@@ -78,8 +78,9 @@ export function SecurityPage() {
     setPolicy({
       ...next,
       allowedAgents: stripNonFlareAgents(next.allowedAgents),
-      maxImageCostUsdt0: 0,
-      maxVideoSeconds: 0,
+      maxImageCostUsdt0:
+        next.maxImageCostUsdt0 > 0 ? next.maxImageCostUsdt0 : 0.05,
+      maxVideoSeconds: next.maxVideoSeconds > 0 ? next.maxVideoSeconds : 60,
     });
   }, [policyQuery.data]);
 
@@ -106,8 +107,8 @@ export function SecurityPage() {
         {
           ...policy,
           allowedAgents: stripNonFlareAgents(policy.allowedAgents),
-          maxImageCostUsdt0: 0,
-          maxVideoSeconds: 0,
+          maxImageCostUsdt0: policy.maxImageCostUsdt0 > 0 ? policy.maxImageCostUsdt0 : 0.05,
+          maxVideoSeconds: policy.maxVideoSeconds > 0 ? policy.maxVideoSeconds : 60,
         },
         session.token,
       );

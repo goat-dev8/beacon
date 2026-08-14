@@ -50,6 +50,27 @@ describe("security policy demo defaults", () => {
     expect(migrateStoredPolicy(custom).perJobLimitUsdt0).toBe(0.5);
   });
 
+  it("lifts a zero image cap left by Save app limits so Flux jobs can pay", () => {
+    const stored = {
+      ...DEFAULT_SECURITY_POLICY,
+      maxImageCostUsdt0: 0,
+      maxVideoSeconds: 0,
+      emergencyPause: false,
+    };
+    const migrated = migrateStoredPolicy(stored);
+    expect(migrated.maxImageCostUsdt0).toBe(0.05);
+    expect(migrated.maxVideoSeconds).toBe(60);
+  });
+
+  it("keeps image cap at 0 while emergency pause is on", () => {
+    const paused = {
+      ...DEFAULT_SECURITY_POLICY,
+      maxImageCostUsdt0: 0,
+      emergencyPause: true,
+    };
+    expect(migrateStoredPolicy(paused).maxImageCostUsdt0).toBe(0);
+  });
+
   it("reverseSpendUsdt0 is a no-op without Redis", async () => {
     expect(await reverseSpendUsdt0(null, "0xabc", 1)).toBe(0);
   });

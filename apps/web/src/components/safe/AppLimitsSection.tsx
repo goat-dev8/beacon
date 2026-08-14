@@ -31,8 +31,8 @@ export const DEFAULT_SAFE_POLICY: SecurityPolicy = {
   perJobLimitUsdt0: 10,
   allowedAgents: [...FLARE_AGENT_OPTIONS],
   allowedChains: [114, 14],
-  maxImageCostUsdt0: 0,
-  maxVideoSeconds: 0,
+  maxImageCostUsdt0: 0.05,
+  maxVideoSeconds: 60,
   emergencyPause: false,
   sessionExpiryHours: 24,
 };
@@ -113,6 +113,13 @@ export function AppLimitsSection({
           value={policy.perJobLimitUsdt0}
           onChange={(v) => setPolicy((p) => ({ ...p, perJobLimitUsdt0: Number(v) || 0 }))}
           disabled={!wallet}
+        />
+        <SafeField
+          label="Max image job (USDT0)"
+          value={policy.maxImageCostUsdt0}
+          onChange={(v) => setPolicy((p) => ({ ...p, maxImageCostUsdt0: Number(v) || 0 }))}
+          disabled={!wallet}
+          hint="Micro Flux jobs are about $0.01. 0 is treated as the 0.05 default so images keep working."
         />
         <SafeField
           label="Session expiry (hours)"

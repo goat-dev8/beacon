@@ -105,6 +105,14 @@ export function migrateStoredPolicy(stored: BeaconSecurityPolicy): BeaconSecurit
     next.perJobLimitUsdt0 = DEFAULT_SECURITY_POLICY.perJobLimitUsdt0;
     next.updatedAt = new Date().toISOString();
   }
+  // Security Center used to PUT maxImageCostUsdt0: 0 even though the form never showed
+  // an image cap. That bricked Flux image jobs (~$0.011) while research still paid.
+  if (!next.emergencyPause && Number(next.maxImageCostUsdt0) <= 0) {
+    next.maxImageCostUsdt0 = DEFAULT_SECURITY_POLICY.maxImageCostUsdt0;
+  }
+  if (!next.emergencyPause && Number(next.maxVideoSeconds) <= 0) {
+    next.maxVideoSeconds = DEFAULT_SECURITY_POLICY.maxVideoSeconds;
+  }
   return next;
 }
 
@@ -164,7 +172,9 @@ export async function loadPolicy(
   if (!stored) return { policy: { ...DEFAULT_SECURITY_POLICY }, source: "default" };
   const policy = migrateStoredPolicy(stored);
   const agentsAdded = policy.allowedAgents.some((a) => !stored.allowedAgents.includes(a));
-  if (isLegacyTightDefaultPolicy(stored) || agentsAdded) {
+  const imageCapFixed = !stored.emergencyPause && Number(stored.maxImageCostUsdt0) <= 0;
+  const videoCapFixed = !stored.emergencyPause && Number(stored.maxVideoSeconds) <= 0;
+  if (isLegacyTightDefaultPolicy(stored) || agentsAdded || imageCapFixed || videoCapFixed) {
     // Persist so Safe UI and Flow stop disagreeing.
     await redis.set(policyKey(wallet), policy);
   }
