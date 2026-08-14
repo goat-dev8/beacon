@@ -15,7 +15,32 @@ describe("research grounding", () => {
     expect(topicTouchesFlare("Research SparkDEX")).toBe(true);
     expect(topicTouchesFlare("What is FCC and how does Beacon use it?")).toBe(true);
     expect(topicTouchesFlare("Research the current Flare ecosystem")).toBe(true);
+    expect(topicTouchesFlare("Research FAssets")).toBe(true);
+    expect(topicTouchesFlare("Research FDC")).toBe(true);
+    expect(topicTouchesFlare("Research signals")).toBe(true);
     expect(topicTouchesFlare("Write a poem about cats")).toBe(false);
+  });
+
+  it("maps short Flare research prompts to matching DevHub pages", () => {
+    const spark = selectOfficialSources("Research SparkDEX on Flare.").map((p) => p.url);
+    expect(spark.some((u) => u.includes("docs.sparkdex.ai"))).toBe(true);
+
+    const fcc = selectOfficialSources("Research Flare Confidential Compute (FCC).").map((p) => p.url);
+    expect(fcc.some((u) => u.includes("/fcc/"))).toBe(true);
+    expect(fcc.every((u) => u.includes("/fcc/") || u.includes("tee/extensions"))).toBe(true);
+
+    const fassets = selectOfficialSources("Research Flare FAssets and FXRP.").map((p) => p.url);
+    expect(fassets.some((u) => u.includes("/fassets/"))).toBe(true);
+
+    const fdc = selectOfficialSources("Research the Flare Data Connector (FDC).").map((p) => p.url);
+    expect(fdc.some((u) => u.includes("/fdc/"))).toBe(true);
+    expect(fdc.every((u) => u.includes("/fdc/"))).toBe(true);
+
+    const signals = selectOfficialSources("Research FTSO price signals on Flare.").map((p) => p.url);
+    expect(signals.some((u) => u.includes("/ftso/"))).toBe(true);
+
+    const shortSignals = selectOfficialSources("Research signals").map((p) => p.url);
+    expect(shortSignals.some((u) => u.includes("/ftso/"))).toBe(true);
   });
 
   it("selects official SparkDEX + Flare core pages for SparkDEX", () => {

@@ -35,7 +35,7 @@ import { useProductWallet } from "@/lib/productWallet";
 import { ensureSafeAgentSession, readSafeAgentSession } from "@/lib/safeSession";
 import { DeskContextStrip } from "@/components/workspace/DeskContextStrip";
 import { ResultExperience } from "@/components/workspace/ResultExperience";
-import { ExamplePrompts } from "@/components/workspace/ExamplePrompts";
+import { ExamplePrompts, type ExampleChip } from "@/components/workspace/ExamplePrompts";
 import { NETWORK, CONTRACTS } from "@/lib/chain";
 import { FLARE_STEPS_SAFE, FLARE_STEPS_WALLET, flareStepState } from "@/lib/flareSteps";
 
@@ -56,16 +56,17 @@ const ICONS: Record<ServiceId, LucideIcon> = {
 };
 
 const SERVICE_HINTS: Partial<
-  Record<ServiceId, { blurb: string; examples: string[]; placeholder?: string }>
+  Record<ServiceId, { blurb: string; examples: ExampleChip[]; placeholder?: string }>
 > = {
   research: {
     blurb:
-      "Research a protocol, product, competitor, market, project, or topic. Flare and Beacon jobs pull live docs; other topics pull Wikipedia and the web.",
+      "Research SparkDEX, FCC, FAssets, FDC, or FTSO signals. Beacon pulls live Flare DevHub and SparkDEX docs.",
     examples: [
-      "Research SparkDEX on Flare Mainnet vs Beacon SwapDesk on Coston2",
-      "What does FCC do in Beacon, and why can it not move funds?",
-      "Research FTSO: how Beacon uses live prices on Coston2",
-      "How Beacon Safe + escrow locks Coston2 USDT0 for Agent Jobs",
+      { label: "Research SparkDEX", prompt: "Research SparkDEX on Flare." },
+      { label: "Research FCC", prompt: "Research Flare Confidential Compute (FCC)." },
+      { label: "Research FAssets", prompt: "Research Flare FAssets and FXRP." },
+      { label: "Research FDC", prompt: "Research the Flare Data Connector (FDC)." },
+      { label: "Research signals", prompt: "Research FTSO price signals on Flare." },
     ],
     placeholder: "What should Beacon research?",
   },

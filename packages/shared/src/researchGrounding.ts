@@ -71,14 +71,19 @@ const OFFICIAL_PAGES: OfficialPage[] = [
   {
     title: "Flare — FTSO overview",
     url: "https://dev.flare.network/ftso/overview",
-    match: /ftso|oracle|price feed|flare ecosystem/i,
+    match: /ftso|oracle|price feed|\bsignals?\b|flare ecosystem/i,
     flareCore: true,
   },
   {
     title: "Flare — FDC overview",
     url: "https://dev.flare.network/fdc/overview",
-    match: /fdc|attestation|data connector/i,
+    match: /\bfdc\b|attestation|data connector/i,
     flareCore: true,
+  },
+  {
+    title: "Flare — FDC getting started",
+    url: "https://dev.flare.network/fdc/getting-started",
+    match: /\bfdc\b|attestation|data connector/i,
   },
   {
     title: "Flare — FCC overview",
@@ -87,10 +92,25 @@ const OFFICIAL_PAGES: OfficialPage[] = [
     flareCore: true,
   },
   {
+    title: "Flare — FCC developer guides",
+    url: "https://dev.flare.network/fcc/developer-guides",
+    match: /\bfcc\b|confidential compute|\btee\b/i,
+  },
+  {
     title: "Flare — FAssets overview",
     url: "https://dev.flare.network/fassets/overview",
-    match: /fasset|fxrp|xrp defi|xrp on flare/i,
+    match: /fassets?|fxrp|xrp defi|xrp on flare/i,
     flareCore: true,
+  },
+  {
+    title: "Flare — FAssets minting",
+    url: "https://dev.flare.network/fassets/minting",
+    match: /fassets?|fxrp|xrp on flare/i,
+  },
+  {
+    title: "Flare — FAssets redemption",
+    url: "https://dev.flare.network/fassets/redemption",
+    match: /fassets?|fxrp|xrp on flare/i,
   },
   {
     title: "Flare — USDT0 / FXRP swap",
@@ -111,7 +131,7 @@ const OFFICIAL_PAGES: OfficialPage[] = [
   {
     title: "Flare — getting started",
     url: "https://dev.flare.network/network/getting-started",
-    match: /flare|developer|coston2/i,
+    match: /getting started|developer tools|coston2/i,
     flareCore: true,
   },
   {
@@ -155,15 +175,18 @@ const ALLOWED_HOSTS = new Set([
 ]);
 
 export function topicTouchesFlare(topic: string): boolean {
-  return /flare|ftso|fdc|\bfcc\b|fasset|fxrp|usdt0|coston|sparkdex|beacon|layerzero|\boft\b|x402|\bmcp\b|xrp/i.test(
+  return /flare|ftso|fdc|\bfcc\b|fassets?|fxrp|usdt0|coston|sparkdex|beacon|layerzero|\boft\b|x402|\bmcp\b|xrp|\bsignals?\b/i.test(
     topic,
   );
 }
 
 export function selectOfficialSources(topic: string): OfficialPage[] {
   const flare = topicTouchesFlare(topic);
-  const matched = OFFICIAL_PAGES.filter((p) => p.match.test(topic) || (flare && p.flareCore)).sort(
-    (a, b) => {
+  const directHits = OFFICIAL_PAGES.filter((p) => p.match.test(topic));
+  const matched = (directHits.length > 0
+    ? directHits
+    : OFFICIAL_PAGES.filter((p) => flare && p.flareCore)
+  ).sort((a, b) => {
       const aHit = a.match.test(topic) ? 0 : 1;
       const bHit = b.match.test(topic) ? 0 : 1;
       return aHit - bHit;

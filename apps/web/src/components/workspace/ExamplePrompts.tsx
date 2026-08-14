@@ -2,12 +2,22 @@ import { motion, useReducedMotion } from "motion/react";
 import { Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+export type ExampleChip = string | { label: string; prompt: string };
+
+function chipLabel(example: ExampleChip): string {
+  return typeof example === "string" ? example : example.label;
+}
+
+function chipPrompt(example: ExampleChip): string {
+  return typeof example === "string" ? example : example.prompt;
+}
+
 export function ExamplePrompts({
   examples,
   value,
   onPick,
 }: {
-  examples: string[];
+  examples: ExampleChip[];
   value: string;
   onPick: (text: string) => void;
 }) {
@@ -24,10 +34,12 @@ export function ExamplePrompts({
       </p>
       <div className="flex flex-wrap gap-2">
         {examples.map((example, i) => {
-          const active = selected === example;
+          const label = chipLabel(example);
+          const prompt = chipPrompt(example);
+          const active = selected === prompt;
           return (
             <motion.button
-              key={example}
+              key={prompt}
               type="button"
               initial={reduce ? false : { opacity: 0, y: 10, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -39,17 +51,17 @@ export function ExamplePrompts({
               }}
               whileHover={reduce ? undefined : { y: -2, scale: 1.02 }}
               whileTap={reduce ? undefined : { scale: 0.98 }}
-              onClick={() => onPick(example)}
+              onClick={() => onPick(prompt)}
               aria-pressed={active}
               className={cn(
-                "max-w-full rounded-full border px-3.5 py-2 text-left text-sm leading-snug text-ink",
+                "max-w-full rounded-full border px-3.5 py-2 text-left text-sm font-medium leading-snug text-ink",
                 active
                   ? "border-signal bg-signal shadow-[0_0_0_1px_var(--color-signal)]"
                   : "border-signal/70 bg-signal/15 hover:border-signal hover:bg-signal/25",
                 i === 0 && !active && !reduce && "example-chip-ping",
               )}
             >
-              {example}
+              {label}
             </motion.button>
           );
         })}

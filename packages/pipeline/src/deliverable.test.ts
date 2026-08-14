@@ -125,6 +125,8 @@ Not financial advice. No invented URLs or TVL.
     expect(prompt).toContain("any user topic");
     expect(prompt).toContain("never say there is no information");
     expect(prompt).toContain("sparkdex");
+    expect(prompt).toContain("fassets");
+    expect(prompt).toContain("source of truth");
   });
 
   it("rejects a retrieval-refusal dressed as a research brief", () => {
