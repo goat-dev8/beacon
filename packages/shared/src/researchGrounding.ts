@@ -180,10 +180,17 @@ export function selectOfficialSources(topic: string): OfficialPage[] {
   return out;
 }
 
-const TOPIC_ALIASES: Array<{ match: RegExp; canonical: string }> = [
+const TOPIC_ALIASES: Array<{ match: RegExp; canonical: string; wiki?: string; gecko?: string }> = [
+  { match: /\b(btc|bitcoin)\b/i, canonical: "Bitcoin", wiki: "Bitcoin", gecko: "bitcoin" },
+  { match: /\b(eth|ethereum)\b/i, canonical: "Ethereum", wiki: "Ethereum", gecko: "ethereum" },
+  { match: /\b(xrp|ripple)\b/i, canonical: "XRP", wiki: "XRP", gecko: "ripple" },
   { match: /\bpoly[\s_-]*market/i, canonical: "Polymarket" },
   { match: /\buni[\s_-]*swap/i, canonical: "Uniswap" },
 ];
+
+function aliasFor(topic: string) {
+  return TOPIC_ALIASES.find((a) => a.match.test(topic)) ?? null;
+}
 
 export function extractSearchQuery(topic: string): string {
   const stripped = topic
@@ -191,9 +198,8 @@ export function extractSearchQuery(topic: string): string {
     .replace(/\b(reasearch|research|analysis)\s*$/i, "")
     .replace(/\s+/g, " ")
     .trim();
-  for (const alias of TOPIC_ALIASES) {
-    if (alias.match.test(stripped) || alias.match.test(topic)) return alias.canonical;
-  }
+  const hit = aliasFor(stripped) || aliasFor(topic);
+  if (hit) return hit.canonical;
   return stripped.slice(0, 120);
 }
 
@@ -314,37 +320,74 @@ async function fetchExcerpt(
   return { ok: false, excerpt: "", error: lastErr };
 }
 
+async function fetchWikiSummary(
+  title: string,
+  fetchImpl: typeof fetch,
+): Promise<RetrievedSource | null> {
+  try {
+    const sumRes = await fetchImpl(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
+      { signal: AbortSignal.timeout(8_000) },
+    );
+    if (!sumRes.ok) return null;
+    const sum = (await sumRes.json()) as {
+      title?: string;
+      extract?: string;
+      content_urls?: { desktop?: { page?: string } };
+    };
+    const extract = (sum.extract || "").trim();
+    if (extract.length < 80) return null;
+    const url = sum.content_urls?.desktop?.page || `https://en.wikipedia.org/wiki/${encodeURIComponent(title)}`;
+    return {
+      title: `Wikipedia — ${sum.title || title}`,
+      url,
+      excerpt: extract.slice(0, EXCERPT_CHARS),
+      fetchedAt: new Date().toISOString(),
+      ok: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchCoinGeckoNote(topic: string, fetchImpl: typeof fetch): Promise<string | null> {
+  const hit = aliasFor(topic);
+  if (!hit?.gecko) return null;
+  try {
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(hit.gecko)}&vs_currencies=usd&include_24hr_change=true`;
+    const res = await fetchImpl(url, {
+      headers: { Accept: "application/json", "User-Agent": "BeaconResearch/1.0" },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as Record<string, { usd?: number; usd_24h_change?: number }>;
+    const row = json[hit.gecko];
+    if (!row || typeof row.usd !== "number") return null;
+    const change = typeof row.usd_24h_change === "number" ? ` (${row.usd_24h_change.toFixed(2)}% 24h)` : "";
+    return `Live CoinGecko ${hit.canonical}: $${row.usd.toLocaleString("en-US")}${change}. Quote this as live, not unverified.`;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchWikipedia(
   topic: string,
   fetchImpl: typeof fetch,
 ): Promise<RetrievedSource | null> {
   const q = extractSearchQuery(topic);
   if (q.length < 3) return null;
+  const alias = aliasFor(topic) || aliasFor(q);
+  const directTitle = alias?.wiki || q;
+  const direct = await fetchWikiSummary(directTitle, fetchImpl);
+  if (direct) return direct;
   try {
     const searchUrl = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(q)}&limit=1&namespace=0&format=json`;
-    const searchRes = await fetchImpl(searchUrl, { signal: AbortSignal.timeout(FETCH_MS) });
+    const searchRes = await fetchImpl(searchUrl, { signal: AbortSignal.timeout(8_000) });
     if (!searchRes.ok) return null;
     const json = (await searchRes.json()) as [string, string[], string[], string[]];
     const title = json[1]?.[0];
-    const pageUrl = json[3]?.[0];
-    if (!title || !pageUrl || !hostAllowed(pageUrl)) return null;
-    if (!wikipediaTitleRelevant(q, title)) return null;
-    const sumRes = await fetchImpl(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
-      { signal: AbortSignal.timeout(FETCH_MS) },
-    );
-    if (!sumRes.ok) return null;
-    const sum = (await sumRes.json()) as { extract?: string; content_urls?: { desktop?: { page?: string } } };
-    const extract = (sum.extract || "").trim();
-    if (extract.length < 80) return null;
-    const url = sum.content_urls?.desktop?.page || pageUrl;
-    return {
-      title: `Wikipedia — ${title}`,
-      url,
-      excerpt: extract.slice(0, EXCERPT_CHARS),
-      fetchedAt: new Date().toISOString(),
-      ok: true,
-    };
+    if (!title || !wikipediaTitleRelevant(q, title)) return null;
+    return fetchWikiSummary(title, fetchImpl);
   } catch {
     return null;
   }
@@ -457,7 +500,8 @@ function formatModelContext(g: Omit<ResearchGrounding, "modelContext">): string 
   );
   return [
     "RETRIEVED CONTEXT — only the URLs listed here were actually fetched. Do not invent URLs, paper titles, TVL, or audit scores.",
-    "Prefer these excerpts over unaudited memory. If something is not in the excerpts, say it is unverified.",
+    "Wikipedia and live price notes ARE retrieved context. Do not write 'current state is unverified' or 'no live data' when excerpts or live checks exist. Quote them.",
+    "Prefer these excerpts over unaudited memory. If a specific live figure is missing, omit that figure — still answer the topic.",
     g.beaconFlareContext,
     g.liveNotes.length ? `Live checks:\n${g.liveNotes.map((n) => `- ${n}`).join("\n")}` : "",
     blocks.length
@@ -510,7 +554,7 @@ export async function gatherResearchGrounding(
           )
       : Promise.resolve(null as string | null);
 
-  const [sourceResults, wiki, web, sparkNote, ftsoNote] = await Promise.all([
+  const [sourceResults, wiki, web, sparkNote, ftsoNote, geckoNote] = await Promise.all([
     Promise.all(
       pages.map(async (page) => {
         const got = await fetchExcerpt(page.url, fetchImpl);
@@ -528,9 +572,10 @@ export async function gatherResearchGrounding(
     fetchWebSearch(topic, fetchImpl, { skipJina: topicTouchesFlare(topic) && pages.length > 0 }),
     sparkP,
     ftsoP,
+    fetchCoinGeckoNote(topic, fetchImpl),
   ]);
 
-  const liveNotes = [sparkNote, ftsoNote].filter((n): n is string => Boolean(n));
+  const liveNotes = [sparkNote, ftsoNote, geckoNote].filter((n): n is string => Boolean(n));
   const sources = [...sourceResults, ...(wiki ? [wiki] : []), ...web];
 
   const base = {

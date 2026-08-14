@@ -119,31 +119,51 @@ export function flareStepState(
   status: JobStatus | undefined,
   hasLock: boolean,
 ): "done" | "active" | "todo" {
-  if (!status) return step.statusKey === "LOCK" && hasLock ? "done" : "todo";
+  // Lock tx means Safe/wallet already moved funds. Don't leave the first dot stuck
+  // while GET /jobs is still on QUOTED or has not arrived.
+  const effective: JobStatus | undefined =
+    hasLock && (!status || status === "QUOTED" || status === "DRAFT")
+      ? "AUTHORIZED"
+      : status;
+
+  if (!effective) return "todo";
 
   if (step.statusKey === "LOCK") {
-    return hasLock || ORDER.indexOf(status) >= 0 ? "done" : "todo";
+    return hasLock || ORDER.indexOf(effective) >= 0 ? "done" : "todo";
   }
 
-  if (status === "FAILED" || status === "REFUSING") {
+  if (effective === "FAILED" || effective === "REFUSING") {
     const i = ORDER.indexOf(step.statusKey as JobStatus);
     const acceptIdx = ORDER.indexOf("ACCEPTING");
-    // Generation failed before accept — mark generate as done/failed path, seal refund+receipt.
-    if (status === "FAILED" && step.id === "generate") return "done";
+    if (effective === "FAILED" && step.id === "generate") return "done";
     if (i >= 0 && i <= acceptIdx) return "done";
     if (step.id === "settle" || step.id === "receipt") return "done";
     return "todo";
   }
 
-  const cur = ORDER.indexOf(status);
+  const cur = ORDER.indexOf(effective);
+  if (cur < 0) return "todo";
+
+  // Spend + lock already happened when we have a lock hash.
+  if (step.id === "spend" || step.id === "auth" || step.id === "lock") {
+    if (hasLock || cur > ORDER.indexOf("AUTHORIZED")) return "done";
+    if (effective === "AUTHORIZED") return step.id === "lock" ? "active" : "done";
+    return "todo";
+  }
+
   const stepIdx = ORDER.indexOf(step.statusKey as JobStatus);
   if (stepIdx < 0) return "todo";
-  if (status === "CLOSED" || status === "PASSED") {
-    return "done";
+  if (effective === "CLOSED" || effective === "PASSED") return "done";
+  if (
+    step.statusKey === "GENERATING" &&
+    (effective === "AUTHORIZED" ||
+      effective === "PREPARING" ||
+      effective === "GENERATING" ||
+      effective === "COMPOSING")
+  ) {
+    return "active";
   }
   if (cur > stepIdx) return "done";
-  if (cur === stepIdx || (step.statusKey === "GENERATING" && (status === "COMPOSING" || status === "PREPARING")))
-    return "active";
-  if (step.statusKey === "GENERATING" && status === "PREPARING") return "active";
+  if (cur === stepIdx) return "active";
   return "todo";
 }

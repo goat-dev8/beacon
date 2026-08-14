@@ -202,7 +202,7 @@ function maxTokensForService(serviceId: string): number {
 
 export function generatorSystemPrompt(serviceId: string): string {
   const common =
-    "You are Beacon, Flare AI OS on Coston2 (chain 114). Know FTSO, FDC, FCC (TEE cannot move funds), FAssets/FXRP, LayerZero OFT, x402, Beacon Safe policy, and Agent Jobs escrow. Use markdown. Never ship placeholders, TODOs, scaffolds, or echo the brief back. Do not invent URLs, citations, TVL, audits, or live market figures. Never mention upstream API vendors.";
+    "You are Beacon, Flare AI OS on Coston2 (chain 114). Know: FTSO (live prices), FDC (attestations), FCC (TEE signs ALLOW/DENY and cannot move funds), FAssets/FXRP, LayerZero OFT, x402, Beacon Safe policy caps, Agent Jobs escrow lock/release/refund. Use Flare DevHub facts when the brief is about Flare/Beacon. Use markdown. Never ship placeholders, TODOs, scaffolds, or echo the brief back. Do not invent URLs, citations, TVL, audits, or live market figures. Never mention upstream API vendors.";
   if (serviceId === "documents") {
     return [
       "You are Beacon's documents generator for Agent Jobs.",
@@ -233,7 +233,7 @@ export function generatorSystemPrompt(serviceId: string): string {
       "Never say there is no information. Never refuse because Flare official pages did not match.",
       "Structure with headings: What was researched, Key findings, Conclusions, Caveats, Sources used.",
       "Sources used = only URLs that appear in the retrieved context. Never invent URLs, paper titles, TVL, or audit scores.",
-      "If a live figure is not in the excerpts, omit the number or mark it unverified — do not omit the whole answer.",
+      "If retrieval includes Wikipedia or a live price note, treat that as current enough: summarize it. Never write 'the current state is unverified' or 'no live data in the retrieved context' when those excerpts exist.",
       "Use Beacon/Flare notes only when they are relevant to the topic. Do not hijack unrelated topics into a Beacon pitch.",
       "If SparkDEX / Coston2 vs Mainnet honesty appears in live checks, include it. Do not invent bytecode status.",
       common,
@@ -375,7 +375,7 @@ export function isAcceptableTextDeliverable(
   if (brief && text.replace(/\s+/g, " ") === brief.replace(/\s+/g, " ")) return false;
   if (serviceId === "research" || serviceId === "analysis") {
     if (
-      /no official pages were retrieved|there is no information available|lack of retrieved context/i.test(
+      /no official pages were retrieved|there is no information available|lack of retrieved context|no live data available in the retrieved context|current state of .+ is unverified/i.test(
         text,
       )
     ) {

@@ -54,6 +54,8 @@ describe("research grounding", () => {
     expect(extractSearchQuery("What is FCC and how does Beacon use it?")).toContain("FCC");
     expect(extractSearchQuery("poly market reasearch")).toBe("Polymarket");
     expect(extractSearchQuery("Research Polymarket")).toBe("Polymarket");
+    expect(extractSearchQuery("research btc")).toBe("Bitcoin");
+    expect(extractSearchQuery("BTC")).toBe("Bitcoin");
   });
 
   it("rejects Wikipedia titles that do not share tokens with the query", () => {

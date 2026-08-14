@@ -60,29 +60,29 @@ const SERVICE_HINTS: Partial<
 > = {
   research: {
     blurb:
-      "Research a protocol, product, competitor, market, project, or topic. You get what was researched, key findings, conclusions, and caveats — not invented citations.",
+      "Research a protocol, product, competitor, market, project, or topic. Flare and Beacon jobs pull live docs; other topics pull Wikipedia and the web.",
     examples: [
-      "Research SparkDEX",
-      "Research Polymarket",
-      "Compare two DeFi protocols",
-      "Research the latest XRP ecosystem developments",
+      "Research SparkDEX on Flare Mainnet vs Beacon SwapDesk on Coston2",
+      "What does FCC do in Beacon, and why can it not move funds?",
+      "Research FTSO: how Beacon uses live prices on Coston2",
+      "How Beacon Safe + escrow locks Coston2 USDT0 for Agent Jobs",
     ],
     placeholder: "What should Beacon research?",
   },
   coding: {
     blurb: "Describe the program or snippet you need. You should get runnable code, not a scaffold.",
     examples: [
-      "Python calculator: two numbers and + - * / from input, print the result",
-      "TypeScript function that formats a Coston2 address",
-      "CLI that prints Coston2 USDT0 balance for a given address",
+      "TypeScript function that checksums a Coston2 (chain 114) address",
+      "Python CLI: print Flare Coston2 chain id 114 and USDT0 6-decimal amount",
+      "Snippet: encode a BeaconEscrow lock amount from $0.011 USDT0",
     ],
   },
   documents: {
     blurb: "Reports, SOPs, school or work docs — say audience, length, and must-haves.",
     examples: [
-      "One-page SOP for depositing Coston2 USDT0 into Beacon Safe",
-      "School worksheet: what FCC is, and why it cannot move funds",
-      "Internal memo: how Agent Jobs lock, generate, then release or refund",
+      "One-page SOP: fund Beacon Safe, set policy, pay a research job on Coston2",
+      "School worksheet: FTSO vs FDC vs FCC on Flare — what each can and cannot do",
+      "Internal memo: Agent Jobs lock → generate → accept → release or refund",
     ],
   },
   marketing: {
@@ -90,47 +90,47 @@ const SERVICE_HINTS: Partial<
     examples: [
       "Landing headlines for Beacon Safe on Flare Coston2",
       "X thread: prepaid agent spend with policy caps, no MetaMask per job",
-      "Product email: research jobs that cite live sources, not invented links",
+      "Email: Agent Jobs research cites Flare docs, not invented links",
     ],
   },
   design: {
     blurb: "Visual direction plus a generated creative. Name the surface, mood, and constraints.",
     examples: [
-      "App icon for a Flare wallet: signal green, geometric, dark background",
+      "App icon for Beacon on Flare: signal green, geometric, dark background",
       "Poster: Beacon Safe gates agent spend on Coston2",
       "Sticker sheet: FTSO, FCC, x402 marks on paper",
     ],
   },
   image: {
-    blurb: "A generated still: thumbnail, product shot, or creative.",
+    blurb: "A generated still. Keep the subject simple: one object, clear light, no tiny UI text.",
     examples: [
-      "Square thumbnail: Beacon mark, paper background, signal-green accent",
-      "OG image: Describe the job screen with green quote button",
-      "Product still: Coston2 USDT0 lock into BeaconEscrow",
+      "A red apple on a wooden table, soft daylight, photo",
+      "A silver car in side view on a clean studio background",
+      "A yellow banana on a white table, simple product photo",
     ],
   },
   ui: {
     blurb: "Layouts, components, and handoff notes. Prefer a single screen and platform.",
     examples: [
-      "Mobile jobs quote screen: price, Safe pay, wallet fallback",
-      "Desktop Generate + compose step with thinking lines",
-      "Empty state: tap an example to fill the brief",
+      "Mobile Agent Jobs quote screen: Coston2 USDT0 price, Safe pay, wallet fallback",
+      "Desktop Generate + compose step with thinking lines for a Flare research job",
+      "Beacon Safe policy screen: per-tx cap, rolling window, Coston2 114",
     ],
   },
   branding: {
     blurb: "Name, personality, usage, and a generated mark visual.",
     examples: [
-      "Brand pack for a Coston2 research desk named Signal Brief",
-      "Wordmark + usage for a Flare agent called Rails",
+      "Brand pack for Beacon on Flare: signal green, paper, escrow-honest tone",
+      "Wordmark + usage for a Coston2 agent desk named Rails",
       "Logo lockup: Beacon + FCC TEE, dark product UI",
     ],
   },
   analysis: {
     blurb: "A real analysis: question, findings, trade-offs, recommendation, caveats.",
     examples: [
-      "Analyze whether to swap USDT0→FXRP on Coston2 vs waiting for mainnet SparkDEX",
-      "Trade-offs: Beacon Safe prepaid vs wallet lockFrom for one research job",
-      "Should an agent use FTSO or a DEX pool price for a Coston2 guard?",
+      "Analyze USDT0→FXRP on Coston2 SwapDesk vs waiting for mainnet SparkDEX",
+      "Trade-offs: Beacon Safe prepaid vs wallet lockFrom for one Flare research job",
+      "Should an agent use FTSO or a DEX pool price for a Coston2 spend guard?",
     ],
   },
   presentations: {
@@ -138,23 +138,23 @@ const SERVICE_HINTS: Partial<
     examples: [
       "8-slide deck: how Beacon Safe + FCC gates agent spend on Coston2",
       "5-slide pitch: Agent Jobs lock, generate, accept, release or refund",
-      "Investor deck: Flare rails behind Beacon — FTSO, FDC, FCC, x402",
+      "Deck: Flare rails behind Beacon — FTSO, FDC, FCC, FAssets, x402",
     ],
   },
   planning: {
     blurb: "An actionable plan: goal, milestones, risks, next step.",
     examples: [
-      "Plan a 7-day Coston2 test: faucet, Safe, swap, one research job",
-      "Launch checklist for shipping a coding job from Beacon Safe",
-      "Week plan: fund Safe, set policy, run research + presentation jobs",
+      "Plan a 7-day Coston2 test: faucet, Beacon Safe, SwapDesk, one research job",
+      "Launch checklist: ship a coding job paid from Beacon Safe on chain 114",
+      "Week plan: fund Safe, set policy, run Flare research + presentation jobs",
     ],
   },
   agents: {
     blurb: "An agent spec: role, tools, guardrails, sample first message.",
     examples: [
-      "Agent brief for a Flare research assistant that never invents URLs",
-      "Spend agent: quote a job, pay from Safe, never receive the user key",
-      "Ops agent: check FTSO, then recommend wait vs swap on Coston2",
+      "Agent brief: Flare research assistant that cites DevHub URLs and never invents links",
+      "Spend agent: quote a Coston2 job, pay from Beacon Safe, never receive the user key",
+      "Ops agent: read FTSO, then recommend wait vs SwapDesk USDT0→FXRP on Coston2",
     ],
   },
 };
@@ -246,6 +246,7 @@ export function Workspace({ embedded = false }: { embedded?: boolean } = {}) {
     queryFn: () => api.getJob(jobId!),
     enabled: Boolean(jobId),
     refetchInterval: (q) => {
+      if (step === "live") return 1200;
       const status = q.state.data?.job.status;
       if (!status) return false;
       if (LIVE_STATUSES.includes(status) || status === "NEEDS_LOOK") return 1200;
